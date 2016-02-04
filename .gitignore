@@ -1,0 +1,9 @@
+bin/
+.DS_Store
+*.iml
+*.ipr
+*.iws
+.idea
+*.log
+Thumbs.db
+**/Godeps/_workspace
