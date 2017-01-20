@@ -2,27 +2,71 @@
 package http
 
 import (
+	"fmt"
 	c "github.com/d0ngw/go/common"
 	"golang.org/x/net/netutil"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
 
 // HttpConfig Http配置
 type HttpConfig struct {
-	Addr         string            //Http监听地址
-	ReadTimeout  time.Duration     // 读超时,单位秒
-	WriteTimeout time.Duration     // 写超时,单位秒
-	Controllers  map[string]string //Controller配置,key:uri pattern,value:http.Handler 的名称
-	MaxConns     int               //最大的并发连接数
+	Addr          string                      //Http监听地址
+	ReadTimeout   time.Duration               // 读超时,单位秒
+	WriteTimeout  time.Duration               // 写超时,单位秒
+	controllers   map[string]http.HandlerFunc //Controller配置,key:uri pattern,value:http.Handler 的名称
+	MaxConns      int                         //最大的并发连接数
+	controllerMux sync.RWMutex
+}
+
+func (self *HttpConfig) RegController(controller Controller) error {
+	if controller == nil {
+		return fmt.Errorf("Can't reg nil contriller")
+	}
+
+	c.Infof("Reg controller %s", controller.GetName())
+	var path = controller.GetPath()
+	if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+
+	self.controllerMux.Lock()
+	defer self.controllerMux.Unlock()
+
+	handlers, err := controller.GetHandlers()
+	if err != nil {
+		return err
+	}
+
+	if len(handlers) == 0 {
+		c.Warnf("Can't find handler in %#v", controller)
+		return nil
+	}
+
+	for p, h := range handlers {
+		if strings.HasPrefix(p, "/") {
+			p = p[1:]
+		}
+
+		patternPath := path + p
+		if _, ok := self.controllers[patternPath]; ok {
+			panic(fmt.Errorf("Duplicate controller name:%s,path:%s", controller.GetName(), patternPath))
+		} else {
+			self.controllers[patternPath] = h
+			c.Infof("Register controller name:%s with %T", controller)
+		}
+	}
+	return nil
 }
 
 type tcpKeepAliveListener struct {
 	*net.TCPListener
 }
 
+// Accept接受连接
 func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	tc, err := ln.AcceptTCP()
 	if err != nil {
@@ -63,11 +107,9 @@ func (self *HttpService) Init() bool {
 
 	serveMux := http.NewServeMux()
 
-	for pattern, cname := range self.Conf.Controllers {
-		c.Infof("Binding %s to %s", pattern, cname)
-		handler := GetController(cname)
+	for pattern, handler := range self.Conf.controllers {
 		if handler == nil {
-			c.Criticalf("Can't find the controller for name:%s", cname)
+			c.Criticalf("Can't bind nil handlerFunc to path %s", pattern)
 			return false
 		}
 		serveMux.Handle(pattern, handler)
