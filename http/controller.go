@@ -31,6 +31,10 @@ func (self *BaseController) GetPath() string {
 	return self.Path
 }
 
+func (self *BaseController) GetHandlers() (map[string]http.HandlerFunc, error) {
+	panic("Please implement GetHandlers")
+}
+
 var (
 	m http.HandlerFunc
 	t = reflect.TypeOf(m)

@@ -17,9 +17,16 @@ type HttpConfig struct {
 	Addr          string                      //Http监听地址
 	ReadTimeout   time.Duration               // 读超时,单位秒
 	WriteTimeout  time.Duration               // 写超时,单位秒
-	controllers   map[string]http.HandlerFunc //Controller配置,key:uri pattern,value:http.Handler 的名称
 	MaxConns      int                         //最大的并发连接数
+	controllers   map[string]http.HandlerFunc //Controller配置,key:uri pattern,value:http.Handler 的名称
 	controllerMux sync.RWMutex
+}
+
+func NewHttpConfig(addr string) *HttpConfig {
+	return &HttpConfig{
+		Addr:        addr,
+		controllers: map[string]http.HandlerFunc{},
+	}
 }
 
 func (self *HttpConfig) RegController(controller Controller) error {
@@ -56,7 +63,7 @@ func (self *HttpConfig) RegController(controller Controller) error {
 			panic(fmt.Errorf("Duplicate controller name:%s,path:%s", controller.GetName(), patternPath))
 		} else {
 			self.controllers[patternPath] = h
-			c.Infof("Register controller name:%s with %T", controller)
+			c.Infof("Register controller name:%s,path:%s", controller.GetName(), patternPath)
 		}
 	}
 	return nil
@@ -93,7 +100,7 @@ func (self *GraceableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 // HttpService Http服务
 type HttpService struct {
 	c.BaseService
-	Conf         HttpConfig
+	Conf         *HttpConfig
 	listener     net.Listener
 	serveMux     *http.ServeMux
 	graceHandler *GraceableHandler
