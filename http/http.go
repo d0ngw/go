@@ -2,72 +2,13 @@
 package http
 
 import (
-	"fmt"
 	c "github.com/d0ngw/go/common"
 	"golang.org/x/net/netutil"
 	"net"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
-
-// HttpConfig Http配置
-type HttpConfig struct {
-	Addr          string                      //Http监听地址
-	ReadTimeout   time.Duration               // 读超时,单位秒
-	WriteTimeout  time.Duration               // 写超时,单位秒
-	MaxConns      int                         //最大的并发连接数
-	controllers   map[string]http.HandlerFunc //Controller配置,key:uri pattern,value:http.Handler 的名称
-	controllerMux sync.RWMutex
-}
-
-func NewHttpConfig(addr string) *HttpConfig {
-	return &HttpConfig{
-		Addr:        addr,
-		controllers: map[string]http.HandlerFunc{},
-	}
-}
-
-func (self *HttpConfig) RegController(controller Controller) error {
-	if controller == nil {
-		return fmt.Errorf("Can't reg nil contriller")
-	}
-
-	c.Infof("Reg controller %s", controller.GetName())
-	var path = controller.GetPath()
-	if !strings.HasSuffix(path, "/") {
-		path += "/"
-	}
-
-	self.controllerMux.Lock()
-	defer self.controllerMux.Unlock()
-
-	handlers, err := controller.GetHandlers()
-	if err != nil {
-		return err
-	}
-
-	if len(handlers) == 0 {
-		c.Warnf("Can't find handler in %#v", controller)
-		return nil
-	}
-
-	for p, h := range handlers {
-		if strings.HasPrefix(p, "/") {
-			p = p[1:]
-		}
-
-		patternPath := path + p
-		if _, ok := self.controllers[patternPath]; ok {
-			panic(fmt.Errorf("Duplicate controller name:%s,path:%s", controller.GetName(), patternPath))
-		} else {
-			self.controllers[patternPath] = h
-			c.Infof("Register controller name:%s,path:%s", controller.GetName(), patternPath)
-		}
-	}
-	return nil
-}
 
 type tcpKeepAliveListener struct {
 	*net.TCPListener
@@ -114,12 +55,12 @@ func (self *HttpService) Init() bool {
 
 	serveMux := http.NewServeMux()
 
-	for pattern, handler := range self.Conf.controllers {
+	for pattern, handler := range self.Conf.handles {
 		if handler == nil {
 			c.Criticalf("Can't bind nil handlerFunc to path %s", pattern)
 			return false
 		}
-		serveMux.Handle(pattern, handler)
+		serveMux.Handle(pattern, self.handleWithMiddleware(handler))
 	}
 
 	graceHandler := &GraceableHandler{
@@ -140,6 +81,29 @@ func (self *HttpService) Init() bool {
 	self.server = server
 	self.serveMux = serveMux
 	return true
+}
+
+// handleWithMiddleware 依次调用各个middleware
+func (self *HttpService) handleWithMiddleware(handler http.HandlerFunc) http.HandlerFunc {
+	originHandler := func(w http.ResponseWriter, r *http.Request) {
+		if err, ok := ErrorFromRequestContext(r); ok {
+			c.Errorf("stop handle %s,cause by error:%s", r.RequestURI, err)
+		} else {
+			handler(w, r)
+		}
+	}
+
+	var middlewares = self.Conf.middlewares
+	var middlewareCount = len(middlewares)
+
+	h := originHandler
+	for i := middlewareCount - 1; i >= 0; i-- {
+		h = middlewares[i].Handle(h)
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h(w, r)
+	})
 }
 
 // Start 启动Http服务,开始端口监听和服务处理

@@ -1,4 +1,3 @@
-//提供一些公用的类库
 package common
 
 import (

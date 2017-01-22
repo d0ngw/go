@@ -55,12 +55,17 @@ func IsValidServiceState(oldState ServiceState, newState ServiceState) bool {
 	return false
 }
 
+// Initable 表示需要进行初始化
+type Initable interface {
+	// Init 执行初始化操作,如果初始化失败,返回错误的原因
+	Init() error
+}
+
 // Service 统一的服务接口
 type Service interface {
+	Initable
 	// Name 取得服务名称
 	Name() string
-	// Init 初始化服务
-	Init() bool
 	// Start 启动服务
 	Start() bool
 	// Stop 停止服务
@@ -74,7 +79,11 @@ type Service interface {
 // ServiceInit初始化服务
 func ServiceInit(service Service) bool {
 	Infof("Init %T#%s", service, service.Name())
-	if service.Init() && service.setState(INITED) {
+	if service.State() == INITED {
+		Infof("%T#%s has been inited,skip", service, service.Name())
+		return true
+	}
+	if service.Init() == nil && service.setState(INITED) {
 		Infof("Init %T#%s succ", service, service.Name())
 		return true
 	}
@@ -120,8 +129,8 @@ func (self *BaseService) Name() string {
 	return self.SName
 }
 
-func (self *BaseService) Init() bool {
-	return true
+func (self *BaseService) Init() error {
+	return nil
 }
 
 func (self *BaseService) Start() bool {
