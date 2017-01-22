@@ -16,8 +16,8 @@ func TestMysqlCreateor(t *testing.T) {
 		return
 	}
 
-	defer dbp.DB.Close()
-	err = dbp.DB.Ping()
+	defer dbp.db.Close()
+	err = dbp.db.Ping()
 	if err != nil {
 		t.Errorf("Ping db fail %s", err)
 	}

@@ -15,7 +15,7 @@ type DBOper struct {
 	transDepth   int     //调用的深度
 }
 
-//
+// NewDBOper 创建数据库操作接口
 func NewDBOper(db *sql.DB) *DBOper {
 	return &DBOper{db: db}
 }
@@ -35,7 +35,7 @@ func (op *DBOper) checkTransStatus() error {
 		return sql.ErrTxDone
 	}
 	if op.tx == nil {
-		panic(&DBError{"Not begin transaction", nil})
+		return NewDBError(nil, "Not begin transaction")
 	}
 	return nil
 }
@@ -45,12 +45,13 @@ func (op *DBOper) incrTransDepth() {
 	c.Debugf("op.tranDepth:%v", op.transDepth)
 }
 
-func (op *DBOper) decrTransDepth() {
+func (op *DBOper) decrTransDepth() error {
 	op.transDepth = op.transDepth - 1
 	c.Debugf("op.tranDepth:%v", op.transDepth)
 	if op.transDepth < 0 {
-		panic(NewDBError(nil, "Too many invoke commit or rollback"))
+		return NewDBError(nil, "Too many invoke commit or rollback")
 	}
+	return nil
 }
 
 //结束事务
@@ -58,7 +59,9 @@ func (op *DBOper) finishTrans() error {
 	if err := op.checkTransStatus(); err != nil {
 		return err
 	}
-	op.decrTransDepth()
+	if err := op.decrTransDepth(); err != nil {
+		return err
+	}
 	if op.transDepth > 0 {
 		return nil
 	}
@@ -126,7 +129,7 @@ func (op *DBOper) DoInTrans(operation DBOperTxFunc) (rt interface{}, err error) 
 		}
 		transErr := op.finishTrans()
 		if transErr != nil {
-			c.Errorf("Finish transaction erro:%v", transErr)
+			c.Errorf("Finish transaction err:%v", transErr)
 			rt = nil
 			err = transErr
 		}
@@ -166,7 +169,11 @@ func Update(dbOper *DBOper, entity EntityInterface) (bool, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		bvalue, err := modelInfo.updateFunc(dbOper.tx, entity)
-		return reflect.ValueOf(bvalue).Bool(), err
+		if err != nil {
+			return false, err
+		} else {
+			return reflect.ValueOf(bvalue).Bool(), nil
+		}
 	} else {
 		return modelInfo.updateFunc(dbOper.db, entity)
 	}
@@ -187,7 +194,11 @@ func Get(dbOper *DBOper, entity EntityInterface, id int64) (EntityInterface, err
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		e, err := modelInfo.getFunc(dbOper.tx, entity, id)
-		return e.(EntityInterface), err
+		if e == nil || err != nil {
+			return nil, err
+		} else {
+			return e.(EntityInterface), nil
+		}
 	} else {
 		return modelInfo.getFunc(dbOper.db, entity, id)
 	}

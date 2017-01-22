@@ -32,7 +32,12 @@ type EntityInterface interface {
 
 //数据库连接池
 type DBPool struct {
-	DB *sql.DB
+	db *sql.DB
+}
+
+//NewDBOper 创建DBOper
+func (p *DBPool) NewDBOper() *DBOper {
+	return &DBOper{db: p.db}
 }
 
 //数据库配置
@@ -46,6 +51,6 @@ type DBConfig struct {
 }
 
 //数据库连接池创建
-type DBPoolCreater interface {
+type DBPoolCreator interface {
 	CreateDBPool(config DBConfig) (*DBPool, error)
 }

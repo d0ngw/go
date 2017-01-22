@@ -120,8 +120,6 @@ func createUpdateFunc(modelInfo *modelMeta) EntityUFunc {
 		paramValues = append(paramValues, id)
 
 		updateSql := fmt.Sprintf("UPDATE %s SET %s where %s = %s", entity.TableName(), columns, modelInfo.pkField.column, "?")
-		c.Debugf("updateSql:%v", updateSql)
-
 		rs, err := exec(executor, updateSql, paramValues)
 		if err != nil {
 			return false, err
@@ -130,9 +128,9 @@ func createUpdateFunc(modelInfo *modelMeta) EntityUFunc {
 		//检查更新的记录数
 		if rows, err := rs.RowsAffected(); err == nil {
 			if rows != 1 {
-				return false, err
+				return false, nil
 			} else {
-				return true, err
+				return true, nil
 			}
 		} else {
 			return false, err

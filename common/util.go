@@ -2,10 +2,13 @@ package common
 
 import (
 	"bufio"
+	"crypto/rand"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -98,4 +101,27 @@ func (self *Shutdownhook) WaitShutdown() {
 	} else {
 		Warnf("Receive signal error,%v", ok)
 	}
+}
+
+// RandomUUID 生成随机的UUID
+func RandomUUID() (uuid string) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		Errorf("UUID Err:%s", err)
+		return
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // Version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // Variant is 10
+	uuid = fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+	return
+}
+
+// FileBasename 确定不待扩展的文件名
+func FileBasename(s string) string {
+	n := strings.LastIndexByte(s, '.')
+	if n > 0 {
+		return s[:n]
+	}
+	return s
 }
