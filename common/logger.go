@@ -98,7 +98,6 @@ func init() {
 	var seelogger seelog.LoggerInterface
 	var err error
 
-	fmt.Fprintln(os.Stderr, "Use default config init Logger")
 	seelogger, err = seelog.LoggerFromConfigAsBytes([]byte(defaultConfig))
 
 	if err != nil {

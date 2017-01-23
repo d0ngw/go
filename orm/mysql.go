@@ -12,25 +12,25 @@ import (
 //MySQL数据库
 type MysqlDBConfig DBConfig
 
-//构建MySql数据的
-func (config *MysqlDBConfig) CreateDBPool() (*DBPool, error) {
+//CreateDBPool 构建MySql数据库连接池
+func (config *MysqlDBConfig) NewDBPool() (*DBPool, error) {
 	if config == nil {
 		return nil, &DBError{"Not found config", nil}
 	}
 
-	if len(config.USER) == 0 || len(config.URL) == 0 || len(config.SCHEMA) == 0 {
+	if len(config.User) == 0 || len(config.Url) == 0 || len(config.Schema) == 0 {
 		return nil, &DBError{"Invalid config", nil}
 	}
 
 	//设置时间为本地时间,并解析时间
 	loc, err := time.LoadLocation("Local")
-	connect_url := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&loc=%s&parseTime=true", config.USER, config.PASS, config.URL, config.SCHEMA, url.QueryEscape(loc.String()))
+	connect_url := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&loc=%s&parseTime=true", config.User, config.Pass, config.Url, config.Schema, url.QueryEscape(loc.String()))
 	db, err := sql.Open("mysql", connect_url)
 	if err != nil {
 		log.Println("Error on initializing database connection,", err.Error())
 		return nil, &DBError{"Can't open connection", err}
 	}
-	db.SetMaxIdleConns(config.MAX_IDLE)
-	db.SetMaxOpenConns(config.MAX_CONN)
+	db.SetMaxIdleConns(config.MaxIdle)
+	db.SetMaxOpenConns(config.MaxConn)
 	return &DBPool{db}, nil
 }

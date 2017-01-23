@@ -60,9 +60,9 @@ func (self *RuntimeConfig) Parse() error {
 
 //基础的应用配置
 type AppConfig struct {
-	LogConfig          `yaml:"log"`
-	RuntimeConfig      `yaml:"runtime"`
-	ValidateRuleConfig `yaml:"validates"`
+	*LogConfig          `yaml:"log"`
+	*RuntimeConfig      `yaml:"runtime"`
+	*ValidateRuleConfig `yaml:"validates"`
 }
 
 //解析基础的应用配置
@@ -77,10 +77,14 @@ func Parse(conf interface{}) error {
 	typ := config.Type()
 
 	for i := 0; i < fieldCount; i++ {
-		configField := config.Field(i)
+		val := reflect.Indirect(config.Field(i))
+		if !val.IsValid() {
+			continue
+		}
 		typField := typ.Field(i)
-		Debugf("Found %#v", typField.Name)
-		if configFieldValue, ok := configField.Addr().Interface().(Configurer); ok {
+		Debugf("Found %#v,%v", typField.Name, val)
+
+		if configFieldValue, ok := val.Addr().Interface().(Configurer); ok {
 			Debugf("Parse %#v", configFieldValue)
 			if err := configFieldValue.Parse(); err != nil {
 				return err

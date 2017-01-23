@@ -31,8 +31,7 @@ func TestLoadYAML(t *testing.T) {
 	assert.Equal(t, []int{3, 4}, config.B.D)
 }
 
-var appConfigData = `
-validates:
+var appConfigData = `validates:
   sname: v1
   rules:
   - name: minStr
@@ -62,15 +61,17 @@ validates2:
 
 type ConfigTest struct {
 	AppConfig `yaml:",inline"`
-	V2        ValidateRuleConfig `yaml:"validates2"`
+	V2        *ValidateRuleConfig `yaml:"validates2"`
 }
 
 func TestAppConfig(t *testing.T) {
 	var appConfig ConfigTest
 	LoadYAMl([]byte(appConfigData), &appConfig)
 	Parse(&appConfig)
-	v1 := appConfig.ValidateRuleConfig.NewService().(ValidateService)
+	fmt.Println("validates:", appConfig.ValidateRuleConfig.parsed)
+	fmt.Println("validates:", appConfig.V2.parsed)
 	v2 := appConfig.V2.NewService().(ValidateService)
+	v1 := appConfig.ValidateRuleConfig.NewService().(ValidateService)
 	fmt.Printf("v1 name:%s,v2 name:%s\n", v1.Name(), v2.Name())
 	err := v1.Validate("minStr", "")
 	assert.NotNil(t, err)

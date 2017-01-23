@@ -78,13 +78,13 @@ type Service interface {
 
 // ServiceInit初始化服务
 func ServiceInit(service Service) bool {
-	Infof("Init %T#%s", service, service.Name())
+	Debugf("Init %T#%s", service, service.Name())
 	if service.State() == INITED {
 		Infof("%T#%s has been inited,skip", service, service.Name())
 		return true
 	}
 	if service.Init() == nil && service.setState(INITED) {
-		Infof("Init %T#%s succ", service, service.Name())
+		Debugf("Init %T#%s succ", service, service.Name())
 		return true
 	}
 	Infof("Init %T#%s fail", service, service.Name())
@@ -94,10 +94,10 @@ func ServiceInit(service Service) bool {
 
 // ServiceStart 开始服务
 func ServiceStart(service Service) bool {
-	Infof("Start %T#%s", service, service.Name())
+	Debugf("Start %T#%s", service, service.Name())
 	service.setState(STARTING)
 	if service.Start() && service.setState(RUNNING) {
-		Infof("Start %T#%s succ", service, service.Name())
+		Debugf("Start %T#%s succ", service, service.Name())
 		return true
 	}
 	Infof("Start %T#%s fail", service, service.Name())
@@ -107,10 +107,10 @@ func ServiceStart(service Service) bool {
 
 // ServiceStop 停止服务
 func ServiceStop(service Service) bool {
-	Infof("Stop %T#%s", service, service.Name())
+	Debugf("Stop %T#%s", service, service.Name())
 	service.setState(STOPPING)
 	if service.Stop() && service.setState(TERMINATED) {
-		Infof("Stop %T#%s succ", service, service.Name())
+		Debugf("Stop %T#%s succ", service, service.Name())
 		return true
 	}
 	Infof("Stop %T#%s fail", service, service.Name())

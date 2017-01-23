@@ -40,17 +40,18 @@ func (p *DBPool) NewDBOper() *DBOper {
 	return &DBOper{db: p.db}
 }
 
-//数据库配置
+//DBConfig 数据库配置
 type DBConfig struct {
-	USER     string
-	PASS     string
-	URL      string
-	SCHEMA   string
-	MAX_CONN int
-	MAX_IDLE int
+	User    string
+	Pass    string
+	Url     string
+	Schema  string
+	MaxConn int
+	MaxIdle int
 }
 
-//数据库连接池创建
+// DBPoolCreator 数据库连接池创建
 type DBPoolCreator interface {
-	CreateDBPool(config DBConfig) (*DBPool, error)
+	//NewDBPool 创建数据库连接池
+	NewDBPool(config DBConfig) (*DBPool, error)
 }

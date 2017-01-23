@@ -21,6 +21,7 @@ type ValidateRuleConfig struct {
 // Apply 解析验证的配置
 func (self *ValidateRuleConfig) Parse() error {
 	rules := make(validateRuleMap)
+	Debugf("parse validate rule config:%v", self)
 	for _, ruleConfig := range self.Rules {
 		ruleName := strings.TrimSpace(ruleConfig.Name)
 		if len(ruleName) == 0 {
@@ -34,7 +35,7 @@ func (self *ValidateRuleConfig) Parse() error {
 			desc:       ruleConfig.Desc,
 			validators: validators}
 		rules[ruleName] = rule
-		Infof("Add validate rule:%s", ruleName)
+		Debugf("Add validate rule:%s", ruleName)
 	}
 	self.parsed = rules
 	return nil
@@ -60,7 +61,7 @@ type validateRuleMap map[string]*ValidateRule
 
 //根据规则进行的验证服务
 type RuleValidateService struct {
-	BaseService
+	BaseValidateService
 	rules validateRuleMap
 }
 

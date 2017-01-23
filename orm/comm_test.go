@@ -8,5 +8,5 @@ var (
 		"test",
 		100,
 		10}
-	dbpool, err = config.CreateDBPool()
+	dbpool, err = config.NewDBPool()
 )

@@ -23,72 +23,67 @@ func NewDBOper(db *sql.DB) *DBOper {
 //在事务中处理的函数
 type DBOperTxFunc func(tx *sql.Tx) (interface{}, error)
 
-func (op *DBOper) close() {
-	op.tx = nil
-	op.rollbackOnly = false
-	op.transDepth = 0
+func (p *DBOper) close() {
+	p.tx = nil
+	p.rollbackOnly = false
+	p.transDepth = 0
 }
 
 //检查事务的状态
-func (op *DBOper) checkTransStatus() error {
-	if op.txDone {
+func (p *DBOper) checkTransStatus() error {
+	if p.txDone {
 		return sql.ErrTxDone
 	}
-	if op.tx == nil {
+	if p.tx == nil {
 		return NewDBError(nil, "Not begin transaction")
 	}
 	return nil
 }
 
-func (op *DBOper) incrTransDepth() {
-	op.transDepth = op.transDepth + 1
-	c.Debugf("op.tranDepth:%v", op.transDepth)
+func (p *DBOper) incrTransDepth() {
+	p.transDepth = p.transDepth + 1
+	c.Debugf("p.tranDepth:%v", p.transDepth)
 }
 
-func (op *DBOper) decrTransDepth() error {
-	op.transDepth = op.transDepth - 1
-	c.Debugf("op.tranDepth:%v", op.transDepth)
-	if op.transDepth < 0 {
+func (p *DBOper) decrTransDepth() error {
+	p.transDepth = p.transDepth - 1
+	c.Debugf("p.tranDepth:%v", p.transDepth)
+	if p.transDepth < 0 {
 		return NewDBError(nil, "Too many invoke commit or rollback")
 	}
 	return nil
 }
 
 //结束事务
-func (op *DBOper) finishTrans() error {
-	if err := op.checkTransStatus(); err != nil {
+func (p *DBOper) finishTrans() error {
+	if err := p.checkTransStatus(); err != nil {
 		return err
 	}
-	if err := op.decrTransDepth(); err != nil {
+	if err := p.decrTransDepth(); err != nil {
 		return err
 	}
-	if op.transDepth > 0 {
+	if p.transDepth > 0 {
 		return nil
 	}
-	defer op.close()
-	op.txDone = true
-	if op.rollbackOnly {
+	defer p.close()
+	p.txDone = true
+	if p.rollbackOnly {
 		c.Debugf("Rollback")
-		return op.tx.Rollback()
+		return p.tx.Rollback()
 	} else {
 		c.Debugf("Commit")
-		return op.tx.Commit()
+		return p.tx.Commit()
 	}
-}
-
-func (op *DBOper) ReSet() {
-	op.close()
-	op.txDone = false
 }
 
 //开始事务,支持简单的嵌套调用,如果已经开始了事务,则直接返回成功
-func (op *DBOper) BeginTx() error {
-	op.incrTransDepth()
-	if op.tx != nil {
+func (p *DBOper) BeginTx() error {
+	p.incrTransDepth()
+	if p.tx != nil {
 		return nil //事务已经开启
 	}
-	if tx, err := op.db.Begin(); err == nil {
-		op.tx = tx
+	if tx, err := p.db.Begin(); err == nil {
+		p.tx = tx
 		return nil
 	} else {
 		return err
@@ -96,45 +91,45 @@ func (op *DBOper) BeginTx() error {
 }
 
 //提交事务
-func (op *DBOper) Commit() error {
-	return op.finishTrans()
+func (p *DBOper) Commit() error {
+	return p.finishTrans()
 }
 
 //回滚事务
-func (op *DBOper) Rollback() error {
-	op.SetRollbackOnly(true)
-	return op.finishTrans()
+func (p *DBOper) Rollback() error {
+	p.SetRollbackOnly(true)
+	return p.finishTrans()
 }
 
 //设置只回滚
-func (op *DBOper) SetRollbackOnly(rollback bool) {
-	op.rollbackOnly = rollback
+func (p *DBOper) SetRollbackOnly(rollback bool) {
+	p.rollbackOnly = rollback
 }
 
 //是否只回滚
-func (op *DBOper) IsRollbackOnly() bool {
-	return op.rollbackOnly
+func (p *DBOper) IsRollbackOnly() bool {
+	return p.rollbackOnly
 }
 
 //在事务中执行
-func (op *DBOper) DoInTrans(operation DBOperTxFunc) (rt interface{}, err error) {
-	if err := op.BeginTx(); err != nil {
+func (p *DBOper) DoInTrans(peration DBOperTxFunc) (rt interface{}, err error) {
+	if err := p.BeginTx(); err != nil {
 		return nil, err
 	}
 	var succ = false
 	//结束事务
 	defer func() {
 		if !succ {
-			op.SetRollbackOnly(true)
+			p.SetRollbackOnly(true)
 		}
-		transErr := op.finishTrans()
+		transErr := p.finishTrans()
 		if transErr != nil {
 			c.Errorf("Finish transaction err:%v", transErr)
 			rt = nil
 			err = transErr
 		}
 	}()
-	rt, err = operation(op.tx)
+	rt, err = peration(p.tx)
 	if err != nil {
 		c.Errorf("Operation fail:%v", err)
 		succ = false

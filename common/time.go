@@ -24,7 +24,7 @@ func ParseLocatTimeWithFormat(format, t string) (time.Time, error) {
 
 // 取得毫秒
 func UnixMills(t time.Time) int64 {
-	return t.Unix() * 1000
+	return t.UnixNano() / int64(time.Millisecond)
 }
 
 // 取得毫秒

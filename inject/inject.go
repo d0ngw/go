@@ -3,7 +3,7 @@ package inject
 
 import (
 	"fmt"
-	"log"
+	c "github.com/d0ngw/go/common"
 	"reflect"
 	"strings"
 )
@@ -217,7 +217,7 @@ func (self *Injector) injectModules() {
 
 // debugf 输出日志
 func debugf(format string, v ...interface{}) {
-	log.Printf(format, v...)
+	c.Debugf(format, v...)
 }
 
 // getFieldType 取得struct中field的类型
