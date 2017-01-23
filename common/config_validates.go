@@ -61,7 +61,7 @@ type validateRuleMap map[string]*ValidateRule
 
 //根据规则进行的验证服务
 type RuleValidateService struct {
-	BaseValidateService
+	BaseService
 	rules validateRuleMap
 }
 

@@ -17,21 +17,11 @@ type ValidateService interface {
 	Service
 	//Validate 使用name指定验证规则,对value进行验证,验证通过返回nil,否则返回错误原因
 	Validate(name string, value string) error
-	//ValidateAll 验证所有的规则,验证通过返回nil,否则返回错误原因
-	ValidateAll(nameAndValues ...*ValidatePair) error
 }
 
-type BaseValidateService struct {
-	BaseService
-}
-
-func (p *BaseValidateService) Validate(name, value string) error {
-	panic("Please implement Validate function")
-}
-
-func (p *BaseValidateService) ValidateAll(nameAndValues ...*ValidatePair) error {
+func ValidateAll(validateService ValidateService, nameAndValues ...*ValidatePair) error {
 	for _, nv := range nameAndValues {
-		if err := p.Validate(nv.Name, nv.Value); err != nil {
+		if err := validateService.Validate(nv.Name, nv.Value); err != nil {
 			return err
 		}
 	}
