@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"reflect"
 	"sort"
 	"sync"
@@ -83,6 +82,7 @@ func ServiceInit(service Service) bool {
 		Infof("%T#%s has been inited,skip", service, service.Name())
 		return true
 	}
+	Infof("Init %T#%s", service, service.Name())
 	if service.Init() == nil && service.setState(INITED) {
 		Debugf("Init %T#%s succ", service, service.Name())
 		return true
@@ -94,7 +94,7 @@ func ServiceInit(service Service) bool {
 
 // ServiceStart 开始服务
 func ServiceStart(service Service) bool {
-	Debugf("Start %T#%s", service, service.Name())
+	Infof("Start %T#%s,state:%s", service, service.Name(), service.State())
 	service.setState(STARTING)
 	if service.Start() && service.setState(RUNNING) {
 		Debugf("Start %T#%s succ", service, service.Name())
@@ -156,7 +156,7 @@ func (self *BaseService) setState(newState ServiceState) bool {
 		self.state = newState
 		return true
 	} else {
-		Criticalf("Invalid state transfer %s->%s", self.state, newState)
+		Criticalf("Invalid state transfer %s->%s,%s", self.state, newState, self.Name())
 	}
 	return false
 }
@@ -193,7 +193,8 @@ func NewServices(services []Service, serviceSorter ServiceSorter) *Services {
 func (self *Services) Init() bool {
 	for _, service := range self.sorted {
 		if !ServiceInit(service) {
-			panic(fmt.Errorf("Init service %T#%s fail", service, service.Name()))
+			Warnf("Init service %T#%s fail", service, service.Name())
+			return false
 		}
 	}
 	return true
@@ -202,9 +203,10 @@ func (self *Services) Init() bool {
 // Start 启动服务
 func (self *Services) Start() bool {
 	for _, service := range self.sorted {
-		Debugf("Start service %T#%s", service, service.Name())
+		Infof("Start service %T#%s", service, service.Name())
 		if !ServiceStart(service) {
-			panic(fmt.Errorf("Start service %T#%s fail", service, service.Name()))
+			Warnf("Start service %T#%s fail", service, service.Name())
+			return false
 		}
 	}
 	return true
@@ -214,7 +216,7 @@ func (self *Services) Start() bool {
 func (self *Services) Stop() bool {
 	for i := len(self.sorted) - 1; i >= 0; i-- {
 		service := self.sorted[i]
-		Debugf("Stop service %T#%s", service, service.Name())
+		Infof("Stop service %T#%s", service, service.Name())
 		if !ServiceStop(service) {
 			Warnf("Stop service %T#%s fail", service, service.Name())
 		}
