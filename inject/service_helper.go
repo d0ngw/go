@@ -16,12 +16,22 @@ func (p *Injector) Init() error {
 			}
 		} else {
 			if err := init.(c.Initable).Init(); err != nil {
-				return err
+				return fmt.Errorf("Init %T fail,err:%s", init, err)
 			}
 
 		}
 	}
 	return nil
+}
+
+// Start 启动服务
+func (p *Injector) Start(sorter c.ServiceSorter) error {
+	return p.startOrStop(sorter, true)
+}
+
+// Stop 停止服务
+func (p *Injector) Stop(sorter c.ServiceSorter) error {
+	return p.startOrStop(sorter, false)
 }
 
 func (p *Injector) startOrStop(sorter c.ServiceSorter, start bool) error {
@@ -45,14 +55,4 @@ func (p *Injector) startOrStop(sorter c.ServiceSorter, start bool) error {
 		}
 	}
 	return nil
-}
-
-// Start 启动服务
-func (p *Injector) Start(sorter c.ServiceSorter) error {
-	return p.startOrStop(sorter, true)
-}
-
-// Stop 停止服务
-func (p *Injector) Stop(sorter c.ServiceSorter) error {
-	return p.startOrStop(sorter, false)
 }

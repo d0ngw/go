@@ -2,7 +2,9 @@ package orm
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"github.com/go-sql-driver/mysql"
 )
 
 //数据库操作错误
@@ -54,4 +56,17 @@ type DBConfig struct {
 type DBPoolCreator interface {
 	//NewDBPool 创建数据库连接池
 	NewDBPool(config DBConfig) (*DBPool, error)
+}
+
+type NullTime mysql.NullTime
+
+func (nt *NullTime) Scan(value interface{}) (err error) {
+	return (*mysql.NullTime)(nt).Scan(value)
+}
+
+func (nt NullTime) Value() (driver.Value, error) {
+	if !nt.Valid {
+		return nil, nil
+	}
+	return nt.Time, nil
 }
