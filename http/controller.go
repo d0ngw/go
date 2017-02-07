@@ -7,32 +7,33 @@ import (
 	"unicode"
 )
 
-// Contoller 接口定义http处理器
+// Controller 接口定义http处理器
 type Controller interface {
-	// 控制器的名称
+	// GetName 控制器的名称
 	GetName() string
-	//路径前缀,以'/'结束,同一个控制下的http.Handler都
+	// GetPath 路径前缀,以'/'结束,同一个控制下的http.Handler都
 	GetPath() string
-	// Handlers返回contoller的所有处理方法,key为path,value为对应的处理方法
-	GetHandlers() (map[string]http.HandlerFunc, error)
+	// GetHandlerMiddlewares 返回controller的处理方法中,需要增加middleware封装的方法,key是controller中的方法名
+	GetHandlerMiddlewares() map[string][]HttpMiddleware
 }
 
 // BaseController 表示一个控制器
 type BaseController struct {
-	Name string // Controller的名称
-	Path string // Controller的路径
+	Name               string                      // Controller的名称
+	Path               string                      // Controller的路径
+	HandlerMiddlewares map[string][]HttpMiddleware // Controller中需要使用middleware封装的方法
 }
 
-func (self *BaseController) GetName() string {
-	return self.Name
+func (p *BaseController) GetName() string {
+	return p.Name
 }
 
-func (self *BaseController) GetPath() string {
-	return self.Path
+func (p *BaseController) GetPath() string {
+	return p.Path
 }
 
-func (self *BaseController) GetHandlers() (map[string]http.HandlerFunc, error) {
-	panic("Please implement GetHandlers")
+func (p *BaseController) GetHandlerMiddlewares() map[string][]HttpMiddleware {
+	return p.HandlerMiddlewares
 }
 
 var (
@@ -40,24 +41,44 @@ var (
 	t = reflect.TypeOf(m)
 )
 
+type handlerWithMiddleware struct {
+	handlerFunc http.HandlerFunc
+	middlewares []HttpMiddleware
+}
+
 // ReflectHandlers 查找controller中类型为http.HandlerFunc的可导出方法,并将驼峰命名改为下划线分隔的路径
 // 例如Index -> index,GetUser -> get_user
-func ReflectHandlers(controller Controller) (handlers map[string]http.HandlerFunc, err error) {
+func reflectHandlers(controller Controller) (handlers map[string]*handlerWithMiddleware, err error) {
 	val := reflect.ValueOf(controller)
 	if !val.IsValid() || val.Kind() != reflect.Ptr {
 		return nil, fmt.Errorf("controller must be a valid pointer")
 	}
 
-	handlers = map[string]http.HandlerFunc{}
+	// 检查方法是否存在
+	hm := controller.GetHandlerMiddlewares()
+	if len(hm) > 0 {
+		for name, _ := range hm {
+			if found := val.MethodByName(name); !found.IsValid() {
+				return nil, fmt.Errorf("Can't find method name %s for middlewares", name)
+			}
+		}
+	}
+
+	handlers = map[string]*handlerWithMiddleware{}
 	methodCount := val.NumMethod()
 	controllerType := val.Type()
 	for i := 0; i < methodCount; i++ {
 		methodVal := val.Method(i)
 		methodValType := methodVal.Type()
-
 		method := controllerType.Method(i)
+
 		if methodValType.AssignableTo(t) {
-			handlers[ToUnderlineName(method.Name)] = methodVal.Interface().(func(http.ResponseWriter, *http.Request))
+			var fn http.HandlerFunc = methodVal.Interface().(func(http.ResponseWriter, *http.Request))
+			hmiddle := &handlerWithMiddleware{handlerFunc: fn}
+			if middlewares, ok := hm[method.Name]; ok {
+				hmiddle.middlewares = middlewares
+			}
+			handlers[ToUnderlineName(method.Name)] = hmiddle
 		}
 	}
 	return handlers, nil

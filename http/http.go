@@ -84,21 +84,26 @@ func (self *HttpService) Init() bool {
 }
 
 // handleWithMiddleware 依次调用各个middleware
-func (self *HttpService) handleWithMiddleware(handler http.HandlerFunc) http.HandlerFunc {
+func (self *HttpService) handleWithMiddleware(handler *handlerWithMiddleware) http.HandlerFunc {
 	originHandler := func(w http.ResponseWriter, r *http.Request) {
 		if err, ok := ErrorFromRequestContext(r); ok {
 			c.Errorf("stop handle %s,cause by error:%s", r.RequestURI, err)
 		} else {
-			handler(w, r)
+			handler.handlerFunc(w, r)
 		}
 	}
 
-	var middlewares = self.Conf.middlewares
+	var middlewares = append(handler.middlewares, self.Conf.middlewares...)
 	var middlewareCount = len(middlewares)
 
 	h := originHandler
 	for i := middlewareCount - 1; i >= 0; i-- {
-		h = middlewares[i].Handle(h)
+		m := middlewares[i]
+		h0 := h
+		h = func(w http.ResponseWriter, r *http.Request) {
+			c.Debugf("handle %s,invoke middleware %T", r.RequestURI, m)
+			m.Handle(h0)(w, r)
+		}
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

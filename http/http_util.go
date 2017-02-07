@@ -131,7 +131,14 @@ func PostUrl(client *http.Client, url string, params url.Values, contentType str
 
 // Post 请求
 func PostUrlWithCookie(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
-	req, err := http.NewRequest("POST", url+"?"+params.Encode(), requestBody)
+
+	if requestBody == nil {
+		requestBody = strings.NewReader(params.Encode())
+	} else {
+		url = url + "?" + params.Encode()
+	}
+
+	req, err := http.NewRequest("POST", url, requestBody)
 	if err != nil {
 		return nil, nil, err
 	}

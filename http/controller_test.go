@@ -19,13 +19,27 @@ func (self *DemoController) Second(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Second:", self.Path, self.Name)
 }
 
-func (self *DemoController) GetHandlers() (map[string]http.HandlerFunc, error) {
-	return ReflectHandlers(self)
-}
-
 func TestReflectHandlers(t *testing.T) {
 	testReflectHandlers(t, "demo1")
 	testReflectHandlers(t, "demo2")
+}
+
+type LogMiddleware struct {
+	Order int
+}
+
+func NewLogMiddleware(order int) *LogMiddleware {
+	return &LogMiddleware{
+		Order: order,
+	}
+}
+
+func (p *LogMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("Begin process,order", p.Order)
+		next(w, r)
+		fmt.Println("Finish process,order", p.Order)
+	}
 }
 
 func testReflectHandlers(t *testing.T, name string) {
@@ -33,21 +47,28 @@ func testReflectHandlers(t *testing.T, name string) {
 		BaseController: BaseController{
 			Name: name,
 			Path: "/" + name,
+			HandlerMiddlewares: map[string][]HttpMiddleware{
+				"Index": []HttpMiddleware{
+					&LogMiddleware{Order: 0},
+					&LogMiddleware{Order: 1},
+					&LogMiddleware{Order: 2},
+				},
+			},
 		},
 	}
 
-	mapping, err := ReflectHandlers(controller)
+	mapping, err := reflectHandlers(controller)
 	assert.Nil(t, err, "err")
 	assert.EqualValues(t, 2, len(mapping))
 
-	mapping["index"](nil, nil)
-	mapping["second"](nil, nil)
+	mapping["index"].handlerFunc(nil, nil)
+	mapping["second"].handlerFunc(nil, nil)
 
-	mapping, err = controller.GetHandlers()
+	mapping, err = reflectHandlers(controller)
 	assert.Nil(t, err, "err")
 	assert.EqualValues(t, 2, len(mapping))
-	mapping["second"](nil, nil)
-	mapping["index"](nil, nil)
+	mapping["second"].handlerFunc(nil, nil)
+	mapping["index"].handlerFunc(nil, nil)
 }
 
 func TestToUnderlineName(t *testing.T) {
