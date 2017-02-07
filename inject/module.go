@@ -2,6 +2,7 @@ package inject
 
 import (
 	"fmt"
+	c "github.com/d0ngw/go/common"
 	"reflect"
 )
 
@@ -126,7 +127,7 @@ func mergeBinds(modules []*Module) (unnamed []*internalBind, named map[string][]
 				panic(fmt.Errorf("Duplicate bind %s", bind_key))
 			} else {
 				uniqBindMap[bind_key] = struct{}{}
-				debugf("Add bind key:%s", bind_key)
+				c.Debugf("Add bind key:%s", bind_key)
 				if len(bind.name) == 0 {
 					unnamed = append(unnamed, bind)
 					all = append(all, bind)

@@ -158,7 +158,7 @@ func (self *Injector) injectInstanceWithOverrideTags(target interface{}, injectT
 
 	//仅struct的指针才能被注入
 	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		debugf("Skip inject:%#v", target)
+		c.Debugf("Skip inject:%#v", target)
 		return
 	}
 
@@ -191,7 +191,7 @@ func (self *Injector) injectInstanceWithOverrideTags(target interface{}, injectT
 		}
 
 		fieldInjectDesc := fmt.Sprintf("%s.%s", typ.Name(), structField.Name)
-		debugf("Inject %#v(kind:%v) to %s", foundBind.instance, foundBind.injectValue.Kind(), fieldInjectDesc)
+		c.Debugf("Inject %#v(kind:%v) to %s", foundBind.instance, foundBind.injectValue.Kind(), fieldInjectDesc)
 		if foundBind.injectValue.Kind() == reflect.Ptr && foundBind.injectValue.Pointer() == val.Pointer() {
 			injectSrcDesc := fmt.Sprintf("%#v(addr:%p)", foundBind.instance, foundBind.instance)
 			injectTargetDesc := fmt.Sprintf("%s of %#v(addr:%p)", fieldInjectDesc, target, target)
@@ -203,7 +203,7 @@ func (self *Injector) injectInstanceWithOverrideTags(target interface{}, injectT
 
 // injectModules 注入Injector中各个Module中的绑定
 func (self *Injector) injectModules() {
-	debugf("Inject internal")
+	c.Debugf("Inject internal")
 	for _, bind := range self.ununamed {
 		self.injectInstanceWithOverrideTags(bind.instance, bind.injectTags)
 	}
@@ -213,11 +213,6 @@ func (self *Injector) injectModules() {
 			self.injectInstanceWithOverrideTags(bind.instance, bind.injectTags)
 		}
 	}
-}
-
-// debugf 输出日志
-func debugf(format string, v ...interface{}) {
-	c.Debugf(format, v...)
 }
 
 // getFieldType 取得struct中field的类型
