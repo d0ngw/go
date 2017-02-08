@@ -4,30 +4,36 @@ import (
 	"time"
 )
 
-const DEFAULT_TIME_FROMAT = "2006-01-02 15:04:05"
+const (
+	// FormatDefault 默认的日期时间格式
+	FormatDefault = "2006-01-02 15:04:05"
+	// FormatYYYYMMDD 日期时间格式
+	FormatYYYYMMDD = "20060102 15:04:05"
+	// FormatYMDH 日期格式
+	FormatYMDH = "2006010215"
+	// FormatYMD 日期格式
+	FormatYMD = "2006-01-02"
+)
 
-const YYYYMMDD_TIME_FORMAT = "20060102 15:04:05"
-const YMDH_FROMAT = "2006010215"
-const Y_M_D_FROMAT = "2006-01-02"
+// LocalLocation 本地时区
+var LocalLocation = time.Now().Local().Location()
 
-var LOCAL_LOCATION = time.Now().Local().Location()
-
-// 解析本地时间
+// ParseLocalTime  解析本地时间
 func ParseLocalTime(t string) (time.Time, error) {
-	return time.ParseInLocation(DEFAULT_TIME_FROMAT, t, LOCAL_LOCATION)
+	return time.ParseInLocation(FormatDefault, t, LocalLocation)
 }
 
-// 解析本地时间
+// ParseLocatTimeWithFormat 解析本地时间
 func ParseLocatTimeWithFormat(format, t string) (time.Time, error) {
-	return time.ParseInLocation(format, t, LOCAL_LOCATION)
+	return time.ParseInLocation(format, t, LocalLocation)
 }
 
-// 取得毫秒
+// UnixMills 取得毫秒
 func UnixMills(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
 }
 
-// 取得毫秒
+// UnixMillsTime 根据毫秒取得时间
 func UnixMillsTime(tmillis int64) time.Time {
 	return time.Unix(tmillis/1000, (tmillis%1000)*int64(time.Millisecond))
 }

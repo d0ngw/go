@@ -55,7 +55,7 @@ func ReadLineWithProcessor(rd io.Reader, processorFunc func(line string) bool) e
 	return nil
 }
 
-// Shutdownhook
+// Shutdownhook 停止hook
 type Shutdownhook struct {
 	ch         chan os.Signal //接收信号的channel
 	hooks      []func()       //停机时需要调用的方法列表
@@ -73,28 +73,28 @@ func NewShutdownhook(sig ...os.Signal) *Shutdownhook {
 }
 
 // AddHook 增加一个Hook函数
-func (self *Shutdownhook) AddHook(hookFunc func()) {
-	self.Lock()
-	defer self.Unlock()
-	self.hooks = append(self.hooks, hookFunc)
+func (p *Shutdownhook) AddHook(hookFunc func()) {
+	p.Lock()
+	defer p.Unlock()
+	p.hooks = append(p.hooks, hookFunc)
 }
 
 // WaitShutdown 等待进程退出的信号,当收到进程退出的信号后,依次执行注册的hook函数
-func (self *Shutdownhook) WaitShutdown() {
-	self.Lock()
-	defer self.Unlock()
+func (p *Shutdownhook) WaitShutdown() {
+	p.Lock()
+	defer p.Unlock()
 
-	if self.ch == nil {
+	if p.ch == nil {
 		panic("singal channel is nil")
 	}
 
-	if s, ok := <-self.ch; ok {
-		signal.Stop(self.ch)
-		close(self.ch)
-		self.ch = nil
+	if s, ok := <-p.ch; ok {
+		signal.Stop(p.ch)
+		close(p.ch)
+		p.ch = nil
 
 		Infof("Receive signal:%v,Run hooks", s)
-		for _, f := range self.hooks {
+		for _, f := range p.hooks {
 			f()
 		}
 		Infof("Finished run hooks")

@@ -11,12 +11,12 @@ type DemoController struct {
 	BaseController
 }
 
-func (self *DemoController) Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Index:", self.Path, self.Name)
+func (p *DemoController) Index(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Index:", p.Path, p.Name)
 }
 
-func (self *DemoController) Second(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Second:", self.Path, self.Name)
+func (p *DemoController) Second(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Second:", p.Path, p.Name)
 }
 
 func TestReflectHandlers(t *testing.T) {
@@ -47,8 +47,8 @@ func testReflectHandlers(t *testing.T, name string) {
 		BaseController: BaseController{
 			Name: name,
 			Path: "/" + name,
-			HandlerMiddlewares: map[string][]HttpMiddleware{
-				"Index": []HttpMiddleware{
+			HandlerMiddlewares: map[string][]Middleware{
+				"Index": []Middleware{
 					&LogMiddleware{Order: 0},
 					&LogMiddleware{Order: 1},
 					&LogMiddleware{Order: 2},

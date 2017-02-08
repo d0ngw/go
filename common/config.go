@@ -2,15 +2,14 @@ package common
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"reflect"
 	"runtime"
+
+	"gopkg.in/yaml.v2"
 )
 
-//YAML配置
-
-//将YAML文件中的配置加载到到结构体target中
+// LoadYAMLFromPath 将YAML文件中的配置加载到到结构体target中
 func LoadYAMLFromPath(filename string, target interface{}) error {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
@@ -19,7 +18,7 @@ func LoadYAMLFromPath(filename string, target interface{}) error {
 	return LoadYAMl(data, target)
 }
 
-//将data中的YAML配置加载到到结构体target中
+// LoadYAMl 将data中的YAML配置加载到到结构体target中
 func LoadYAMl(data []byte, target interface{}) error {
 	if len(data) == 0 {
 		return fmt.Errorf("Can't load yaml config fomr emtpyt data")
@@ -27,50 +26,52 @@ func LoadYAMl(data []byte, target interface{}) error {
 	return yaml.Unmarshal([]byte(data), target)
 }
 
-//配置器
+// Configurer 配置器
 type Configurer interface {
 	//解析配置
 	Parse() error
 }
 
-//日志配置
+// LogConfig 日志配置
 type LogConfig struct {
 	Conf string //日志的配置文件
 }
 
-func (self *LogConfig) Parse() error {
-	if len(self.Conf) > 0 {
-		InitLogger(self.Conf)
+// Parse 解析日志配置
+func (p *LogConfig) Parse() error {
+	if len(p.Conf) > 0 {
+		InitLogger(p.Conf)
 	}
 	return nil
 }
 
-//运行期配置
+// RuntimeConfig 运行期配置
 type RuntimeConfig struct {
 	Maxprocs int //最大的PROCS个数
 }
 
-func (self *RuntimeConfig) Parse() error {
-	if self.Maxprocs > 0 {
-		preProcs := runtime.GOMAXPROCS(self.Maxprocs)
-		Infof("Set runtime.MAXPROCS to %v,old is %v", self.Maxprocs, preProcs)
+// Parse 解析运行期配置
+func (p *RuntimeConfig) Parse() error {
+	if p.Maxprocs > 0 {
+		preProcs := runtime.GOMAXPROCS(p.Maxprocs)
+		Infof("Set runtime.MAXPROCS to %v,old is %v", p.Maxprocs, preProcs)
 	}
 	return nil
 }
 
-//基础的应用配置
+// AppConfig 基础的应用配置
 type AppConfig struct {
 	*LogConfig          `yaml:"log"`
 	*RuntimeConfig      `yaml:"runtime"`
 	*ValidateRuleConfig `yaml:"validates"`
 }
 
-//解析基础的应用配置
-func (self *AppConfig) Parse() error {
-	return Parse(self)
+// Parse 解析基础的应用配置
+func (p *AppConfig) Parse() error {
+	return Parse(p)
 }
 
-//解析配置
+// Parse 解析配置
 func Parse(conf interface{}) error {
 	config := reflect.Indirect(reflect.ValueOf(conf))
 	fieldCount := config.NumField()
@@ -85,7 +86,6 @@ func Parse(conf interface{}) error {
 		Debugf("Found %#v,%v", typField.Name, val)
 
 		if configFieldValue, ok := val.Addr().Interface().(Configurer); ok {
-			Debugf("Parse %#v", configFieldValue)
 			if err := configFieldValue.Parse(); err != nil {
 				return err
 			}

@@ -2,8 +2,9 @@ package inject
 
 import (
 	_ "fmt"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type accountService interface {
@@ -14,23 +15,23 @@ type userRegService struct {
 	N        int
 	LdapImpl accountService `inject:"ldap"`
 	DbImpl   accountService `inject:"db"`
-	Id       string
+	ID       string
 }
 
 type ldapAccount struct {
 	n string
 }
 
-func (self *ldapAccount) Name() string {
-	return self.n + "@ldap"
+func (p *ldapAccount) Name() string {
+	return p.n + "@ldap"
 }
 
 type dbAccount struct {
 	n string
 }
 
-func (self *dbAccount) Name() string {
-	return self.n + "@db"
+func (p *dbAccount) Name() string {
+	return p.n + "@db"
 }
 
 func TestInject(t *testing.T) {
@@ -131,13 +132,13 @@ func TestInjectInModuleWithProviderFunc(t *testing.T) {
 
 type ldapProvider struct{}
 
-func (self ldapProvider) GetInstance() interface{} {
+func (p ldapProvider) GetInstance() interface{} {
 	return &ldapAccount{n: "a"}
 }
 
 type dbProvider struct{}
 
-func (self dbProvider) GetInstance() interface{} {
+func (p dbProvider) GetInstance() interface{} {
 	return &dbAccount{n: "b"}
 }
 

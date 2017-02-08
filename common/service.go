@@ -10,12 +10,19 @@ import (
 type ServiceState uint32
 
 const (
+	// NEW 新建``
 	NEW ServiceState = iota
+	// INITED 初始化完毕
 	INITED
+	// STARTING 正在启动
 	STARTING
+	// RUNNING 正在运行
 	RUNNING
+	// STOPPING 正在停止
 	STOPPING
+	// TERMINATED 已经停止
 	TERMINATED
+	// FAILED 失败
 	FAILED
 )
 
@@ -28,8 +35,8 @@ var serviceStateStrings = map[ServiceState]string{
 	TERMINATED: "TERMINATED",
 	FAILED:     "FAILED"}
 
-func (self ServiceState) String() string {
-	return serviceStateStrings[self]
+func (p ServiceState) String() string {
+	return serviceStateStrings[p]
 }
 
 var validStateState = map[ServiceState][]ServiceState{
@@ -75,7 +82,7 @@ type Service interface {
 	setState(newState ServiceState) bool
 }
 
-// ServiceInit初始化服务
+// ServiceInit 初始化服务
 func ServiceInit(service Service) bool {
 	Debugf("Init %T#%s", service, service.Name())
 	if service.State() == INITED {
@@ -125,39 +132,41 @@ type BaseService struct {
 	sync.RWMutex              //读写锁
 }
 
-func (self *BaseService) Name() string {
-	return self.SName
+// Name 服务名称
+func (p *BaseService) Name() string {
+	return p.SName
 }
 
-func (self *BaseService) Init() error {
+// Init 初始化
+func (p *BaseService) Init() error {
 	return nil
 }
 
-func (self *BaseService) Start() bool {
+// Start 启动服务
+func (p *BaseService) Start() bool {
 	return true
 }
 
-func (self *BaseService) Stop() bool {
+// Stop 停止服务
+func (p *BaseService) Stop() bool {
 	return true
 }
 
-func (self *BaseService) State() ServiceState {
-	self.RLock()
-	defer self.RUnlock()
-
-	return self.state
+// State 取得服务的状态
+func (p *BaseService) State() ServiceState {
+	p.RLock()
+	defer p.RUnlock()
+	return p.state
 }
 
-func (self *BaseService) setState(newState ServiceState) bool {
-	if IsValidServiceState(self.state, newState) {
-		self.Lock()
-		defer self.Unlock()
-
-		self.state = newState
+func (p *BaseService) setState(newState ServiceState) bool {
+	if IsValidServiceState(p.state, newState) {
+		p.Lock()
+		defer p.Unlock()
+		p.state = newState
 		return true
-	} else {
-		Criticalf("Invalid state transfer %s->%s,%s", self.state, newState, self.Name())
 	}
+	Criticalf("Invalid state transfer %s->%s,%s", p.state, newState, p.Name())
 	return false
 }
 
@@ -190,8 +199,8 @@ func NewServices(services []Service, serviceSorter ServiceSorter) *Services {
 }
 
 // Init 初始化服务集合
-func (self *Services) Init() bool {
-	for _, service := range self.sorted {
+func (p *Services) Init() bool {
+	for _, service := range p.sorted {
 		if !ServiceInit(service) {
 			Warnf("Init service %T#%s fail", service, service.Name())
 			return false
@@ -201,8 +210,8 @@ func (self *Services) Init() bool {
 }
 
 // Start 启动服务
-func (self *Services) Start() bool {
-	for _, service := range self.sorted {
+func (p *Services) Start() bool {
+	for _, service := range p.sorted {
 		Infof("Start service %T#%s", service, service.Name())
 		if !ServiceStart(service) {
 			Warnf("Start service %T#%s fail", service, service.Name())
@@ -213,9 +222,9 @@ func (self *Services) Start() bool {
 }
 
 // Stop 停止服务
-func (self *Services) Stop() bool {
-	for i := len(self.sorted) - 1; i >= 0; i-- {
-		service := self.sorted[i]
+func (p *Services) Stop() bool {
+	for i := len(p.sorted) - 1; i >= 0; i-- {
+		service := p.sorted[i]
 		Infof("Stop service %T#%s", service, service.Name())
 		if !ServiceStop(service) {
 			Warnf("Stop service %T#%s fail", service, service.Name())

@@ -1,11 +1,12 @@
-// inject 提供类似Guice Injector的依赖注入功能,可以用于简化服务的组装
+// Package inject 提供类似Guice Injector的依赖注入功能,可以用于简化服务的组装
 package inject
 
 import (
 	"fmt"
-	c "github.com/d0ngw/go/common"
 	"reflect"
 	"strings"
+
+	c "github.com/d0ngw/go/common"
 )
 
 // Injector 类似Guice的注入器
@@ -25,11 +26,11 @@ type Injector struct {
 
 // Inject tag常量
 const (
-	inject_tag_noname = "_" //无名称注入
+	injectTagNoname = "_" //无名称注入
 )
 
-func (self *Injector) String() string {
-	return fmt.Sprintf("Injector,unnamed binds:%v,named binds:%v", len(self.ununamed), len(self.named))
+func (p *Injector) String() string {
+	return fmt.Sprintf("Injector,unnamed binds:%v,named binds:%v", len(p.ununamed), len(p.named))
 }
 
 // parseInjectTag 解析inject tag,inject tag的格式
@@ -64,36 +65,35 @@ func NewInjector(modules []*Module) *Injector {
 }
 
 // RequireInject 由Injector向targets注入服务
-func (self *Injector) RequireInject(targets ...interface{}) {
+func (p *Injector) RequireInject(targets ...interface{}) {
 	for _, target := range targets {
-		self.injectInstance(target)
+		p.injectInstance(target)
 	}
 }
 
 // RequireInjectWithOverrideTags 由Injector向target注入服务,injectTags用于覆盖target struct字段中定义的inject tag
-func (self *Injector) RequireInjectWithOverrideTags(target interface{}, injectTags map[string]string) {
-	self.injectInstanceWithOverrideTags(target, injectTags)
+func (p *Injector) RequireInjectWithOverrideTags(target interface{}, injectTags map[string]string) {
+	p.injectInstanceWithOverrideTags(target, injectTags)
 }
 
 // GetInstance 从Injector中查找与name和expectedType匹配的实例,如果没有找到返回nil
-func (self *Injector) GetInstance(name string, expectedType reflect.Type) interface{} {
-	bind := self.findBind(name, expectedType)
+func (p *Injector) GetInstance(name string, expectedType reflect.Type) interface{} {
+	bind := p.findBind(name, expectedType)
 	if bind == nil {
 		return nil
-	} else {
-		return bind.instance
 	}
+	return bind.instance
 }
 
-// GetInstanceByKey 从Injector重查找与name和prototype匹配的实例,如果没有找到返回nil
-func (self *Injector) GetInstanceByPrototype(name string, prototype interface{}) interface{} {
-	return self.GetInstance(name, getFieldType(prototype, 0))
+// GetInstanceByPrototype 从Injector重查找与name和prototype匹配的实例,如果没有找到返回nil
+func (p *Injector) GetInstanceByPrototype(name string, prototype interface{}) interface{} {
+	return p.GetInstance(name, getFieldType(prototype, 0))
 }
 
 // GetInstancesByPrototype 从Injector里查找与prototype匹配的所有实例
-func (self *Injector) GetInstancesByPrototype(prototype interface{}) []interface{} {
+func (p *Injector) GetInstancesByPrototype(prototype interface{}) []interface{} {
 	expectedType := getFieldType(prototype, 0)
-	var ret []*internalBind = self.findAllBind(self.all, expectedType)
+	var ret = p.findAllBind(p.all, expectedType)
 	var retInstances []interface{}
 	for _, bind := range ret {
 		retInstances = append(retInstances, bind.instance)
@@ -101,7 +101,7 @@ func (self *Injector) GetInstancesByPrototype(prototype interface{}) []interface
 	return retInstances
 }
 
-func (self *Injector) findAllBind(binds []*internalBind, expectedType reflect.Type) []*internalBind {
+func (p *Injector) findAllBind(binds []*internalBind, expectedType reflect.Type) []*internalBind {
 	var ret []*internalBind
 	for _, bind := range binds {
 		canAssign := bind.injectType.AssignableTo(expectedType)
@@ -113,15 +113,15 @@ func (self *Injector) findAllBind(binds []*internalBind, expectedType reflect.Ty
 }
 
 // findBind 寻找一个可用的绑定
-func (self *Injector) findBind(name string, expectedType reflect.Type) *internalBind {
+func (p *Injector) findBind(name string, expectedType reflect.Type) *internalBind {
 	var toFind []*internalBind
 	if len(name) != 0 {
 		//按名称查找
-		if binds, ok := self.named[name]; ok {
+		if binds, ok := p.named[name]; ok {
 			toFind = binds
 		}
 	} else {
-		toFind = self.ununamed
+		toFind = p.ununamed
 	}
 
 	var ret []*internalBind
@@ -146,12 +146,12 @@ func (self *Injector) findBind(name string, expectedType reflect.Type) *internal
 }
 
 // injectInstance 向target注入实例
-func (self *Injector) injectInstance(target interface{}) {
-	self.injectInstanceWithOverrideTags(target, map[string]string{})
+func (p *Injector) injectInstance(target interface{}) {
+	p.injectInstanceWithOverrideTags(target, map[string]string{})
 }
 
 // injectInstanceWithOverrideTAgs 向target注入实例,injectTags用于覆盖target struct中定义的inject tag定义
-func (self *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags map[string]string) {
+func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags map[string]string) {
 	val := reflect.ValueOf(target)
 	ind := reflect.Indirect(val)
 	typ := ind.Type()
@@ -177,11 +177,11 @@ func (self *Injector) injectInstanceWithOverrideTags(target interface{}, injectT
 			continue
 		}
 
-		if name == inject_tag_noname {
+		if name == injectTagNoname {
 			name = ""
 		}
 
-		foundBind := self.findBind(name, structField.Type)
+		foundBind := p.findBind(name, structField.Type)
 		if foundBind == nil && !optional {
 			panic(fmt.Errorf("Can't find bind instance for %v.%s", typ, structField.Name))
 		}
@@ -191,7 +191,7 @@ func (self *Injector) injectInstanceWithOverrideTags(target interface{}, injectT
 		}
 
 		fieldInjectDesc := fmt.Sprintf("%s.%s", typ.Name(), structField.Name)
-		c.Debugf("Inject %#v(kind:%v) to %s", foundBind.instance, foundBind.injectValue.Kind(), fieldInjectDesc)
+		c.Debugf("Inject %T#%s to %s", foundBind.instance, foundBind.name, fieldInjectDesc)
 		if foundBind.injectValue.Kind() == reflect.Ptr && foundBind.injectValue.Pointer() == val.Pointer() {
 			injectSrcDesc := fmt.Sprintf("%#v(addr:%p)", foundBind.instance, foundBind.instance)
 			injectTargetDesc := fmt.Sprintf("%s of %#v(addr:%p)", fieldInjectDesc, target, target)
@@ -202,15 +202,15 @@ func (self *Injector) injectInstanceWithOverrideTags(target interface{}, injectT
 }
 
 // injectModules 注入Injector中各个Module中的绑定
-func (self *Injector) injectModules() {
+func (p *Injector) injectModules() {
 	c.Debugf("Inject internal")
-	for _, bind := range self.ununamed {
-		self.injectInstanceWithOverrideTags(bind.instance, bind.injectTags)
+	for _, bind := range p.ununamed {
+		p.injectInstanceWithOverrideTags(bind.instance, bind.injectTags)
 	}
 
-	for _, binds := range self.named {
+	for _, binds := range p.named {
 		for _, bind := range binds {
-			self.injectInstanceWithOverrideTags(bind.instance, bind.injectTags)
+			p.injectInstanceWithOverrideTags(bind.instance, bind.injectTags)
 		}
 	}
 }

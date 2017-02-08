@@ -29,7 +29,7 @@ func RequestWithError(req *http.Request, err error) *http.Request {
 }
 
 // ErrorFromRequestContext 从req的context取得错误值
-func ErrorFromRequestContext(req *http.Request) (error, bool) {
+func ErrorFromRequestContext(req *http.Request) (bool, error) {
 	err, ok := req.Context().Value(errorKey).(error)
-	return err, ok
+	return ok, err
 }

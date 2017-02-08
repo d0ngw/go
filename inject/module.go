@@ -2,8 +2,9 @@ package inject
 
 import (
 	"fmt"
-	c "github.com/d0ngw/go/common"
 	"reflect"
+
+	c "github.com/d0ngw/go/common"
 )
 
 // 内部的绑定实例
@@ -15,8 +16,8 @@ type internalBind struct {
 	injectTags  map[string]string //用于注入的tag,用于覆盖struct field中定义的tag
 }
 
-func (self internalBind) String() string {
-	return fmt.Sprintf("%v#%s", self.injectType, self.name)
+func (p internalBind) String() string {
+	return fmt.Sprintf("%v#%s", p.injectType, p.name)
 }
 
 // bindKey 用于绑定的key
@@ -25,8 +26,8 @@ type bindKey struct {
 	bindType reflect.Type
 }
 
-func (self bindKey) String() string {
-	return fmt.Sprintf("%v#%s", self.bindType, self.bindName)
+func (p bindKey) String() string {
+	return fmt.Sprintf("%v#%s", p.bindType, p.bindName)
 }
 
 // Provider 提供类似Guice Provider的功能,用于创建一个对象
@@ -49,38 +50,38 @@ func NewModule() *Module {
 }
 
 // BindWithNameOverrideTags 添加带名称的绑定,injectTags用于覆盖instance中struct field中field中定义的inject tag
-func (self *Module) BindWithNameOverrideTags(name string, instance interface{}, injectTags map[string]string) {
+func (p *Module) BindWithNameOverrideTags(name string, instance interface{}, injectTags map[string]string) {
 	if instance == nil {
 		panic("Can't bind nil instance")
 	}
 	b := &internalBind{name, instance, injectType(instance), reflect.ValueOf(instance), injectTags}
-	self.binds = append(self.binds, b)
+	p.binds = append(p.binds, b)
 }
 
 // BindWithName 添加带名称的绑定
-func (self *Module) BindWithName(name string, instance interface{}) {
-	self.BindWithNameOverrideTags(name, instance, map[string]string{})
+func (p *Module) BindWithName(name string, instance interface{}) {
+	p.BindWithNameOverrideTags(name, instance, map[string]string{})
 }
 
 // Bind 添加不带名称的绑定
-func (self *Module) Bind(instance interface{}) {
-	self.BindWithName("", instance)
+func (p *Module) Bind(instance interface{}) {
+	p.BindWithName("", instance)
 }
 
 // BindWithProvider 通过Provider提供带名称的绑定功能
-func (self *Module) BindWithProvider(name string, provider Provider) {
+func (p *Module) BindWithProvider(name string, provider Provider) {
 	if instance := provider.GetInstance(); instance != nil {
-		self.BindWithName(name, instance)
+		p.BindWithName(name, instance)
 		return
 	}
 	err := fmt.Errorf("Cant't bind nil instalce with name:%s,provider:%v", name, provider)
 	panic(err)
 }
 
-// BindWithProvider 通过Provider提供带名称的绑定功能
-func (self *Module) BindWithProviderFunc(name string, providerFunc ProviderFunc) {
+// BindWithProviderFunc 通过Provider提供带名称的绑定功能
+func (p *Module) BindWithProviderFunc(name string, providerFunc ProviderFunc) {
 	if instance := providerFunc(); instance != nil {
-		self.BindWithName(name, instance)
+		p.BindWithName(name, instance)
 		return
 	}
 	err := fmt.Errorf("Cant't bind nil instalce with name:%s,providerFunc:%v", name, providerFunc)
@@ -122,12 +123,12 @@ func mergeBinds(modules []*Module) (unnamed []*internalBind, named map[string][]
 
 	for _, module := range modules {
 		for _, bind := range module.binds {
-			bind_key := bindKey{bind.name, bind.injectType}
-			if _, ok := uniqBindMap[bind_key]; ok {
-				panic(fmt.Errorf("Duplicate bind %s", bind_key))
+			bindkey := bindKey{bind.name, bind.injectType}
+			if _, ok := uniqBindMap[bindkey]; ok {
+				panic(fmt.Errorf("Duplicate bind %s", bindkey))
 			} else {
-				uniqBindMap[bind_key] = struct{}{}
-				c.Debugf("Add bind key:%s", bind_key)
+				uniqBindMap[bindkey] = struct{}{}
+				c.Debugf("Add bind key:%s", bindkey)
 				if len(bind.name) == 0 {
 					unnamed = append(unnamed, bind)
 					all = append(all, bind)

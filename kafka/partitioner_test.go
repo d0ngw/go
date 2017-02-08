@@ -1,10 +1,11 @@
 package kafka
 
 import (
-	"github.com/Shopify/sarama"
-	c "github.com/d0ngw/common"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/Shopify/sarama"
+	c "github.com/d0ngw/go/common"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPartitioner(t *testing.T) {

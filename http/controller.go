@@ -14,25 +14,28 @@ type Controller interface {
 	// GetPath 路径前缀,以'/'结束,同一个控制下的http.Handler都
 	GetPath() string
 	// GetHandlerMiddlewares 返回controller的处理方法中,需要增加middleware封装的方法,key是controller中的方法名
-	GetHandlerMiddlewares() map[string][]HttpMiddleware
+	GetHandlerMiddlewares() map[string][]Middleware
 }
 
 // BaseController 表示一个控制器
 type BaseController struct {
-	Name               string                      // Controller的名称
-	Path               string                      // Controller的路径
-	HandlerMiddlewares map[string][]HttpMiddleware // Controller中需要使用middleware封装的方法
+	Name               string                  // Controller的名称
+	Path               string                  // Controller的路径
+	HandlerMiddlewares map[string][]Middleware // Controller中需要使用middleware封装的方法
 }
 
+// GetName controller的名称
 func (p *BaseController) GetName() string {
 	return p.Name
 }
 
+// GetPath controller的path
 func (p *BaseController) GetPath() string {
 	return p.Path
 }
 
-func (p *BaseController) GetHandlerMiddlewares() map[string][]HttpMiddleware {
+// GetHandlerMiddlewares handler的middleware
+func (p *BaseController) GetHandlerMiddlewares() map[string][]Middleware {
 	return p.HandlerMiddlewares
 }
 
@@ -43,7 +46,7 @@ var (
 
 type handlerWithMiddleware struct {
 	handlerFunc http.HandlerFunc
-	middlewares []HttpMiddleware
+	middlewares []Middleware
 }
 
 // ReflectHandlers 查找controller中类型为http.HandlerFunc的可导出方法,并将驼峰命名改为下划线分隔的路径
@@ -57,7 +60,7 @@ func reflectHandlers(controller Controller) (handlers map[string]*handlerWithMid
 	// 检查方法是否存在
 	hm := controller.GetHandlerMiddlewares()
 	if len(hm) > 0 {
-		for name, _ := range hm {
+		for name := range hm {
 			if found := val.MethodByName(name); !found.IsValid() {
 				return nil, fmt.Errorf("Can't find method name %s for middlewares", name)
 			}

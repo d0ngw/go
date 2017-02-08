@@ -3,10 +3,11 @@ package orm
 import (
 	"database/sql"
 	"fmt"
-	"github.com/BurntSushi/ty/fun"
-	c "github.com/d0ngw/go/common"
 	"reflect"
 	"strings"
+
+	"github.com/BurntSushi/ty/fun"
+	c "github.com/d0ngw/go/common"
 )
 
 func toSlice(s string, count int) []string {
@@ -18,7 +19,7 @@ func toSlice(s string, count int) []string {
 }
 
 //除了主键的过滤函数
-var exceptIdPred = func(field *modelField) bool {
+var exceptIDPred = func(field *modelField) bool {
 	if field == nil || (field.pk && field.pkAuto) {
 		return false
 	}
@@ -40,24 +41,24 @@ func checkEntity(modelInfo *modelMeta, entity EntityInterface, tx interface{}) (
 	return
 }
 
-func exec(executor interface{}, execSql string, args []interface{}) (rs sql.Result, err error) {
-	c.Debugf("Exec sql %s with %T", execSql, executor)
+func exec(executor interface{}, execSQL string, args []interface{}) (rs sql.Result, err error) {
+	c.Debugf("Exec sql %s with %T", execSQL, executor)
 	if tx, ok := executor.(*sql.Tx); ok {
-		rs, err = tx.Exec(execSql, args...)
+		rs, err = tx.Exec(execSQL, args...)
 	} else if db, ok := executor.(*sql.DB); ok {
-		rs, err = db.Exec(execSql, args...)
+		rs, err = db.Exec(execSQL, args...)
 	} else {
 		panic(NewDBErrorf(nil, "Not a valid executor:%T", executor))
 	}
 	return
 }
 
-func query(executor interface{}, execSql string, args []interface{}) (rows *sql.Rows, err error) {
-	c.Debugf("Exec sql %s with %T", execSql, executor)
+func query(executor interface{}, execSQL string, args []interface{}) (rows *sql.Rows, err error) {
+	c.Debugf("Exec sql %s with %T", execSQL, executor)
 	if tx, ok := executor.(*sql.Tx); ok {
-		rows, err = tx.Query(execSql, args...)
+		rows, err = tx.Query(execSQL, args...)
 	} else if db, ok := executor.(*sql.DB); ok {
-		rows, err = db.Query(execSql, args...)
+		rows, err = db.Query(execSQL, args...)
 	} else {
 		panic(NewDBErrorf(nil, "Not a valid executor:%T", executor))
 	}
@@ -66,7 +67,7 @@ func query(executor interface{}, execSql string, args []interface{}) (rows *sql.
 
 //构建实体模型的插入函数
 func createInsertFunc(modelInfo *modelMeta) EntityCFunc {
-	insertFields := fun.Filter(exceptIdPred, modelInfo.fields).([]*modelField)
+	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return field.column
 	}, insertFields).([]string), ",")
@@ -81,10 +82,10 @@ func createInsertFunc(modelInfo *modelMeta) EntityCFunc {
 			paramValues = append(paramValues, fv)
 		}
 
-		insertSql := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", entity.TableName(), columns, params)
-		c.Debugf("insertSql:%v", insertSql)
+		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", entity.TableName(), columns, params)
+		c.Debugf("insertSql:%v", insertSQL)
 
-		rs, err := exec(executor, insertSql, paramValues)
+		rs, err := exec(executor, insertSQL, paramValues)
 		if err != nil {
 			return err
 		}
@@ -102,7 +103,7 @@ func createInsertFunc(modelInfo *modelMeta) EntityCFunc {
 
 //构建实体模型的更新函数
 func createUpdateFunc(modelInfo *modelMeta) EntityUFunc {
-	updateFields := fun.Filter(exceptIdPred, modelInfo.fields).([]*modelField)
+	updateFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return field.column + "=?"
 	}, updateFields).([]string), ",")
@@ -119,22 +120,19 @@ func createUpdateFunc(modelInfo *modelMeta) EntityUFunc {
 		id := ind.Field(modelInfo.pkField.index).Interface()
 		paramValues = append(paramValues, id)
 
-		updateSql := fmt.Sprintf("UPDATE %s SET %s where %s = %s", entity.TableName(), columns, modelInfo.pkField.column, "?")
-		rs, err := exec(executor, updateSql, paramValues)
+		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", entity.TableName(), columns, modelInfo.pkField.column, "?")
+		rs, err := exec(executor, updateSQL, paramValues)
 		if err != nil {
 			return false, err
 		}
-
 		//检查更新的记录数
 		if rows, err := rs.RowsAffected(); err == nil {
 			if rows != 1 {
 				return false, nil
-			} else {
-				return true, nil
 			}
-		} else {
-			return false, err
+			return true, nil
 		}
+		return false, err
 	}
 }
 
@@ -145,14 +143,14 @@ func createUpdateColumnsFunc(modelInfo *modelMeta) EntityUCFunc {
 		if len(columns) == 0 {
 			panic(NewDBError(nil, "Can't update empty columns"))
 		}
-		updateSql := fmt.Sprintf("UPDATE %s SET %s ", entity.TableName(), columns)
+		updateSQL := fmt.Sprintf("UPDATE %s SET %s ", entity.TableName(), columns)
 		if len(condition) > 0 {
-			updateSql += condition
+			updateSQL += condition
 
 		}
-		c.Debugf("updateSql:%v", updateSql)
+		c.Debugf("updateSql:%v", updateSQL)
 
-		rs, err := exec(executor, updateSql, params)
+		rs, err := exec(executor, updateSQL, params)
 		if err != nil {
 			return 0, err
 		}
@@ -161,9 +159,8 @@ func createUpdateColumnsFunc(modelInfo *modelMeta) EntityUCFunc {
 		if rows, err := rs.RowsAffected(); err == nil {
 			c.Debugf("Updated rows:%v", rows)
 			return rows, err
-		} else {
-			return 0, err
 		}
+		return 0, err
 	}
 }
 
@@ -175,13 +172,13 @@ func createQueryFunc(modelInfo *modelMeta) EntityQFunc {
 
 	return func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error) {
 		ind := checkEntity(modelInfo, entity, executor)
-		querySql := fmt.Sprintf("SELECT %s FROM %s ", columns, entity.TableName())
+		querySQL := fmt.Sprintf("SELECT %s FROM %s ", columns, entity.TableName())
 		if len(condition) > 0 {
-			querySql += condition
+			querySQL += condition
 		}
-		c.Debugf("querySql:%v", querySql)
+		c.Debugf("querySql:%v", querySQL)
 
-		rows, err := query(executor, querySql, params)
+		rows, err := query(executor, querySQL, params)
 		if err != nil {
 			return nil, err
 		}
@@ -211,21 +208,20 @@ func createQueryFunc(modelInfo *modelMeta) EntityQFunc {
 func createDelFunc(modelInfo *modelMeta) EntityDFunc {
 	return func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
-		delSql := fmt.Sprintf("DELETE FROM %s ", entity.TableName())
+		delSQL := fmt.Sprintf("DELETE FROM %s ", entity.TableName())
 		if len(condition) > 0 {
-			delSql += condition
+			delSQL += condition
 		}
-		c.Debugf("delSql:%v", delSql)
+		c.Debugf("delSql:%v", delSQL)
 
-		rs, err := exec(executor, delSql, params)
+		rs, err := exec(executor, delSQL, params)
 		if err != nil {
 			return 0, err
 		}
 		//检查更新的记录数
 		if rows, err := rs.RowsAffected(); err == nil {
 			return rows, err
-		} else {
-			return 0, err
 		}
+		return 0, err
 	}
 }

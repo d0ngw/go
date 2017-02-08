@@ -1,13 +1,13 @@
-//提供基本的http服务
 package http
 
 import (
-	c "github.com/d0ngw/go/common"
-	"golang.org/x/net/netutil"
 	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	c "github.com/d0ngw/go/common"
+	"golang.org/x/net/netutil"
 )
 
 type tcpKeepAliveListener struct {
@@ -25,23 +25,23 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-//安全地关闭的处理器
+// GraceableHandler 安全地关闭的处理器
 type GraceableHandler struct {
 	handler   http.Handler
 	waitGroup *sync.WaitGroup
 }
 
-func (self *GraceableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	self.waitGroup.Add(1)
-	defer self.waitGroup.Done()
+func (p *GraceableHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	p.waitGroup.Add(1)
+	defer p.waitGroup.Done()
 
-	self.handler.ServeHTTP(w, r)
+	p.handler.ServeHTTP(w, r)
 }
 
-// HttpService Http服务
-type HttpService struct {
+// Service Http服务
+type Service struct {
 	c.BaseService
-	Conf         *HttpConfig
+	Conf         *Config
 	listener     net.Listener
 	serveMux     *http.ServeMux
 	graceHandler *GraceableHandler
@@ -49,18 +49,18 @@ type HttpService struct {
 }
 
 // Init 初始化Http服务
-func (self *HttpService) Init() bool {
-	self.Lock()
-	defer self.Unlock()
+func (p *Service) Init() bool {
+	p.Lock()
+	defer p.Unlock()
 
 	serveMux := http.NewServeMux()
 
-	for pattern, handler := range self.Conf.handles {
+	for pattern, handler := range p.Conf.handles {
 		if handler == nil {
 			c.Criticalf("Can't bind nil handlerFunc to path %s", pattern)
 			return false
 		}
-		serveMux.Handle(pattern, self.handleWithMiddleware(handler))
+		serveMux.Handle(pattern, p.handleWithMiddleware(handler))
 	}
 
 	graceHandler := &GraceableHandler{
@@ -68,32 +68,32 @@ func (self *HttpService) Init() bool {
 		waitGroup: &sync.WaitGroup{}}
 
 	server := &http.Server{
-		Addr:         self.Conf.Addr,
-		ReadTimeout:  self.Conf.ReadTimeout * time.Second,
-		WriteTimeout: self.Conf.WriteTimeout * time.Second,
+		Addr:         p.Conf.Addr,
+		ReadTimeout:  p.Conf.ReadTimeout * time.Second,
+		WriteTimeout: p.Conf.WriteTimeout * time.Second,
 		Handler:      graceHandler}
 
-	if self.Conf.Addr == "" {
-		self.Conf.Addr = ":http"
+	if p.Conf.Addr == "" {
+		p.Conf.Addr = ":http"
 	}
 
-	self.graceHandler = graceHandler
-	self.server = server
-	self.serveMux = serveMux
+	p.graceHandler = graceHandler
+	p.server = server
+	p.serveMux = serveMux
 	return true
 }
 
 // handleWithMiddleware 依次调用各个middleware
-func (self *HttpService) handleWithMiddleware(handler *handlerWithMiddleware) http.HandlerFunc {
+func (p *Service) handleWithMiddleware(handler *handlerWithMiddleware) http.HandlerFunc {
 	originHandler := func(w http.ResponseWriter, r *http.Request) {
-		if err, ok := ErrorFromRequestContext(r); ok {
+		if ok, err := ErrorFromRequestContext(r); ok {
 			c.Errorf("stop handle %s,cause by error:%s", r.RequestURI, err)
 		} else {
 			handler.handlerFunc(w, r)
 		}
 	}
 
-	var middlewares = append(handler.middlewares, self.Conf.middlewares...)
+	var middlewares = append(handler.middlewares, p.Conf.middlewares...)
 	var middlewareCount = len(middlewares)
 
 	h := originHandler
@@ -112,29 +112,29 @@ func (self *HttpService) handleWithMiddleware(handler *handlerWithMiddleware) ht
 }
 
 // Start 启动Http服务,开始端口监听和服务处理
-func (self *HttpService) Start() bool {
-	self.Lock()
-	defer self.Unlock()
+func (p *Service) Start() bool {
+	p.Lock()
+	defer p.Unlock()
 
-	c.Infof("Listen at %s", self.Conf.Addr)
-	ln, err := net.Listen("tcp", self.Conf.Addr)
+	c.Infof("Listen at %s", p.Conf.Addr)
+	ln, err := net.Listen("tcp", p.Conf.Addr)
 	if err != nil {
-		c.Errorf("Listen at %s fail,error:%v", self.Conf.Addr, err)
+		c.Errorf("Listen at %s fail,error:%v", p.Conf.Addr, err)
 		return false
 	}
 
 	tcpListener := tcpKeepAliveListener{ln.(*net.TCPListener)}
-	if self.Conf.MaxConns > 0 {
-		self.listener = netutil.LimitListener(tcpListener, self.Conf.MaxConns)
+	if p.Conf.MaxConns > 0 {
+		p.listener = netutil.LimitListener(tcpListener, p.Conf.MaxConns)
 	} else {
-		self.listener = tcpListener
+		p.listener = tcpListener
 	}
 
-	self.graceHandler.waitGroup.Add(1)
+	p.graceHandler.waitGroup.Add(1)
 
 	go func() {
-		defer self.graceHandler.waitGroup.Done()
-		err := self.server.Serve(self.listener)
+		defer p.graceHandler.waitGroup.Done()
+		err := p.server.Serve(p.listener)
 		if err != nil {
 			c.Errorf("server.Serve return with error:%v", err)
 		}
@@ -143,24 +143,24 @@ func (self *HttpService) Start() bool {
 }
 
 // Stop 停止Http服务,关闭端口监听和服务处理
-func (self *HttpService) Stop() bool {
-	self.Lock()
-	defer self.Unlock()
+func (p *Service) Stop() bool {
+	p.Lock()
+	defer p.Unlock()
 
-	if self.listener != nil {
-		if err := self.listener.Close(); err != nil {
+	if p.listener != nil {
+		if err := p.listener.Close(); err != nil {
 			c.Errorf("Close listener error:%v", err)
 		}
 	}
 
 	//等待所有的服务
 	c.Infof("Waiting shutdown")
-	self.graceHandler.waitGroup.Wait()
+	p.graceHandler.waitGroup.Wait()
 	c.Infof("Finish shutdown")
 
-	self.listener = nil
-	self.graceHandler = nil
-	self.server = nil
-	self.serveMux = nil
+	p.listener = nil
+	p.graceHandler = nil
+	p.server = nil
+	p.serveMux = nil
 	return true
 }

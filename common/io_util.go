@@ -11,7 +11,8 @@ import (
 	"syscall"
 )
 
-func ParseInputAndOutPut(input, output string) (inputReader, outWriter *os.File, err error) {
+// ParseInputAndOutput 解析输入的文件
+func ParseInputAndOutput(input, output string) (inputReader, outWriter *os.File, err error) {
 	if input == "-" {
 		inputReader = os.Stdin
 		fmt.Fprintln(os.Stderr, "Read data from stdin")
@@ -58,6 +59,7 @@ func ParseInputAndOutPut(input, output string) (inputReader, outWriter *os.File,
 	return
 }
 
+// ParseInput 解析输入的文件
 func ParseInput(input string) (inputReader *os.File, err error) {
 	if input == "-" {
 		inputReader = os.Stdin
@@ -82,16 +84,19 @@ func ParseInput(input string) (inputReader *os.File, err error) {
 	return
 }
 
+// PrintErrorMsgAndExit 打印信息并退出
 func PrintErrorMsgAndExit(msg string, err error) {
 	fmt.Fprintf(os.Stderr, "%s Error:%v\n", msg, err)
 	os.Exit(1)
 }
 
+// LF `\n`
 const LF = '\n'
 
+// ProcessLineFunc 行处理函数
 type ProcessLineFunc func(data string, lineNum int, readErr error) (stop bool)
 
-// 按行从rd中读取数据,交由processFunc进行处理
+// ProcessLines 按行从rd中读取数据,交由processFunc进行处理
 func ProcessLines(rd io.Reader, processFunc ProcessLineFunc) {
 	scanner := bufio.NewReaderSize(rd, 4*1024)
 	var readErr error
@@ -120,6 +125,7 @@ func ProcessLines(rd io.Reader, processFunc ProcessLineFunc) {
 	}
 }
 
+// WaitStop 等待退出信号
 func WaitStop() os.Signal {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT)

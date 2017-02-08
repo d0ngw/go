@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-type TestJson struct {
-	Id   int64                  `json:"id"`
+type TestJSON struct {
+	ID   int64                  `json:"id"`
 	Data map[string]interface{} `json:"data"`
 	Fid  float64                `json:"fid"`
 }
@@ -33,7 +33,7 @@ func TestJSONUnmarshal(t *testing.T) {
 	fmt.Println("err:", err, "mjsonStr:", string(mjsonStr))
 
 	fmt.Println("tj")
-	tj := &TestJson{}
+	tj := &TestJSON{}
 
 	err = gjson.Unmarshal(packet, tj)
 	fmt.Println("err:", err, "use default unmarshal tj:", tj)

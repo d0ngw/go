@@ -14,7 +14,7 @@ import (
 	"text/template"
 )
 
-// JSON Http响应
+// Resp JSON Http响应
 type Resp struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data"`
@@ -22,10 +22,10 @@ type Resp struct {
 }
 
 var (
-	no_param_error = fmt.Errorf("missing param")
+	errNoparam = fmt.Errorf("missing param")
 )
 
-// GetStringParameter 取得由name指定的参数值
+// GetParameter 取得由name指定的参数值
 func GetParameter(r url.Values, name string) string {
 	return strings.TrimSpace(r.Get(name))
 }
@@ -33,7 +33,7 @@ func GetParameter(r url.Values, name string) string {
 func getIntParameter(r url.Values, name string, bitSize int) (val int64, err error) {
 	value := GetParameter(r, name)
 	if value == "" {
-		return 0, no_param_error
+		return 0, errNoparam
 	}
 	val, err = strconv.ParseInt(value, 10, bitSize)
 	return
@@ -50,12 +50,11 @@ func GetInt32Parameter(r url.Values, name string) (val int32, err error) {
 	val64, err := getIntParameter(r, name, 32)
 	if err == nil {
 		return int32(val64), nil
-	} else {
-		return 0, err
 	}
+	return 0, err
 }
 
-// 渲染模板
+// RenderTemplate 渲染模板
 func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interface{}) {
 	templatePath := path.Join(templateDir, tmpl+".html")
 	t, err := template.ParseFiles(templatePath)
@@ -69,8 +68,8 @@ func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interf
 	}
 }
 
-// 渲染JSON
-func RenderJson(w http.ResponseWriter, jsonData interface{}) {
+// RenderJSON 渲染JSON
+func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
@@ -81,19 +80,19 @@ func RenderJson(w http.ResponseWriter, jsonData interface{}) {
 	}
 }
 
-// 渲染Text
+// RenderText 渲染Text
 func RenderText(w http.ResponseWriter, text string) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(text))
 }
 
-// Get 请求
-func GetUrl(client *http.Client, url string, params url.Values) (string, error) {
-	return GetUrlWithCookie(client, url, params, nil)
+// GetURL 请求URL
+func GetURL(client *http.Client, url string, params url.Values) (string, error) {
+	return GetURLWithCookie(client, url, params, nil)
 }
 
-// Get 请求
-func GetUrlWithCookie(client *http.Client, url string, params url.Values, cookies map[string]string) (string, error) {
+// GetURLWithCookie 请求URL
+func GetURLWithCookie(client *http.Client, url string, params url.Values, cookies map[string]string) (string, error) {
 	var req *http.Request
 	var err error
 	if params != nil {
@@ -124,14 +123,13 @@ func GetUrlWithCookie(client *http.Client, url string, params url.Values, cookie
 	return strings.TrimSpace(string(body)), nil
 }
 
-// Post 请求
-func PostUrl(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader) ([]byte, http.Header, error) {
-	return PostUrlWithCookie(client, url, params, contentType, requestBody, nil)
+// PostURL 请求URL
+func PostURL(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader) ([]byte, http.Header, error) {
+	return PostURLWithCookie(client, url, params, contentType, requestBody, nil)
 }
 
-// Post 请求
-func PostUrlWithCookie(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
-
+// PostURLWithCookie 请求URL
+func PostURLWithCookie(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
 	if requestBody == nil {
 		requestBody = strings.NewReader(params.Encode())
 	} else {

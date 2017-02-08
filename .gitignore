@@ -7,3 +7,4 @@ bin/
 *.log
 Thumbs.db
 **/Godeps/_workspace
+.vscode

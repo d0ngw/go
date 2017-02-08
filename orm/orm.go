@@ -1,12 +1,13 @@
-//简单的DAL 封装
+// Package orm 简单的DAL 封装
 package orm
 
 import (
 	"fmt"
-	c "github.com/d0ngw/go/common"
 	"reflect"
 	"strings"
 	"sync"
+
+	c "github.com/d0ngw/go/common"
 )
 
 //模型元信息
@@ -55,25 +56,25 @@ var (
 	}
 )
 
-//实体的Create函数原型
+//EntityCFunc 实体的Create函数原型
 type EntityCFunc func(executor interface{}, entity EntityInterface) error
 
-//实体的Update函数原型
+//EntityUFunc 实体的Update函数原型
 type EntityUFunc func(executor interface{}, entity EntityInterface) (bool, error)
 
-//实体列的Update函数原型
+//EntityUCFunc 实体列的Update函数原型
 type EntityUCFunc func(executor interface{}, entity EntityInterface, columns string, contition string, params []interface{}) (int64, error)
 
-//实体的查询函数原型
+//EntityQFunc 实体的查询函数原型
 type EntityQFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error)
 
-//根据id获取单个实体的函数原型
+//EntityGFunc 根据id获取单个实体的函数原型
 type EntityGFunc func(executor interface{}, entity EntityInterface, id int64) (EntityInterface, error)
 
-//实体的删除函数原型
+//EntityDFunc 实体的删除函数原型
 type EntityDFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error)
 
-//根据id删除实体的函数原型
+//EntityDEFunc 根据id删除实体的函数原型
 type EntityDEFunc func(executor interface{}, entity EntityInterface, id int64) (bool, error)
 
 //抽取
@@ -85,7 +86,7 @@ func getFullModelName(typ reflect.Type) string {
 	return typ.PkgPath() + "." + typ.Name()
 }
 
-// 注册数据模型
+//AddModel 注册数据模型
 func AddModel(model EntityInterface) error {
 	return _modelReg.RegModel(model)
 }
@@ -93,9 +94,8 @@ func AddModel(model EntityInterface) error {
 func findModelInfo(typ reflect.Type) *modelMeta {
 	if v, ok := _modelReg.cache[getFullModelName(typ)]; ok {
 		return v
-	} else {
-		return nil
 	}
+	return nil
 }
 
 func (reg *modelReg) clean() {
@@ -123,7 +123,7 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	fieldCount := ind.NumField()
 	fields := make([]*modelField, 0, fieldCount)
 	mInfo := &modelMeta{name: fullName, table: model.TableName(), modelType: typ}
-	var pkField *modelField = nil
+	var pkField *modelField
 
 	for i := 0; i < ind.NumField(); i++ {
 		structField := typ.Field(i)
@@ -167,7 +167,7 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	mInfo.queryFunc = createQueryFunc(mInfo)
 	mInfo.getFunc = func(executor interface{}, entity EntityInterface, id int64) (e EntityInterface, err error) {
 		e = nil
-		var l []EntityInterface = nil
+		var l []EntityInterface
 		if l, err = mInfo.queryFunc(executor, entity, " WHERE "+mInfo.pkField.column+" = ?", []interface{}{id}); err == nil {
 			if len(l) == 1 {
 				e = l[0]

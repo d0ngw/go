@@ -8,12 +8,14 @@ import (
 	"fmt"
 )
 
+// PKCS5Padding pkcs5 padding
 func PKCS5Padding(ciphertext []byte, blockSize int) ([]byte, error) {
 	padding := blockSize - len(ciphertext)%blockSize
 	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
 	return append(ciphertext, padtext...), nil
 }
 
+// PKCS5UnPadding pkcs5 unpadding
 func PKCS5UnPadding(origData []byte) ([]byte, error) {
 	length := len(origData)
 	if length == 0 {
@@ -34,8 +36,8 @@ func PKCS5UnPadding(origData []byte) ([]byte, error) {
 func AesEncrypt(data, key []byte) (result []byte, err error) {
 	defer func() {
 		if reErr := recover(); reErr != nil {
-			Errorf("AES Encrypt error ", reErr)
-			err = errors.New(fmt.Sprintln("AES Encrypt fail,%v", reErr))
+			Errorf("AES Encrypt err:%s ", reErr)
+			err = fmt.Errorf("AES Encrypt fail,%v", reErr)
 		}
 	}()
 	block, err := aes.NewCipher(key)
@@ -57,8 +59,8 @@ func AesEncrypt(data, key []byte) (result []byte, err error) {
 func AesDecrypt(data, key []byte) (result []byte, err error) {
 	defer func() {
 		if reErr := recover(); reErr != nil {
-			Errorf("AES Decrypt error ", reErr)
-			err = errors.New(fmt.Sprintln("AES Decrypt fail,%v", reErr))
+			Errorf("AES Decrypt err:%s", reErr)
+			err = fmt.Errorf("AES Decrypt fail,%v", reErr)
 		}
 	}()
 
