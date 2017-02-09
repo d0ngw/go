@@ -75,15 +75,12 @@ func (p *AppConfig) Parse() error {
 func Parse(conf interface{}) error {
 	config := reflect.Indirect(reflect.ValueOf(conf))
 	fieldCount := config.NumField()
-	typ := config.Type()
 
 	for i := 0; i < fieldCount; i++ {
 		val := reflect.Indirect(config.Field(i))
 		if !val.IsValid() {
 			continue
 		}
-		typField := typ.Field(i)
-		Debugf("Found %#v,%v", typField.Name, val)
 
 		if configFieldValue, ok := val.Addr().Interface().(Configurer); ok {
 			if err := configFieldValue.Parse(); err != nil {

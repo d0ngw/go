@@ -22,7 +22,6 @@ type ValidateRuleConfig struct {
 // Parse 解析验证的配置
 func (p *ValidateRuleConfig) Parse() error {
 	rules := make(validateRuleMap)
-	Debugf("parse validate rule config:%v", p)
 	for _, ruleConfig := range p.Rules {
 		ruleName := strings.TrimSpace(ruleConfig.Name)
 		if len(ruleName) == 0 {

@@ -9,9 +9,12 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
+
+	c "github.com/d0ngw/go/common"
 )
 
 // Resp JSON Http响应
@@ -50,6 +53,30 @@ func GetInt32Parameter(r url.Values, name string) (val int32, err error) {
 	val64, err := getIntParameter(r, name, 32)
 	if err == nil {
 		return int32(val64), nil
+	}
+	return 0, err
+}
+
+func getFloatParameter(r url.Values, name string, bitSize int) (val float64, err error) {
+	value := GetParameter(r, name)
+	if value == "" {
+		return 0, errNoparam
+	}
+	val, err = strconv.ParseFloat(value, bitSize)
+	return
+}
+
+// GetFloat64Parameter 取得由name指定的64位浮点数参数值
+func GetFloat64Parameter(r url.Values, name string) (val float64, err error) {
+	val, err = getFloatParameter(r, name, 64)
+	return
+}
+
+// GetFloat32Parameter 取得由name指定的32位浮点数参数值
+func GetFloat32Parameter(r url.Values, name string) (val float32, err error) {
+	val64, err := getFloatParameter(r, name, 32)
+	if err == nil {
+		return float32(val64), nil
 	}
 	return 0, err
 }
@@ -162,4 +189,97 @@ func PostURLWithCookie(client *http.Client, url string, params url.Values, conte
 		return nil, nil, err
 	}
 	return body, resp.Header, nil
+}
+
+// ParseParams 从r中解析参数,并填充到dest中,params应该是struct指针
+func ParseParams(r url.Values, dest interface{}) error {
+	if r == nil || dest == nil {
+		return fmt.Errorf("invalid args")
+	}
+
+	val, ind, typ := c.ExtractRefTuple(dest)
+	if val.Kind() != reflect.Ptr {
+		return fmt.Errorf("Expect ptr ,but it's %s", val.Kind())
+	}
+	if typ.Kind() != reflect.Struct {
+		return fmt.Errorf("Expect struct,but it's %s", typ.Kind())
+	}
+
+	for i := 0; i < ind.NumField(); i++ {
+		field := typ.Field(i)
+		tag := field.Tag
+		paramName := tag.Get("pname")
+		if paramName == "" {
+			paramName = ToUnderlineName(field.Name)
+		}
+
+		if paramName == "_" {
+			continue
+		}
+
+		fieldVal := ind.Field(i)
+		switch field.Type.Kind() {
+		case reflect.Int:
+			fallthrough
+		case reflect.Int8:
+			fallthrough
+		case reflect.Int16:
+			fallthrough
+		case reflect.Int32:
+			fallthrough
+		case reflect.Int64:
+			if val64, err := getIntParameter(r, paramName, 64); err == nil {
+				fieldVal.SetInt(val64)
+			}
+		case reflect.Float32:
+			fallthrough
+		case reflect.Float64:
+			if val64, err := getFloatParameter(r, paramName, 64); err == nil {
+				fieldVal.SetFloat(val64)
+			}
+		case reflect.String:
+			fieldVal.SetString(GetParameter(r, paramName))
+		case reflect.Bool:
+			v := strings.ToLower(GetParameter(r, paramName))
+			fieldVal.SetBool(v == "1" || v == "y" || v == "true")
+		case reflect.Slice:
+			paramSep := tag.Get("psep")
+			var vals []string
+			if paramSep == "" {
+				if ps, ok := r[paramName]; ok {
+					vals = c.TrimOmitEmpty(ps)
+				}
+			} else {
+				vals = c.SplitTrimOmitEmpty(GetParameter(r, paramName), paramSep)
+			}
+
+			strSlice := c.StringSlice(vals)
+			var elem = field.Type.Elem()
+			switch elem.Kind() {
+			case reflect.String:
+				fieldVal.Set(reflect.ValueOf(vals))
+			case reflect.Int32:
+				if intSlice, err := strSlice.ToInt32(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				}
+			case reflect.Int64:
+				if intSlice, err := strSlice.ToInt64(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				}
+			case reflect.Float32:
+				if intSlice, err := strSlice.ToFloat32(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				}
+			case reflect.Float64:
+				if intSlice, err := strSlice.ToFloat64(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				}
+			default:
+				return fmt.Errorf("Unsupported type %s", elem.Kind())
+			}
+		default:
+			return fmt.Errorf("Unsupported field type %s", field.Type.Kind())
+		}
+	}
+	return nil
 }

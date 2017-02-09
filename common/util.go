@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -124,4 +125,128 @@ func FileBasename(s string) string {
 		return s[:n]
 	}
 	return s
+}
+
+// SplitTrimOmitEmpty 对str按sep分隔,去掉为空的项
+func SplitTrimOmitEmpty(str, sep string) []string {
+	return TrimOmitEmpty(strings.Split(str, sep))
+}
+
+// TrimOmitEmpty 去掉为空的值
+func TrimOmitEmpty(str []string) []string {
+	var ret = make([]string, 0, len(str))
+	for _, item := range str {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			ret = append(ret, item)
+		}
+	}
+	return ret
+}
+
+// StringSlice string slice
+type StringSlice []string
+
+// ToInt 转为[]int
+func (p StringSlice) ToInt() ([]int, error) {
+	if p == nil {
+		return nil, nil
+	}
+	ret := make([]int, 0, len(p))
+	for _, item := range p {
+		if val64, err := strconv.ParseInt(item, 10, 64); err == nil {
+			ret = append(ret, int(val64))
+		} else {
+			return nil, err
+		}
+	}
+	return ret, nil
+}
+
+//ToNumber 转为数字slice
+func (p StringSlice) ToNumber(typ interface{}) (interface{}, error) {
+	sliceType := reflect.TypeOf(typ)
+	intSlice := reflect.MakeSlice(sliceType, 0, len(p))
+	sliceElemType := sliceType.Elem()
+	k := sliceElemType.Kind()
+
+	var toAdd = make([]reflect.Value, 0, len(p))
+	for _, item := range p {
+		v := reflect.New(sliceElemType)
+		indV := reflect.Indirect(v)
+		switch k {
+		case reflect.Int:
+			fallthrough
+		case reflect.Int16:
+			fallthrough
+		case reflect.Int32:
+			fallthrough
+		case reflect.Int64:
+			if val64, err := strconv.ParseInt(item, 10, 64); err == nil {
+				indV.SetInt(val64)
+				toAdd = append(toAdd, indV)
+			} else {
+				return nil, err
+			}
+		case reflect.Float32:
+			fallthrough
+		case reflect.Float64:
+			if val64, err := strconv.ParseFloat(item, 64); err == nil {
+				indV.SetFloat(val64)
+				toAdd = append(toAdd, indV)
+			} else {
+				return nil, err
+			}
+		}
+	}
+	intSlice = reflect.Append(intSlice, toAdd...)
+	return intSlice.Interface(), nil
+}
+
+// ToInt32 转为[]int32
+func (p StringSlice) ToInt32() ([]int32, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]int32{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]int32), nil
+}
+
+// ToInt64 转为[]int64
+func (p StringSlice) ToInt64() ([]int64, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]int64{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]int64), nil
+}
+
+// ToFloat32 转为[]float32
+func (p StringSlice) ToFloat32() ([]float32, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]float32{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]float32), nil
+}
+
+// ToFloat64 转为[]floa64t
+func (p StringSlice) ToFloat64() ([]float64, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]float64{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]float64), nil
 }
