@@ -277,6 +277,12 @@ func ParseParams(r url.Values, dest interface{}) error {
 			default:
 				return fmt.Errorf("Unsupported type %s", elem.Kind())
 			}
+		case reflect.Struct:
+			if fieldVal.IsValid() && fieldVal.CanInterface() && fieldVal.CanAddr() {
+				ParseParams(r, fieldVal.Addr().Interface())
+			} else {
+				return fmt.Errorf("Unsupported struct type %s", fieldVal.Type())
+			}
 		default:
 			return fmt.Errorf("Unsupported field type %s", field.Type.Kind())
 		}
