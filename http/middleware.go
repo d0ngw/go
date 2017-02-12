@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	"strings"
 
 	c "github.com/d0ngw/go/common"
 	"github.com/d0ngw/go/common/perm"
@@ -14,6 +15,34 @@ type MiddlewareFunc func(http.ResponseWriter, *http.Request)
 type Middleware interface {
 	// Handle处理
 	Handle(next MiddlewareFunc) MiddlewareFunc
+}
+
+// RequestMehotdMiddleware http请求方法
+type RequestMehotdMiddleware struct {
+	//允许的请求方法
+	AllowsMethods map[string]struct{}
+}
+
+// Handle 校验Http请求的方法
+func (p *RequestMehotdMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := p.AllowsMethods[r.Method]; !ok {
+			http.Error(w, "Bad Request", http.StatusMethodNotAllowed)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// NewRequestMetodMiddleware 用methods构建middleware
+func NewRequestMetodMiddleware(methods ...string) *RequestMehotdMiddleware {
+	m := &RequestMehotdMiddleware{
+		AllowsMethods: map[string]struct{}{},
+	}
+	for _, method := range methods {
+		m.AllowsMethods[strings.ToUpper(method)] = struct{}{}
+	}
+	return m
 }
 
 // PermBindMiddleware 用于给controller中的handler方法注入需要的权限
@@ -30,6 +59,19 @@ func (p *PermBindMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 		}
 		next(w, r)
 	}
+}
+
+// NewPermBindMiddleware 用perms构建middleware
+func NewPermBindMiddleware(perms ...*perm.Perm) *PermBindMiddleware {
+	m := &PermBindMiddleware{
+		ReqPerm: []*perm.Perm{},
+	}
+	for _, p := range perms {
+		if p != nil {
+			m.ReqPerm = append(m.ReqPerm, p)
+		}
+	}
+	return m
 }
 
 // TokenMiddleware 用于从cookie中解析token,从中取得请求的principal
