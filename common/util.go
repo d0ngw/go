@@ -3,6 +3,7 @@ package common
 import (
 	"bufio"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -177,6 +178,8 @@ func (p StringSlice) ToNumber(typ interface{}) (interface{}, error) {
 		switch k {
 		case reflect.Int:
 			fallthrough
+		case reflect.Int8:
+			fallthrough
 		case reflect.Int16:
 			fallthrough
 		case reflect.Int32:
@@ -249,4 +252,70 @@ func (p StringSlice) ToFloat64() ([]float64, error) {
 		return nil, err
 	}
 	return val.([]float64), nil
+}
+
+// ToInterface 转为interface slice
+func (p StringSlice) ToInterface() []interface{} {
+	if p == nil {
+		return nil
+	}
+	val := make([]interface{}, 0, len(p))
+	for _, item := range p {
+		val = append(val, item)
+	}
+	return val
+}
+
+//Int64 转为int64类型
+func Int64(p interface{}) (i int64, err error) {
+	switch v := p.(type) {
+	case int:
+		i = int64(v)
+	case int8:
+		i = int64(v)
+	case int16:
+		i = int64(v)
+	case int32:
+		i = int64(v)
+	case int64:
+		i = int64(v)
+	case float32:
+		i = int64(v)
+	case float64:
+		i = int64(v)
+	case string:
+		i, err = strconv.ParseInt(v, 10, 64)
+	case json.Number:
+		i, err = v.Int64()
+	default:
+		err = fmt.Errorf("unsupported type %T", p)
+	}
+	return
+}
+
+//Float64 转为float64类型
+func Float64(p interface{}) (i float64, err error) {
+	switch v := p.(type) {
+	case int:
+		i = float64(v)
+	case int8:
+		i = float64(v)
+	case int16:
+		i = float64(v)
+	case int32:
+		i = float64(v)
+	case int64:
+		i = float64(v)
+	case float32:
+		i = float64(v)
+	case float64:
+		i = float64(v)
+	case string:
+		i, err = strconv.ParseFloat(v, 64)
+	case json.Number:
+		i, err = v.Float64()
+	default:
+		err = fmt.Errorf("unsupported type %T", p)
+	}
+	return
 }
