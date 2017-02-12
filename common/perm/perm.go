@@ -133,6 +133,11 @@ type Perm struct {
 	Op  Operation //操作
 }
 
+// NewPerm 构建Perm
+func NewPerm(res *Resource, op Operation) *Perm {
+	return &Perm{Res: res, Op: op}
+}
+
 //Role 定义角色
 type Role interface {
 	//GetName 角色的名称
