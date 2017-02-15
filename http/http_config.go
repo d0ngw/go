@@ -92,6 +92,20 @@ func (p *Config) RegHandleFunc(patternPath string, handlerFunc http.HandlerFunc)
 	return nil
 }
 
+// RegStaticFunc 注册静态资源patternPath的处理函数handlerFunc
+func (p *Config) RegStaticFunc(patternAndPath map[string]string) error {
+	if patternAndPath == nil {
+		return nil
+	}
+	for pattern, path := range patternAndPath {
+		fs := http.FileServer(NoDirFS{Fs: http.Dir(path)})
+		p.RegHandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+			fs.ServeHTTP(w, r)
+		})
+	}
+	return nil
+}
+
 // RegMiddleware 注册middleware,middleware的注册需要在RegController和RegHandleFunc之前完成
 func (p *Config) RegMiddleware(middleware Middleware) error {
 	if middleware == nil {
