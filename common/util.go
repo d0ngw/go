@@ -319,3 +319,13 @@ func Float64(p interface{}) (i float64, err error) {
 	}
 	return
 }
+
+// IsEmpty 是否有空字符串
+func IsEmpty(strs ...string) bool {
+	for _, str := range strs {
+		if str == "" {
+			return true
+		}
+	}
+	return false
+}
