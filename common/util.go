@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"os"
 	"os/signal"
@@ -328,4 +329,25 @@ func IsEmpty(strs ...string) bool {
 		}
 	}
 	return false
+}
+
+// HasNil check does any args is nil
+func HasNil(args ...interface{}) bool {
+	for _, arg := range args {
+		if arg == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// Fnv32Hashcode calculate abs hash code for data
+func Fnv32Hashcode(data string) int {
+	hash := fnv.New32a()
+	hash.Write([]byte(data))
+	hashCode := int(hash.Sum32())
+	if hashCode < 0 {
+		hashCode = -hashCode
+	}
+	return hashCode
 }

@@ -84,7 +84,7 @@ type TokenMiddleware struct {
 func (p *TokenMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tokenCookie, err := r.Cookie(p.TokenName)
-		if err == nil {
+		if err == nil && len(tokenCookie.Value) > 0 {
 			//检查是否已经有principal了
 			principal, _ := perm.GetPrincipal(r.Context())
 			if principal == nil {

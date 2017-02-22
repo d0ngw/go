@@ -2,6 +2,8 @@
 package orm
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -12,18 +14,19 @@ import (
 
 //模型元信息
 type modelMeta struct {
-	name              string        //模型的名称
-	table             string        //对应的表名
-	pkField           *modelField   //主键
-	fields            []*modelField //字段列表
-	modelType         reflect.Type  //模型的类型
-	insertFunc        EntityCFunc   //插入函数
-	updateFunc        EntityUFunc   //更新函数
-	updateColumnsFunc EntityUCFunc  //更新列函数
-	queryFunc         EntityQFunc   //查询函数
-	getFunc           EntityGFunc   //根据ID查询实体的函数
-	delFunc           EntityDFunc   //删除函数
-	delEFunc          EntityDEFunc  //根据ID删除实体的函数
+	name               string                   //模型的名称
+	table              string                   //对应的表名
+	pkField            *modelField              //主键
+	fields             []*modelField            //字段列表
+	modelType          reflect.Type             //模型的类型
+	insertFunc         entityInsertFunc         //插入函数
+	updateFunc         entityUpdateFunc         //更新函数
+	updateColumnsFunc  entityUpdateColumnFunc   //更新列函数
+	queryFunc          entityQueryFunc          //查询函数
+	getFunc            entityGetFunc            //根据ID查询实体的函数
+	delFunc            entityDeleteFunc         //删除函数
+	delEFunc           entityDeleteByIDFunc     //根据ID删除实体的函数
+	insertOrUpdateFunc entityInsertOrUpdateFunc //插入或者更新
 }
 
 //模型的字段定义
@@ -32,7 +35,7 @@ type modelField struct {
 	column      string              //表列名
 	pk          bool                //是否主键
 	pkAuto      bool                //如果是主键,是否是自增的id
-	index       int                 //索引
+	index       []int               //索引
 	structField reflect.StructField //StructField
 }
 
@@ -56,26 +59,14 @@ var (
 	}
 )
 
-//EntityCFunc 实体的Create函数原型
-type EntityCFunc func(executor interface{}, entity EntityInterface) error
-
-//EntityUFunc 实体的Update函数原型
-type EntityUFunc func(executor interface{}, entity EntityInterface) (bool, error)
-
-//EntityUCFunc 实体列的Update函数原型
-type EntityUCFunc func(executor interface{}, entity EntityInterface, columns string, contition string, params []interface{}) (int64, error)
-
-//EntityQFunc 实体的查询函数原型
-type EntityQFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error)
-
-//EntityGFunc 根据id获取单个实体的函数原型
-type EntityGFunc func(executor interface{}, entity EntityInterface, id int64) (EntityInterface, error)
-
-//EntityDFunc 实体的删除函数原型
-type EntityDFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error)
-
-//EntityDEFunc 根据id删除实体的函数原型
-type EntityDEFunc func(executor interface{}, entity EntityInterface, id int64) (bool, error)
+type entityInsertFunc func(executor interface{}, entity EntityInterface) error
+type entityUpdateFunc func(executor interface{}, entity EntityInterface) (bool, error)
+type entityUpdateColumnFunc func(executor interface{}, entity EntityInterface, columns string, contition string, params []interface{}) (int64, error)
+type entityQueryFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error)
+type entityGetFunc func(executor interface{}, entity EntityInterface, id interface{}) (EntityInterface, error)
+type entityDeleteFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error)
+type entityDeleteByIDFunc func(executor interface{}, entity EntityInterface, id interface{}) (bool, error)
+type entityInsertOrUpdateFunc func(executor interface{}, entity EntityInterface) (int64, error)
 
 //抽取
 func extract(model EntityInterface) (reflect.Value, reflect.Value, reflect.Type) {
@@ -125,38 +116,19 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	mInfo := &modelMeta{name: fullName, table: model.TableName(), modelType: typ}
 	var pkField *modelField
 
-	for i := 0; i < ind.NumField(); i++ {
-		structField := typ.Field(i)
-		sfTag := structField.Tag
-		column := sfTag.Get("column")
-		pk := strings.ToLower(sfTag.Get("pk"))
-		pkAuto := strings.ToLower(sfTag.Get("pkAuto"))
-		if len(column) == 0 {
-			panic(NewDBErrorf(nil, "Can't find the column tag for %s.%s", typ, structField.Name))
-		}
-
-		mField := &modelField{
-			name:        structField.Name,
-			column:      column,
-			pk:          pk == "y",
-			pkAuto:      !(pkAuto == "n"),
-			index:       i,
-			structField: structField}
-
-		if mField.pk {
-			if pkField == nil {
-				pkField = mField
-			} else {
-				panic(NewDBErrorf(nil, "Duplicate pk column for %s.%s and %s ", typ, pkField.name, mField.name))
-			}
-		}
-		fields = append(fields, mField)
-	}
-
+	fields = reg.parseFields(nil, ind, typ, &pkField, fields)
 	if pkField == nil {
 		panic(NewDBErrorf(nil, "Can't find pk column for %s", typ))
 	} else {
 		mInfo.pkField = pkField
+	}
+	dupColumn := map[string]struct{}{}
+	for _, field := range fields {
+		if _, ok := dupColumn[field.name]; ok {
+			panic(fmt.Errorf("Duplicate field name %s", field.name))
+		} else {
+			dupColumn[field.name] = struct{}{}
+		}
 	}
 	c.Debugf("Register Model:%s,fields:%s,pkFiled:%+v", fullName, fields, pkField)
 
@@ -165,7 +137,9 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	mInfo.updateFunc = createUpdateFunc(mInfo)
 	mInfo.updateColumnsFunc = createUpdateColumnsFunc(mInfo)
 	mInfo.queryFunc = createQueryFunc(mInfo)
-	mInfo.getFunc = func(executor interface{}, entity EntityInterface, id int64) (e EntityInterface, err error) {
+	mInfo.insertOrUpdateFunc = createInsertOrUpdateFunc(mInfo)
+	mInfo.delFunc = createDelFunc(mInfo)
+	mInfo.getFunc = func(executor interface{}, entity EntityInterface, id interface{}) (e EntityInterface, err error) {
 		e = nil
 		var l []EntityInterface
 		if l, err = mInfo.queryFunc(executor, entity, " WHERE "+mInfo.pkField.column+" = ?", []interface{}{id}); err == nil {
@@ -175,8 +149,7 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 		}
 		return
 	}
-	mInfo.delFunc = createDelFunc(mInfo)
-	mInfo.delEFunc = func(executor interface{}, entity EntityInterface, id int64) (r bool, err error) {
+	mInfo.delEFunc = func(executor interface{}, entity EntityInterface, id interface{}) (r bool, err error) {
 		var l int64
 		if l, err = mInfo.delFunc(executor, entity, " WHERE "+mInfo.pkField.column+" = ?", []interface{}{id}); err == nil {
 			if l == 1 {
@@ -193,4 +166,52 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	}
 	_modelReg.cache[fullName] = mInfo
 	return nil
+}
+
+var (
+	scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+	valuerType  = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+)
+
+func (reg *modelReg) parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **modelField, fields []*modelField) []*modelField {
+	for i := 0; i < ind.NumField(); i++ {
+		structField := typ.Field(i)
+		if structField.Type.Kind() == reflect.Ptr {
+			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter", structField.Name))
+		}
+		stFieldType := structField.Type
+		if stFieldType.Kind() == reflect.Struct && !(reflect.PtrTo(stFieldType).Implements(scannerType) && stFieldType.Implements(valuerType)) {
+			if !structField.Anonymous {
+				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", structField.Name))
+			}
+			fields = reg.parseFields(append(index, i), ind.Field(i), stFieldType, pkField, fields)
+			continue
+		}
+		sfTag := structField.Tag
+		column := sfTag.Get("column")
+		pk := strings.ToLower(sfTag.Get("pk"))
+		pkAuto := strings.ToLower(sfTag.Get("pkAuto"))
+		if len(column) == 0 {
+			panic(NewDBErrorf(nil, "Can't find the column tag for %s.%s", typ, structField.Name))
+		}
+
+		fieldIndex := append(index, i)
+		mField := &modelField{
+			name:        structField.Name,
+			column:      column,
+			pk:          pk == "y",
+			pkAuto:      pk == "y" && !(pkAuto == "n"),
+			index:       fieldIndex,
+			structField: structField}
+
+		if mField.pk {
+			if *pkField == nil {
+				*pkField = mField
+			} else {
+				panic(NewDBErrorf(nil, "Duplicate pk column for %s.%s and %s ", typ, (*pkField).name, mField.name))
+			}
+		}
+		fields = append(fields, mField)
+	}
+	return fields
 }

@@ -37,6 +37,11 @@ func (p *ParamConf) Expire() int {
 	return p.expire
 }
 
+// KeyPrefix return key prefix
+func (p *ParamConf) KeyPrefix() string {
+	return p.keyPrefix
+}
+
 // NewWithExpire create new ParamConf with new expire parameter
 func (p *ParamConf) NewWithExpire(expire int) *ParamConf {
 	var param = *p

@@ -180,7 +180,7 @@ func UpdateColumns(dbOper *DBOper, entity EntityInterface, columns string, condi
 }
 
 // Get 根据ID查询实体
-func Get(dbOper *DBOper, entity EntityInterface, id int64) (EntityInterface, error) {
+func Get(dbOper *DBOper, entity EntityInterface, id interface{}) (EntityInterface, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		e, err := modelInfo.getFunc(dbOper.tx, entity, id)
@@ -202,7 +202,7 @@ func Query(dbOper *DBOper, entity EntityInterface, condition string, params ...i
 }
 
 // Del 根据ID删除实体
-func Del(dbOper *DBOper, entity EntityInterface, id int64) (bool, error) {
+func Del(dbOper *DBOper, entity EntityInterface, id interface{}) (bool, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.delEFunc(dbOper.tx, entity, id)
@@ -217,4 +217,13 @@ func DelByCondition(dbOper *DBOper, entity EntityInterface, condition string, pa
 		return modelInfo.delFunc(dbOper.tx, entity, condition, params)
 	}
 	return modelInfo.delFunc(dbOper.db, entity, condition, params)
+}
+
+// AddOrUpdate 添加或者更新实体(如果id已经存在),只支持MySql
+func AddOrUpdate(dbOper *DBOper, entity EntityInterface) (int64, error) {
+	modelInfo := getEntityModelInfo(entity)
+	if dbOper.tx != nil {
+		return modelInfo.insertOrUpdateFunc(dbOper.tx, entity)
+	}
+	return modelInfo.insertOrUpdateFunc(dbOper.db, entity)
 }

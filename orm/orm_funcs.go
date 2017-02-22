@@ -18,9 +18,17 @@ func toSlice(s string, count int) []string {
 	return slice
 }
 
-//除了主键的过滤函数
+//除了自增主键的过滤函数
 var exceptIDPred = func(field *modelField) bool {
 	if field == nil || (field.pk && field.pkAuto) {
+		return false
+	}
+	return true
+}
+
+//除了主键的过滤函数
+var noIDPred = func(field *modelField) bool {
+	if field == nil || field.pk {
 		return false
 	}
 	return true
@@ -65,8 +73,17 @@ func query(executor interface{}, execSQL string, args []interface{}) (rows *sql.
 	return
 }
 
+func buildParamValues(ind reflect.Value, fields []*modelField) []interface{} {
+	paramValues := make([]interface{}, 0, len(fields))
+	for _, field := range fields {
+		fv := ind.FieldByIndex(field.index).Interface()
+		paramValues = append(paramValues, fv)
+	}
+	return paramValues
+}
+
 //构建实体模型的插入函数
-func createInsertFunc(modelInfo *modelMeta) EntityCFunc {
+func createInsertFunc(modelInfo *modelMeta) entityInsertFunc {
 	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return field.column
@@ -75,15 +92,9 @@ func createInsertFunc(modelInfo *modelMeta) EntityCFunc {
 
 	return func(executor interface{}, entity EntityInterface) error {
 		ind := checkEntity(modelInfo, entity, executor)
-
-		paramValues := make([]interface{}, 0, len(insertFields))
-		for _, field := range insertFields {
-			fv := ind.Field(field.index).Interface()
-			paramValues = append(paramValues, fv)
-		}
-
+		paramValues := buildParamValues(ind, insertFields)
 		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", entity.TableName(), columns, params)
-		c.Debugf("insertSql:%v", insertSQL)
+		c.Debugf("insertSql:%s", insertSQL)
 
 		rs, err := exec(executor, insertSQL, paramValues)
 		if err != nil {
@@ -92,7 +103,7 @@ func createInsertFunc(modelInfo *modelMeta) EntityCFunc {
 
 		if modelInfo.pkField.pkAuto {
 			if id, err := rs.LastInsertId(); err == nil {
-				ind.Field(modelInfo.pkField.index).SetInt(id)
+				ind.FieldByIndex(modelInfo.pkField.index).SetInt(id)
 			} else {
 				return err
 			}
@@ -102,7 +113,7 @@ func createInsertFunc(modelInfo *modelMeta) EntityCFunc {
 }
 
 //构建实体模型的更新函数
-func createUpdateFunc(modelInfo *modelMeta) EntityUFunc {
+func createUpdateFunc(modelInfo *modelMeta) entityUpdateFunc {
 	updateFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return field.column + "=?"
@@ -110,23 +121,19 @@ func createUpdateFunc(modelInfo *modelMeta) EntityUFunc {
 
 	return func(executor interface{}, entity EntityInterface) (bool, error) {
 		ind := checkEntity(modelInfo, entity, executor)
-
-		paramValues := make([]interface{}, 0, len(updateFields)+1)
-		for _, field := range updateFields {
-			fv := ind.Field(field.index).Interface()
-			paramValues = append(paramValues, fv)
-		}
-
-		id := ind.Field(modelInfo.pkField.index).Interface()
+		id := ind.FieldByIndex(modelInfo.pkField.index).Interface()
+		paramValues := buildParamValues(ind, updateFields)
 		paramValues = append(paramValues, id)
 
 		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", entity.TableName(), columns, modelInfo.pkField.column, "?")
+		c.Debugf("updateSql:%s", updateSQL)
 		rs, err := exec(executor, updateSQL, paramValues)
 		if err != nil {
 			return false, err
 		}
 		//检查更新的记录数
-		if rows, err := rs.RowsAffected(); err == nil {
+		rows, err := rs.RowsAffected()
+		if err == nil {
 			if rows != 1 {
 				return false, nil
 			}
@@ -137,7 +144,7 @@ func createUpdateFunc(modelInfo *modelMeta) EntityUFunc {
 }
 
 //构建实体模型的指定类名的更新函数
-func createUpdateColumnsFunc(modelInfo *modelMeta) EntityUCFunc {
+func createUpdateColumnsFunc(modelInfo *modelMeta) entityUpdateColumnFunc {
 	return func(executor interface{}, entity EntityInterface, columns string, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
 		if len(columns) == 0 {
@@ -148,7 +155,7 @@ func createUpdateColumnsFunc(modelInfo *modelMeta) EntityUCFunc {
 			updateSQL += condition
 
 		}
-		c.Debugf("updateSql:%v", updateSQL)
+		c.Debugf("updateColumnSql:%s", updateSQL)
 
 		rs, err := exec(executor, updateSQL, params)
 		if err != nil {
@@ -156,16 +163,17 @@ func createUpdateColumnsFunc(modelInfo *modelMeta) EntityUCFunc {
 		}
 
 		//检查更新的记录数
-		if rows, err := rs.RowsAffected(); err == nil {
+		rows, err := rs.RowsAffected()
+		if err == nil {
 			c.Debugf("Updated rows:%v", rows)
-			return rows, err
+			return rows, nil
 		}
 		return 0, err
 	}
 }
 
 //构建查询函数
-func createQueryFunc(modelInfo *modelMeta) EntityQFunc {
+func createQueryFunc(modelInfo *modelMeta) entityQueryFunc {
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return "`" + field.column + "`"
 	}, modelInfo.fields).([]string), ",")
@@ -182,6 +190,7 @@ func createQueryFunc(modelInfo *modelMeta) EntityQFunc {
 		if err != nil {
 			return nil, err
 		}
+
 		defer rows.Close()
 
 		var rt = make([]EntityInterface, 0, 10)
@@ -190,8 +199,7 @@ func createQueryFunc(modelInfo *modelMeta) EntityQFunc {
 			ptrValueInd := reflect.Indirect(ptrValue)
 			ptrValueSlice := make([]interface{}, 0, len(modelInfo.fields))
 			for _, field := range modelInfo.fields {
-				fv := ptrValueInd.Field(field.index).Addr().Interface()
-				//c.Debugf("fv:%v,type:%T", fv, fv)
+				fv := ptrValueInd.FieldByIndex(field.index).Addr().Interface()
 				ptrValueSlice = append(ptrValueSlice, fv)
 			}
 			if err := rows.Scan(ptrValueSlice...); err == nil {
@@ -205,7 +213,7 @@ func createQueryFunc(modelInfo *modelMeta) EntityQFunc {
 }
 
 //构建删除函数
-func createDelFunc(modelInfo *modelMeta) EntityDFunc {
+func createDelFunc(modelInfo *modelMeta) entityDeleteFunc {
 	return func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
 		delSQL := fmt.Sprintf("DELETE FROM %s ", entity.TableName())
@@ -219,8 +227,44 @@ func createDelFunc(modelInfo *modelMeta) EntityDFunc {
 			return 0, err
 		}
 		//检查更新的记录数
-		if rows, err := rs.RowsAffected(); err == nil {
-			return rows, err
+		rows, err := rs.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		return rows, nil
+	}
+}
+
+func createInsertOrUpdateFunc(modelInfo *modelMeta) entityInsertOrUpdateFunc {
+	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
+	columns := strings.Join(fun.Map(func(field *modelField) string {
+		return field.column
+	}, insertFields).([]string), ",")
+	insertParams := strings.Join(toSlice("?", len(insertFields)), ",")
+
+	updateFields := fun.Filter(noIDPred, modelInfo.fields).([]*modelField)
+	updateColumns := strings.Join(fun.Map(func(field *modelField) string {
+		return field.column + "=?"
+	}, updateFields).([]string), ",")
+
+	return func(executor interface{}, entity EntityInterface) (int64, error) {
+		ind := checkEntity(modelInfo, entity, executor)
+		paramValues := buildParamValues(ind, insertFields)
+		updateParamValues := buildParamValues(ind, updateFields)
+		allParamValues := append(paramValues, updateParamValues...)
+		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s) ON DUPLICATE KEY UPDATE %s", entity.TableName(), columns, insertParams, updateColumns)
+		c.Debugf("insertSql:%s", insertSQL)
+
+		rs, err := exec(executor, insertSQL, allParamValues)
+		if err != nil {
+			return 0, err
+		}
+
+		//检查更新的记录数
+		rows, err := rs.RowsAffected()
+		if err == nil {
+			c.Debugf("Updated rows:%v", rows)
+			return rows, nil
 		}
 		return 0, err
 	}

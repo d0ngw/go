@@ -2,7 +2,6 @@ package cache
 
 import (
 	"fmt"
-	"hash/fnv"
 	"reflect"
 
 	c "github.com/d0ngw/go/common"
@@ -43,12 +42,7 @@ func (p *RedisClient) getServerIndex(param Param, servers []*RedisServer) (index
 	if serverCount == 1 {
 		return 0, nil
 	}
-	hash := fnv.New32a()
-	hash.Write([]byte(param.Key()))
-	hashCode := int(hash.Sum32())
-	if hashCode < 0 {
-		hashCode = -hashCode
-	}
+	hashCode := c.Fnv32Hashcode(param.Key())
 	return hashCode % serverCount, nil
 }
 
@@ -65,7 +59,7 @@ func (p *RedisClient) GetConn(param Param) (conn redis.Conn, err error) {
 		}
 		return servers[serverIndex].pool.Get(), nil
 	}
-	return nil, fmt.Errorf("can't find redis group %s", param.Group)
+	return nil, fmt.Errorf("can't find redis group %s", param.Group())
 }
 
 // Do exec redis commands with param and key
@@ -235,6 +229,21 @@ func (p *RedisClient) Expire(param Param) (expired bool, err error) {
 		return conn.Do(EXPIRE, param.Key(), param.Expire())
 	}))
 	return
+}
+
+// Eval lua script for param.Key() with args
+func (p *RedisClient) Eval(param Param, script *redis.Script, args ...interface{}) (reply interface{}, err error) {
+	if c.HasNil(param, script) {
+		return nil, fmt.Errorf("invalid params")
+	}
+	keyAndArgs := []interface{}{param.Key()}
+	keyAndArgs = append(keyAndArgs, args...)
+	conn, err := p.GetConn(param)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	return script.Do(conn, keyAndArgs...)
 }
 
 // Pipeline the command and results
