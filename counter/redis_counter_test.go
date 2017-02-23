@@ -117,6 +117,18 @@ func TestPersistCounter(t *testing.T) {
 	counter.Persist, err = NewDBPersist(dbpool, &V{})
 	assert.Nil(t, err)
 	testCounter(t, counter)
+
+	redisCounterSync, err := NewRedisCounterSync("test", counter, 10, 1, 5, 10)
+	assert.Nil(t, err)
+	err = redisCounterSync.ScanAll()
+	assert.Nil(t, err)
+
+	syncSchedule, err := NewRedisCounterSyncSchedule("test", []*RedisCounterSync{redisCounterSync}, 5)
+	assert.Nil(t, err)
+	assert.Nil(t, syncSchedule.Init())
+	assert.True(t, syncSchedule.Start())
+	time.Sleep(time.Duration(5*syncSchedule.scanIntervalSecond) * time.Second)
+	assert.True(t, syncSchedule.Stop())
 }
 
 func testCounter(t *testing.T, counter *PersistRedisCounter) {
@@ -140,4 +152,33 @@ func testCounter(t *testing.T, counter *PersistRedisCounter) {
 
 	err = counter.Persist.Store(id, fields)
 	assert.Nil(t, err)
+}
+
+func TestNoPersistCounter(t *testing.T) {
+	var cacheConf = cache.NewParamConf("test", "np_c_", 30)
+	counter, err := NewNoPersistRedisCounter("test", r, cacheConf)
+	assert.Nil(t, err)
+
+	id := "1"
+	var fieldAndDelta = Fields{"a": 1, "b": 2}
+	err = counter.Incr(id, fieldAndDelta)
+	assert.Nil(t, err)
+
+	reply, err := counter.Get(id)
+	assert.Nil(t, err)
+	assert.Equal(t, fieldAndDelta, reply)
+
+	err = counter.DelFields(id, "a")
+	assert.Nil(t, err)
+
+	reply, err = counter.Get(id)
+	assert.Nil(t, err)
+	assert.Equal(t, Fields{"b": 2}, reply)
+
+	err = counter.Del(id)
+	assert.Nil(t, err)
+
+	reply, err = counter.Get(id)
+	assert.Nil(t, err)
+	assert.Nil(t, reply)
 }
