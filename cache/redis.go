@@ -17,6 +17,12 @@ const (
 	EXPIRE  = "EXPIRE"
 	DEL     = "DEL"
 	EXISTS  = "EXISTS"
+	ZCARD   = "ZCARD"
+	ZRANGE  = "ZRANGE"
+	HGETALL = "HGETALL"
+	ZREM    = "ZREM"
+	HINCRBY = "HINCRBY"
+	HDEL    = "HDEL"
 )
 
 // RedisClient redis client
@@ -44,6 +50,14 @@ func (p *RedisClient) getServerIndex(param Param, servers []*RedisServer) (index
 	}
 	hashCode := c.Fnv32Hashcode(param.Key())
 	return hashCode % serverCount, nil
+}
+
+// GetGroupServers query the servers for group
+func (p *RedisClient) GetGroupServers(group string) ([]*RedisServer, error) {
+	if servers, ok := p.groups[group]; ok {
+		return servers, nil
+	}
+	return nil, fmt.Errorf("can't find group for %s", group)
 }
 
 // GetConn acquire redis.Conn in param.Group.

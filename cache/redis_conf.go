@@ -137,3 +137,11 @@ func (p *RedisServer) initPool(connectTimeout, readTimeout, writeTimeout, maxAct
 	p.pool = pool
 	return nil
 }
+
+// GetConn acquire redis conn
+func (p *RedisServer) GetConn() (redis.Conn, error) {
+	if p.pool == nil {
+		return nil, fmt.Errorf("no pool")
+	}
+	return p.pool.Get(), nil
+}
