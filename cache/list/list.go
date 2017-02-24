@@ -21,4 +21,6 @@ func (p *BaseEntity) TableName() string {
 type Cache struct {
 }
 
-func (p *Cache) Add(entity *BaseEntity)
+func (p *Cache) Add(entity *BaseEntity) {
+
+}
