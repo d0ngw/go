@@ -212,6 +212,49 @@ func createQueryFunc(modelInfo *modelMeta) entityQueryFunc {
 	}
 }
 
+//构建查询函数
+func createQueryColumnFunc(modelInfo *modelMeta) entityQueryColumnFunc {
+	return func(executor interface{}, entity EntityInterface, columns []string, condition string, params []interface{}) ([]EntityInterface, error) {
+		ind := checkEntity(modelInfo, entity, executor)
+		fields := make([]*modelField, 0, len(columns))
+		for _, column := range columns {
+			if field, ok := modelInfo.columnFields[column]; ok {
+				fields = append(fields, field)
+			}
+		}
+
+		querySQL := fmt.Sprintf("SELECT %s FROM %s ", strings.Join(columns, ","), entity.TableName())
+		if len(condition) > 0 {
+			querySQL += condition
+		}
+		c.Debugf("querySql:%v", querySQL)
+
+		rows, err := query(executor, querySQL, params)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var rt = make([]EntityInterface, 0, 10)
+		for rows.Next() {
+			ptrValue := reflect.New(ind.Type())
+			ptrValueInd := reflect.Indirect(ptrValue)
+			ptrValueSlice := make([]interface{}, 0, len(modelInfo.fields))
+			for _, field := range fields {
+				fv := ptrValueInd.FieldByIndex(field.index).Addr().Interface()
+				ptrValueSlice = append(ptrValueSlice, fv)
+			}
+
+			if err := rows.Scan(ptrValueSlice...); err == nil {
+				rt = append(rt, ptrValue.Interface().(EntityInterface))
+			} else {
+				return nil, err
+			}
+		}
+		return rt, nil
+	}
+}
+
 //构建删除函数
 func createDelFunc(modelInfo *modelMeta) entityDeleteFunc {
 	return func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error) {

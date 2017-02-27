@@ -14,19 +14,20 @@ import (
 
 //模型元信息
 type modelMeta struct {
-	name               string                   //模型的名称
-	table              string                   //对应的表名
-	pkField            *modelField              //主键
-	fields             []*modelField            //字段列表
-	modelType          reflect.Type             //模型的类型
-	insertFunc         entityInsertFunc         //插入函数
-	updateFunc         entityUpdateFunc         //更新函数
-	updateColumnsFunc  entityUpdateColumnFunc   //更新列函数
-	queryFunc          entityQueryFunc          //查询函数
-	getFunc            entityGetFunc            //根据ID查询实体的函数
-	delFunc            entityDeleteFunc         //删除函数
-	delEFunc           entityDeleteByIDFunc     //根据ID删除实体的函数
-	insertOrUpdateFunc entityInsertOrUpdateFunc //插入或者更新
+	name               string
+	pkField            *modelField
+	fields             []*modelField
+	columnFields       map[string]*modelField
+	modelType          reflect.Type
+	insertFunc         entityInsertFunc
+	updateFunc         entityUpdateFunc
+	updateColumnsFunc  entityUpdateColumnFunc
+	queryFunc          entityQueryFunc
+	queryColumnFunc    entityQueryColumnFunc
+	getFunc            entityGetFunc
+	delFunc            entityDeleteFunc
+	delEFunc           entityDeleteByIDFunc
+	insertOrUpdateFunc entityInsertOrUpdateFunc
 }
 
 //模型的字段定义
@@ -63,6 +64,7 @@ type entityInsertFunc func(executor interface{}, entity EntityInterface) error
 type entityUpdateFunc func(executor interface{}, entity EntityInterface) (bool, error)
 type entityUpdateColumnFunc func(executor interface{}, entity EntityInterface, columns string, contition string, params []interface{}) (int64, error)
 type entityQueryFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error)
+type entityQueryColumnFunc func(executor interface{}, entity EntityInterface, columns []string, condition string, params []interface{}) ([]EntityInterface, error)
 type entityGetFunc func(executor interface{}, entity EntityInterface, id interface{}) (EntityInterface, error)
 type entityDeleteFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error)
 type entityDeleteByIDFunc func(executor interface{}, entity EntityInterface, id interface{}) (bool, error)
@@ -113,7 +115,7 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 
 	fieldCount := ind.NumField()
 	fields := make([]*modelField, 0, fieldCount)
-	mInfo := &modelMeta{name: fullName, table: model.TableName(), modelType: typ}
+	mInfo := &modelMeta{name: fullName, modelType: typ}
 	var pkField *modelField
 
 	fields = reg.parseFields(nil, ind, typ, &pkField, fields)
@@ -137,6 +139,7 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	mInfo.updateFunc = createUpdateFunc(mInfo)
 	mInfo.updateColumnsFunc = createUpdateColumnsFunc(mInfo)
 	mInfo.queryFunc = createQueryFunc(mInfo)
+	mInfo.queryColumnFunc = createQueryColumnFunc(mInfo)
 	mInfo.insertOrUpdateFunc = createInsertOrUpdateFunc(mInfo)
 	mInfo.delFunc = createDelFunc(mInfo)
 	mInfo.getFunc = func(executor interface{}, entity EntityInterface, id interface{}) (e EntityInterface, err error) {
@@ -158,6 +161,12 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 		}
 		return
 	}
+
+	columnFields := map[string]*modelField{}
+	for _, field := range mInfo.fields {
+		columnFields[field.column] = field
+	}
+	mInfo.columnFields = columnFields
 
 	_modelReg.lock.Lock()
 	defer _modelReg.lock.Unlock()

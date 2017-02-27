@@ -337,6 +337,12 @@ func HasNil(args ...interface{}) bool {
 		if arg == nil {
 			return true
 		}
+		var val = reflect.ValueOf(arg)
+		var k = val.Kind()
+		if (k == reflect.Ptr || k == reflect.Chan || k == reflect.Func || k == reflect.Map || k == reflect.Interface || k == reflect.Slice) &&
+			val.IsNil() {
+			return true
+		}
 	}
 	return false
 }

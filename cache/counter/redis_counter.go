@@ -16,25 +16,28 @@ import (
 type PersistRedisCounter struct {
 	c.Initable
 	Name        string
-	RedisClient *cache.RedisClient
-	Scripts     *Scripts
-	Persist     Persist
+	redisClient *cache.RedisClient
+	scripts     *Scripts
+	persist     Persist
 	cacheParam  *cache.ParamConf
 	slotsCount  int
 }
 
-// NewPersistRedisCounter create RedisCounter service,
-func NewPersistRedisCounter(name string, cacheParam *cache.ParamConf, slotsCount int) *PersistRedisCounter {
+// NewPersistRedisCounter create RedisCounter service
+func NewPersistRedisCounter(name string, redisClient *cache.RedisClient, scripts *Scripts, persist Persist, cacheParam *cache.ParamConf, slotsCount int) *PersistRedisCounter {
 	return &PersistRedisCounter{
-		Name:       name,
-		cacheParam: cacheParam,
-		slotsCount: slotsCount,
+		Name:        name,
+		redisClient: redisClient,
+		scripts:     scripts,
+		persist:     persist,
+		cacheParam:  cacheParam,
+		slotsCount:  slotsCount,
 	}
 }
 
 // Init implements Servcie.Init
 func (p *PersistRedisCounter) Init() error {
-	if c.HasNil(p.RedisClient, p.Scripts, p.Persist, p.cacheParam) {
+	if c.HasNil(p.redisClient, p.scripts, p.persist, p.cacheParam) {
 		return fmt.Errorf("RedisClient,Scripts must be set")
 	}
 	if strings.Contains(p.cacheParam.KeyPrefix(), ":") {
@@ -54,7 +57,7 @@ func (p *PersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) error
 
 	param := p.cacheParam.NewParamKey(counterKey)
 
-	exist, updated, err := p.updateReply(p.RedisClient.Eval(param, p.Scripts.update, updateArgs...))
+	exist, updated, err := p.updateReply(p.redisClient.Eval(param, p.scripts.update, updateArgs...))
 	if err != nil {
 		return err
 	}
@@ -63,12 +66,12 @@ func (p *PersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) error
 	}
 
 	if exist == LUAFALSE {
-		fields, err := p.Persist.Load(counterID)
+		fields, err := p.persist.Load(counterID)
 		if err != nil {
 			return err
 		}
 		updateArgs = p.updateArgs(syncSetKey, LUATRUE, p.buildInitFields(fields), fieldAndDelta)
-		exist, updated, err = p.updateReply(p.RedisClient.Eval(param, p.Scripts.update, updateArgs...))
+		exist, updated, err = p.updateReply(p.redisClient.Eval(param, p.scripts.update, updateArgs...))
 		if err != nil {
 			return err
 		}
@@ -88,7 +91,7 @@ func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
 	getArgs := []interface{}{syncSetKey, strconv.FormatInt(lastAccessTime, 10)}
 	param := p.cacheParam.NewParamKey(counterKey)
 
-	reply, err := redis.Strings(p.RedisClient.Eval(param, p.Scripts.hgetAll, getArgs...))
+	reply, err := redis.Strings(p.redisClient.Eval(param, p.scripts.hgetAll, getArgs...))
 	if err != nil {
 		return nil, err
 	}
@@ -105,14 +108,14 @@ func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
 		fields[k] = v
 	}
 	if len(fields) == 0 {
-		origin, err := p.Persist.Load(counterID)
+		origin, err := p.persist.Load(counterID)
 		if err != nil {
 			return nil, err
 		}
 		if origin == nil {
 			return nil, fmt.Errorf("Load counterID %s nil", counterID)
 		}
-		_, err = p.RedisClient.Eval(param, p.Scripts.update, p.updateArgs(syncSetKey, LUATRUE, origin)...)
+		_, err = p.redisClient.Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUATRUE, origin)...)
 		if err != nil {
 			c.Errorf("init counterID %s fail,err:%s", counterID, err)
 		}
@@ -123,13 +126,13 @@ func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
 
 // Del implements Counter.Del
 func (p *PersistRedisCounter) Del(counterID string) (err error) {
-	_, err = p.Persist.Del(counterID)
+	_, err = p.persist.Del(counterID)
 	if err != nil {
 		return err
 	}
 	counterKey := p.counterKey(counterID)
 	delArgs := []interface{}{p.syncSetKey(counterKey)}
-	_, err = p.RedisClient.Eval(p.cacheParam.NewParamKey(counterKey), p.Scripts.del, delArgs...)
+	_, err = p.redisClient.Eval(p.cacheParam.NewParamKey(counterKey), p.scripts.del, delArgs...)
 	return
 }
 

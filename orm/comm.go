@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	c "github.com/d0ngw/go/common"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -73,4 +74,13 @@ func (nt NullTime) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return nt.Time, nil
+}
+
+// DBService is the service that supply DBOper
+type DBService interface {
+	c.Initable
+	//NewDBOper create a new DBOper
+	NewDBOper() (*DBOper, error)
+	// Pool get the db pool
+	Pool() *DBPool
 }

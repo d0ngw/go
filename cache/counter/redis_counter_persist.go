@@ -21,7 +21,7 @@ type EntityCounter interface {
 	orm.EntityInterface
 	// Fields convert entity to Fields
 	Fields() (Fields, error)
-	// ZeroFields return zero fields,not nil
+	// ZeroFields return zero fields,must not nil
 	ZeroFields() Fields
 	// Entity convert fields to EntityInterface
 	Entity(counterID string, fields Fields) (orm.EntityInterface, error)
@@ -53,11 +53,11 @@ func (p *BaseEntity) Fields() (Fields, error) {
 
 // ZeroFields implements EntityCounter.ZeroFields,must be overrided
 func (p *BaseEntity) ZeroFields() Fields {
-	panic("please overried ZeroFields method")
+	panic("please override ZeroFields method")
 }
 
 // BaseEntity convert counterID and fields to BaseEntity
-func (p *BaseEntity) BaseEntity(counterID string, fields Fields) (*BaseEntity, error) {
+func (p *BaseEntity) ToBaseEntity(counterID string, fields Fields) (*BaseEntity, error) {
 	v := &BaseEntity{ID: counterID}
 	if fields == nil {
 		return v, nil
@@ -72,24 +72,27 @@ func (p *BaseEntity) BaseEntity(counterID string, fields Fields) (*BaseEntity, e
 
 // DBPersist implements Persist which persist counter to db
 type DBPersist struct {
-	dbpool     *orm.DBPool
+	dbService  orm.DBService
 	entityType EntityCounter
 }
 
 // NewDBPersist create DBPersist
-func NewDBPersist(dbpool *orm.DBPool, entityType EntityCounter) (*DBPersist, error) {
-	if c.HasNil(dbpool, entityType) {
+func NewDBPersist(dbService orm.DBService, entityType EntityCounter) (*DBPersist, error) {
+	if c.HasNil(dbService, entityType) {
 		return nil, errors.New("dbpool and entityType must not be nil")
 	}
 	return &DBPersist{
-		dbpool:     dbpool,
+		dbService:  dbService,
 		entityType: entityType,
 	}, nil
 }
 
 // Load  implements Persist.Load
 func (p *DBPersist) Load(counterID string) (fields Fields, err error) {
-	oper := p.dbpool.NewDBOper()
+	oper, err := p.dbService.NewDBOper()
+	if err != nil {
+		return nil, err
+	}
 	entity, err := orm.Get(oper, p.entityType, counterID)
 	if err != nil {
 		return nil, err
@@ -109,13 +112,19 @@ func (p *DBPersist) Load(counterID string) (fields Fields, err error) {
 
 // Del implements Persist.Del
 func (p *DBPersist) Del(counterID string) (deleted bool, err error) {
-	oper := p.dbpool.NewDBOper()
+	oper, err := p.dbService.NewDBOper()
+	if err != nil {
+		return false, err
+	}
 	return orm.Del(oper, p.entityType, counterID)
 }
 
 // Store implements Persist.Store
 func (p *DBPersist) Store(counterID string, fields Fields) (err error) {
-	oper := p.dbpool.NewDBOper()
+	oper, err := p.dbService.NewDBOper()
+	if err != nil {
+		return err
+	}
 	entity, err := p.entityType.Entity(counterID, fields)
 	if err != nil {
 		return err
@@ -139,23 +148,23 @@ type RedisCounterSync struct {
 }
 
 // NewRedisCounterSync create new RedisCounterSync
-func NewRedisCounterSync(name string, persistRedisCounter *PersistRedisCounter, slotMaxItems, minSyncVersionChanges, minSyncIntervalSecond, evictIntervalSecond int64) (*RedisCounterSync, error) {
-	if name == "" || persistRedisCounter == nil {
-		return nil, errors.New("no name or persistRedisCounter")
+func NewRedisCounterSync(persistRedisCounter *PersistRedisCounter, slotMaxItems, minSyncVersionChanges, minSyncIntervalSecond, evictIntervalSecond int64) (*RedisCounterSync, error) {
+	if persistRedisCounter == nil {
+		return nil, errors.New("no persistRedisCounter")
 	}
 	if slotMaxItems <= 0 || minSyncVersionChanges <= 0 || minSyncIntervalSecond <= 0 || evictIntervalSecond <= 0 {
 		return nil, errors.New("slotMaxItems and xxxSecond must be >0")
 	}
 
-	servers, err := persistRedisCounter.RedisClient.GetGroupServers(persistRedisCounter.cacheParam.Group())
+	servers, err := persistRedisCounter.redisClient.GetGroupServers(persistRedisCounter.cacheParam.Group())
 	if err != nil {
 		return nil, err
 	}
 	return &RedisCounterSync{
-		Name:                  name,
+		Name:                  persistRedisCounter.Name + ".sync",
 		redisServers:          servers,
 		persistRedisCounter:   persistRedisCounter,
-		dbPersist:             persistRedisCounter.Persist,
+		dbPersist:             persistRedisCounter.persist,
 		syncSetCacheParam:     persistRedisCounter.cacheParam,
 		slotMaxItems:          slotMaxItems,
 		minSyncVersionChanges: minSyncVersionChanges,
@@ -327,7 +336,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 				}
 				synced = p.dbPersist.Store(counterID, counterFields) == nil
 				if synced {
-					_, err = p.persistRedisCounter.Scripts.setSync.Do(conn, counterKey, writeVersion, now)
+					_, err = p.persistRedisCounter.scripts.setSync.Do(conn, counterKey, writeVersion, now)
 					if err != nil {
 						return err
 					}
@@ -338,7 +347,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 
 			if needEvict {
 				if !needSync || synced {
-					evictResult, err := redis.Ints(p.persistRedisCounter.Scripts.evict.Do(conn, counterKey, syncSetSlotKey, writeVersion))
+					evictResult, err := redis.Ints(p.persistRedisCounter.scripts.evict.Do(conn, counterKey, syncSetSlotKey, writeVersion))
 					if err != nil {
 						return err
 					}

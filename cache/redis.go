@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 
@@ -10,19 +11,21 @@ import (
 
 // redis的命令及响应
 const (
-	ReplyOK = "OK"
-	SET     = "SET"
-	SETEX   = "SETEX"
-	GET     = "GET"
-	EXPIRE  = "EXPIRE"
-	DEL     = "DEL"
-	EXISTS  = "EXISTS"
-	ZCARD   = "ZCARD"
-	ZRANGE  = "ZRANGE"
-	HGETALL = "HGETALL"
-	ZREM    = "ZREM"
-	HINCRBY = "HINCRBY"
-	HDEL    = "HDEL"
+	ReplyOK          = "OK"
+	DEL              = "DEL"
+	EXISTS           = "EXISTS"
+	EXPIRE           = "EXPIRE"
+	GET              = "GET"
+	HDEL             = "HDEL"
+	HGETALL          = "HGETALL"
+	HINCRBY          = "HINCRBY"
+	SET              = "SET"
+	SETEX            = "SETEX"
+	ZADD             = "ZADD"
+	ZCARD            = "ZCARD"
+	ZRANGE           = "ZRANGE"
+	ZREM             = "ZREM"
+	ZRANGEWITHSCORES = "ZRANGEWITHSCORES"
 )
 
 // RedisClient redis client
@@ -108,48 +111,72 @@ func (p *RedisClient) Set(param Param, data interface{}) error {
 }
 
 // Get value from redis with param and key,if the param.Expire >0 then will EXPIRE the key
-func (p *RedisClient) Get(param Param) (reply interface{}, err error) {
+func (p *RedisClient) Get(param Param) (reply interface{}, ok bool, err error) {
 	reply, err = p.Do(param, func(conn redis.Conn) (interface{}, error) {
 		if param.Expire() > 0 {
 			if err := conn.Send(GET, param.Key()); err != nil {
+				fmt.Printf("send cmd fail,err:%s", err)
 				return nil, err
 			}
 			if err := conn.Send(EXPIRE, param.Key(), param.Expire()); err != nil {
+				fmt.Printf("send cmd fail,err:%s", err)
 				return nil, err
 			}
 			if err := conn.Flush(); err != nil {
+				fmt.Printf("flush cmd fail,err:%s", err)
 				return nil, err
 			}
-			reply, err := conn.Receive()
-			if err != nil {
-				return nil, err
-			}
-			conn.Receive()
-			return reply, err
+			r, err := conn.Receive()
+			conn.Receive() //ignore expire
+			return r, err
 		}
 		return conn.Do(GET, param.Key())
 	})
+
+	if reply != nil {
+		ok = true
+	}
 	return
 }
 
 // GetInt get int value from redis with param
-func (p *RedisClient) GetInt(param Param) (reply int, err error) {
-	return redis.Int(p.Get(param))
+func (p *RedisClient) GetInt(param Param) (reply int, ok bool, err error) {
+	r, ok, err := p.Get(param)
+	if !ok {
+		return
+	}
+	reply, _ = redis.Int(r, err)
+	return
 }
 
 // GetInt64 get int64 value from redis with param
-func (p *RedisClient) GetInt64(param Param) (reply int64, err error) {
-	return redis.Int64(p.Get(param))
+func (p *RedisClient) GetInt64(param Param) (reply int64, ok bool, err error) {
+	r, ok, err := p.Get(param)
+	if !ok {
+		return
+	}
+	reply, _ = redis.Int64(r, err)
+	return
 }
 
 // GetFloat64 get int64 value from redis with param
-func (p *RedisClient) GetFloat64(param Param) (reply float64, err error) {
-	return redis.Float64(p.Get(param))
+func (p *RedisClient) GetFloat64(param Param) (reply float64, ok bool, err error) {
+	r, ok, err := p.Get(param)
+	if !ok {
+		return
+	}
+	reply, _ = redis.Float64(r, err)
+	return
 }
 
 // GetString get int64 value from redis with param
-func (p *RedisClient) GetString(param Param) (reply string, err error) {
-	return redis.String(p.Get(param))
+func (p *RedisClient) GetString(param Param) (reply string, ok bool, err error) {
+	r, ok, err := p.Get(param)
+	if !ok {
+		return
+	}
+	reply, _ = redis.String(r, err)
+	return
 }
 
 // SetObject set param.Key() with value `data`,if param.Exipre >0,then set key with expire second
@@ -162,12 +189,14 @@ func (p *RedisClient) SetObject(param Param, data interface{}) error {
 }
 
 // GetObject get bytes whose key is param.Key(),then decode bytes to dest
-func (p *RedisClient) GetObject(param Param, dest interface{}) error {
-	reply, err := redis.Bytes(p.Get(param))
-	if err != nil {
-		return err
+func (p *RedisClient) GetObject(param Param, dest interface{}) (ok bool, err error) {
+	r, ok, err := p.Get(param)
+	if !ok {
+		return
 	}
-	return MsgPackDecodeBytes(reply, dest)
+	reply, _ := redis.Bytes(r, err)
+	err = MsgPackDecodeBytes(reply, dest)
+	return
 }
 
 // GetObjects batch get struct object,use MsgPackDecodeBytes to decode bytes and append  to dest
@@ -206,9 +235,10 @@ func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest inter
 
 	for _, reply := range replies {
 		if reply.Err != nil {
-			return err
+			return reply.Err
 		}
-		if bytes, _ := redis.Bytes(reply.Reply, reply.Err); bytes != nil {
+
+		if bytes, _ := redis.Bytes(reply.Reply, err); bytes != nil {
 			val := reflect.New(destElemTyp)
 			MsgPackDecodeBytes(bytes, val.Interface())
 			toAdd = append(toAdd, val)
@@ -347,4 +377,62 @@ func (p *Pipeline) Close() {
 	for _, conn := range p.usedConns {
 		conn.Close()
 	}
+}
+
+var luaLock = `
+local lock_key = KEYS[1]
+local lock_second = tonumber(ARGV[1])
+
+local exist = redis.call("EXISTS", lock_key)
+local locked = 0
+if exist == 0 then
+    redis.call("SETEX", lock_key, lock_second, 1)
+    locked = 1
+end
+return { locked }
+`
+
+var lockScript = redis.NewScript(1, luaLock)
+
+// TryLock try to lock lockKey in lockSencods
+func TryLock(lockKey string, lockSencods int, paramConf *ParamConf, redisClient *RedisClient) (bool, error) {
+	if lockKey == "" || lockSencods <= 0 || paramConf == nil || redisClient == nil {
+		return false, errors.New("invalid params")
+	}
+
+	key := paramConf.NewParamKey(lockKey)
+	conn, err := redisClient.GetConn(key)
+	if err != nil {
+		return false, err
+	}
+	defer conn.Close()
+
+	reply, err := redis.Ints(lockScript.Do(conn, key.Key(), lockSencods))
+	if err != nil || len(reply) == 0 {
+		return false, err
+	}
+	return reply[0] == 1, nil
+}
+
+// UnLock unlock lockey
+func UnLock(lockKey string, paramConf *ParamConf, redisClient *RedisClient) error {
+	if lockKey == "" || paramConf == nil || redisClient == nil {
+		return errors.New("invalid params")
+	}
+
+	key := paramConf.NewParamKey(lockKey)
+	_, err := redisClient.Del(key)
+	return err
+}
+
+// CheckNilErr check the err:
+//	if err == nil, return true,nil; if the err is ErrNIl return false,nil;,otherwise return false ,err
+func CheckNilErr(err error) (bool, error) {
+	if err == nil {
+		return true, nil
+	}
+	if err == redis.ErrNil {
+		return false, nil
+	}
+	return false, err
 }

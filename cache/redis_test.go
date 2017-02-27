@@ -39,8 +39,9 @@ func TestRedis(t *testing.T) {
 	assert.Nil(t, err)
 
 	server := RedisServer{}
-	err = r.GetObject(confKey, &server)
+	ok, err := r.GetObject(confKey, &server)
 	assert.Nil(t, err)
+	assert.True(t, ok)
 	assert.EqualValues(t, server.ID, redisServer.ID)
 
 	ageParam := param.NewParamKey("age")
@@ -65,28 +66,37 @@ func TestRedis(t *testing.T) {
 func testSetGet(t *testing.T, r *RedisClient, param *ParamConf) {
 	ageParam := param.NewParamKey("age")
 	assert.Nil(t, r.Set(ageParam, 10))
-	reply, err := redis.Int(r.Get(ageParam))
+	reply, ok, err := r.Get(ageParam)
 	assert.Nil(t, err)
-	assert.EqualValues(t, 10, reply)
+	assert.True(t, ok)
+	i, _ := redis.Int(reply, err)
+	assert.EqualValues(t, 10, i)
 
-	v, err := r.GetInt(ageParam)
+	v, ok, err := r.GetInt(ageParam)
 	assert.Nil(t, err)
 	assert.EqualValues(t, 10, v)
-	ageNotExistParam := param.NewParamKey("age_not_exist")
-	v, err = r.GetInt(ageNotExistParam)
-	assert.NotNil(t, err)
+	assert.True(t, ok)
 
-	v64, err := r.GetInt64(ageParam)
+	ageNotExistParam := param.NewParamKey("age_not_exist")
+	ageNotExistParam.expire = 0
+	v, ok, err = r.GetInt(ageNotExistParam)
+	assert.Nil(t, err)
+	assert.False(t, ok)
+
+	v64, ok, err := r.GetInt64(ageParam)
 	assert.Nil(t, err)
 	assert.EqualValues(t, 10, v64)
+	assert.True(t, ok)
 
-	f64, err := r.GetFloat64(ageParam)
+	f64, ok, err := r.GetFloat64(ageParam)
 	assert.Nil(t, err)
 	assert.EqualValues(t, 10, f64)
+	assert.True(t, ok)
 
-	s, err := r.GetString(ageParam)
+	s, ok, err := r.GetString(ageParam)
 	assert.Nil(t, err)
 	assert.EqualValues(t, "10", s)
+	assert.True(t, ok)
 }
 
 type TestUser struct {

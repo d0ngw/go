@@ -24,7 +24,7 @@ func (p *V) TableName() string {
 }
 
 func (p *V) Entity(counterID string, fields Fields) (orm.EntityInterface, error) {
-	e, err := p.BaseEntity.BaseEntity(counterID, fields)
+	e, err := p.BaseEntity.ToBaseEntity(counterID, fields)
 	if err != nil {
 		return nil, err
 	}
@@ -38,18 +38,19 @@ func (p *V) ZeroFields() Fields {
 }
 
 var r *cache.RedisClient
-var dbpool *orm.DBPool
+var dbService orm.DBService
 
 func init() {
 	var err error
-	config := orm.MysqlDBConfig{
+	config := &orm.MysqlDBConfig{
 		"root",
 		"123456",
 		"127.0.0.1:3306",
 		"test",
 		100,
 		10}
-	dbpool, err = config.NewDBPool()
+	dbService = &orm.MySQLDBService{Config: (*orm.DBConfig)(config)}
+	dbService.Init()
 
 	redisServer := &cache.RedisServer{
 		ID:   "test",
@@ -94,9 +95,7 @@ func TestPersistCounter(t *testing.T) {
 	user, err := user.Current()
 	assert.Nil(t, err)
 	var cacheConf = cache.NewParamConf("test", "c_", 0)
-	counter := NewPersistRedisCounter("test", cacheConf, 10)
-	counter.RedisClient = r
-	counter.Scripts = &Scripts{
+	scripts := &Scripts{
 		Update:  path.Join(user.HomeDir, "temp", "lua", "counter_update.lua"),
 		SetSync: path.Join(user.HomeDir, "temp", "lua", "counter_update_sync.lua"),
 		Evict:   path.Join(user.HomeDir, "temp", "lua", "counter_evict.lua"),
@@ -104,9 +103,11 @@ func TestPersistCounter(t *testing.T) {
 		Del:     path.Join(user.HomeDir, "temp", "lua", "counter_del.lua"),
 	}
 
-	counter.Persist = &persistMock{}
+	persist := &persistMock{}
 
-	err = counter.Scripts.Init()
+	counter := NewPersistRedisCounter("test", r, scripts, persist, cacheConf, 10)
+
+	err = counter.scripts.Init()
 	assert.Nil(t, err)
 
 	err = counter.Init()
@@ -114,11 +115,11 @@ func TestPersistCounter(t *testing.T) {
 
 	testCounter(t, counter)
 
-	counter.Persist, err = NewDBPersist(dbpool, &V{})
+	counter.persist, err = NewDBPersist(dbService, &V{})
 	assert.Nil(t, err)
 	testCounter(t, counter)
 
-	redisCounterSync, err := NewRedisCounterSync("test", counter, 10, 1, 5, 10)
+	redisCounterSync, err := NewRedisCounterSync(counter, 10, 1, 5, 10)
 	assert.Nil(t, err)
 	err = redisCounterSync.ScanAll()
 	assert.Nil(t, err)
@@ -150,7 +151,7 @@ func testCounter(t *testing.T, counter *PersistRedisCounter) {
 	assert.Equal(t, 2, fields["a"])
 	assert.Equal(t, 2, fields["b"])
 
-	err = counter.Persist.Store(id, fields)
+	err = counter.persist.Store(id, fields)
 	assert.Nil(t, err)
 }
 

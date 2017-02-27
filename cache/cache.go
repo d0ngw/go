@@ -45,7 +45,14 @@ func (p *ParamConf) KeyPrefix() string {
 // NewWithExpire create new ParamConf with new expire parameter
 func (p *ParamConf) NewWithExpire(expire int) *ParamConf {
 	var param = *p
-	p.expire = expire
+	param.expire = expire
+	return &param
+}
+
+// NewWithKeyPrefix append keyPrefix to exist ParamConf,return new ParamConf
+func (p *ParamConf) NewWithKeyPrefix(keyPrefix string) *ParamConf {
+	var param = *p
+	param.keyPrefix = p.keyPrefix + keyPrefix
 	return &param
 }
 
@@ -63,7 +70,7 @@ type ParamKey struct {
 	key string
 }
 
-// Key return the key
+// Key implements Param.Key()
 func (p *ParamKey) Key() string {
 	return p.key
 }

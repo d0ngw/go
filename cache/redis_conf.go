@@ -9,7 +9,7 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
-// RedisConf Redis缓存的配置
+// RedisConf redis config
 type RedisConf struct {
 	Servers []*RedisServer      `yaml:"servers"` //实例列表
 	Groups  map[string][]string `yaml:"groups"`  //Redis组定义,key为组ID;value为Server的id列表
@@ -24,7 +24,7 @@ type RedisConf struct {
 	groups map[string][]*RedisServer
 }
 
-// Parse 解析RedisConf
+// Parse implements Configurer interface
 func (p *RedisConf) Parse() error {
 	groups := map[string][]*RedisServer{}
 	servers := map[string]*RedisServer{}

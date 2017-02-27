@@ -145,17 +145,35 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateColumns(t *testing.T) {
+	_modelReg.clean()
 	tm := tmodel{}
+	err = _modelReg.RegModel(&tm)
+
+	tm = tmodel{Name: sql.NullString{"d0ngw", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
 	dboper := &DBOper{db: dbpool.db}
+	err = Add(dboper, &tm)
+	checkError(err, true, t, "Add")
+
 	l, err := UpdateColumns(dboper, &tm, " f64 = ?", "", 0.2)
 	checkError(err, true, t, "Update")
 	t.Logf("update l:%v", l)
+
+	rt, err := Del(dboper, &tm, tm.Id)
+	checkError(err, true, t, "Del")
+	t.Logf("del rt:%v", rt)
 }
 
 func TestGet(t *testing.T) {
+	_modelReg.clean()
 	tm := tmodel{}
+	err = _modelReg.RegModel(&tm)
+
+	tm = tmodel{Name: sql.NullString{"d0ngw", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
 	dboper := &DBOper{db: dbpool.db}
-	e, err := Get(dboper, &tm, 1)
+	err = Add(dboper, &tm)
+	checkError(err, true, t, "Add")
+
+	e, err := Get(dboper, &tm, tm.Id)
 	checkError(err, true, t, "Get")
 	t.Logf("e:%v,%T", e, e)
 
@@ -169,9 +187,19 @@ func TestGet(t *testing.T) {
 		t.Logf("el:%v", el)
 	}
 
+	cs, err := QueryColumns(dboper, &tm, []string{"id", "create_time", "f64"}, "")
+	checkError(err, true, t, "QueryColumns")
+	for _, el := range cs {
+		t.Logf("el:%#v", el)
+	}
+
 	es, err = Query(dboper, &tm, " WHERE ID < 100")
 	checkError(err, true, t, "Query")
 	for _, el := range es {
 		t.Logf("el:%T,%T", el, tm)
 	}
+
+	rt, err := Del(dboper, &tm, tm.Id)
+	checkError(err, true, t, "Del")
+	t.Logf("del rt:%v", rt)
 }

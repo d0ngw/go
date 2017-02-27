@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"reflect"
 
 	"github.com/ugorji/go/codec"
@@ -19,8 +20,11 @@ func MsgPackEncodeBytes(data interface{}) (bytes []byte, err error) {
 	return
 }
 
-// MsgDecodeBytes decode bytes to dest use msgpack
+// MsgPackDecodeBytes decode bytes to dest use msgpack
 func MsgPackDecodeBytes(bytes []byte, dest interface{}) (err error) {
+	if len(bytes) == 0 {
+		return errors.New("nil bytes to decode")
+	}
 	dec := codec.NewDecoderBytes(bytes, msgpackHandle)
 	err = dec.Decode(dest)
 	return

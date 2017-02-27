@@ -31,4 +31,9 @@ func TestEncDec(t *testing.T) {
 	servers := []*RedisServer{server, server}
 	bytes, err = MsgPackEncodeBytes(servers)
 	assert.Nil(t, err)
+
+	var v1 *int
+	err = MsgPackDecodeBytes(nil, &v1)
+	assert.NotNil(t, err)
+	assert.Nil(t, v)
 }

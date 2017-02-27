@@ -201,6 +201,15 @@ func Query(dbOper *DBOper, entity EntityInterface, condition string, params ...i
 	return modelInfo.queryFunc(dbOper.db, entity, condition, params)
 }
 
+// QueryColumns 根据条件查询columns指定的字段
+func QueryColumns(dbOper *DBOper, entity EntityInterface, columns []string, condition string, params ...interface{}) ([]EntityInterface, error) {
+	modelInfo := getEntityModelInfo(entity)
+	if dbOper.tx != nil {
+		return modelInfo.queryColumnFunc(dbOper.tx, entity, columns, condition, params)
+	}
+	return modelInfo.queryColumnFunc(dbOper.db, entity, columns, condition, params)
+}
+
 // Del 根据ID删除实体
 func Del(dbOper *DBOper, entity EntityInterface, id interface{}) (bool, error) {
 	modelInfo := getEntityModelInfo(entity)

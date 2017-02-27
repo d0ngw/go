@@ -35,3 +35,41 @@ func (config *MysqlDBConfig) NewDBPool() (*DBPool, error) {
 	db.SetMaxOpenConns(config.MaxConn)
 	return &DBPool{db}, nil
 }
+
+// MySQLDBService implements DBService interface for MySql
+type MySQLDBService struct {
+	Config *DBConfig `inject:"_"`
+	pool   *DBPool
+}
+
+// Init implements Initable.Init()
+func (p *MySQLDBService) Init() error {
+	if p.pool != nil {
+		return fmt.Errorf("Inited")
+	}
+
+	if p.Config == nil {
+		return fmt.Errorf("No db config")
+	}
+
+	mysqlDbConfig := (*MysqlDBConfig)(p.Config)
+	pool, err := mysqlDbConfig.NewDBPool()
+	if err != nil {
+		return err
+	}
+	p.pool = pool
+	return nil
+}
+
+// NewDBOper implements DBService.NewDBOper()
+func (p *MySQLDBService) NewDBOper() (*DBOper, error) {
+	if p.pool == nil {
+		return nil, fmt.Errorf("please init db pool")
+	}
+	return p.pool.NewDBOper(), nil
+}
+
+// Pool implements DBService.Pool()
+func (p *MySQLDBService) Pool() *DBPool {
+	return p.pool
+}

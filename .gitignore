@@ -9,3 +9,4 @@ Thumbs.db
 **/Godeps/_workspace
 .vscode
 *.rdb
+debug.test

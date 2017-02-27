@@ -1,7 +1,7 @@
 // Package counter supply counter service
 package counter
 
-// Fields counter's field and value
+// Fields define the counter's field and value
 type Fields map[string]int64
 
 // Counter service
