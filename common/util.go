@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -356,4 +357,66 @@ func Fnv32Hashcode(data string) int {
 		hashCode = -hashCode
 	}
 	return hashCode
+}
+
+// MGet get value from m
+func MGet(m map[string]interface{}, key string) interface{} {
+	if val, ok := m[key]; ok {
+		return val
+	}
+	return nil
+}
+
+// MGetInt32 get int32 from m
+func MGetInt32(m map[string]interface{}, key string) (int32, error) {
+	data := MGet(m, key)
+	switch data.(type) {
+	case int:
+		return int32(data.(int)), nil
+	case int8:
+		return int32(data.(int8)), nil
+	case int16:
+		return int32(data.(int16)), nil
+	case int32:
+		return int32(data.(int32)), nil
+	case int64:
+		return int32(data.(int64)), nil
+	case float32:
+		return int32(data.(float32)), nil
+	case float64:
+		return int32(data.(float64)), nil
+	}
+	return 0, errors.New("invalid int32 type")
+}
+
+// MGetInt64 get int64 from m
+func MGetInt64(m map[string]interface{}, key string) (int64, error) {
+	data := MGet(m, key)
+	switch data.(type) {
+	case int:
+		return int64(data.(int)), nil
+	case int8:
+		return int64(data.(int8)), nil
+	case int16:
+		return int64(data.(int16)), nil
+	case int32:
+		return int64(data.(int32)), nil
+	case int64:
+		return int64(data.(int64)), nil
+	case float32:
+		return int64(data.(float32)), nil
+	case float64:
+		return int64(data.(float64)), nil
+	}
+	return 0, errors.New("invalid int64 type")
+}
+
+// MGetString get string from m
+func MGetString(m map[string]interface{}, key string) (string, error) {
+	data := MGet(m, key)
+	switch data.(type) {
+	case string:
+		return data.(string), nil
+	}
+	return "", errors.New("invalid string type")
 }

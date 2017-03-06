@@ -1,6 +1,7 @@
 package http
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -120,34 +121,53 @@ func GetURL(client *http.Client, url string, params url.Values) (string, error) 
 
 // GetURLWithCookie 请求URL
 func GetURLWithCookie(client *http.Client, url string, params url.Values, cookies map[string]string) (string, error) {
+	_, body, err := GetURLRaw(client, url, params, nil, cookies)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
+// GetURLRaw 请求URL
+func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string) (header http.Header, body []byte, err error) {
 	var req *http.Request
-	var err error
 	if params != nil {
 		req, err = http.NewRequest("GET", url+"?"+params.Encode(), nil)
 	} else {
 		req, err = http.NewRequest("GET", url, nil)
 	}
 	if err != nil {
-		return "", err
+		return nil, nil, err
+	}
+	if reqHeader != nil {
+		req.Header = reqHeader
 	}
 	for k, v := range cookies {
 		req.AddCookie(&http.Cookie{Name: k, Value: v})
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("Status:%d,msg:%s", resp.StatusCode, resp.Status)
+		return nil, nil, fmt.Errorf("Status:%d,msg:%s", resp.StatusCode, resp.Status)
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	var reader io.ReadCloser
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, err = gzip.NewReader(resp.Body)
+		defer reader.Close()
+	default:
+		reader = resp.Body
+	}
+	body, err = ioutil.ReadAll(reader)
 	if err != nil {
-		return "", err
+		return nil, nil, err
 	}
-	return strings.TrimSpace(string(body)), nil
+	return resp.Header, body, nil
 }
 
 // PostURL 请求URL
