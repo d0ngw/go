@@ -370,45 +370,55 @@ func MGet(m map[string]interface{}, key string) interface{} {
 // MGetInt32 get int32 from m
 func MGetInt32(m map[string]interface{}, key string) (int32, error) {
 	data := MGet(m, key)
-	switch data.(type) {
+	switch inst := data.(type) {
 	case int:
-		return int32(data.(int)), nil
+		return int32(inst), nil
 	case int8:
-		return int32(data.(int8)), nil
+		return int32(inst), nil
 	case int16:
-		return int32(data.(int16)), nil
+		return int32(inst), nil
 	case int32:
-		return int32(data.(int32)), nil
+		return int32(inst), nil
 	case int64:
-		return int32(data.(int64)), nil
+		return int32(inst), nil
 	case float32:
-		return int32(data.(float32)), nil
+		return int32(inst), nil
 	case float64:
 		return int32(data.(float64)), nil
+	case json.Number:
+		v, err := inst.Int64()
+		if err != nil {
+			return 0, err
+		}
+		return int32(v), nil
+	default:
+		return 0, fmt.Errorf("invalid int32 type:%T", inst)
 	}
-	return 0, errors.New("invalid int32 type")
 }
 
 // MGetInt64 get int64 from m
 func MGetInt64(m map[string]interface{}, key string) (int64, error) {
 	data := MGet(m, key)
-	switch data.(type) {
+	switch inst := data.(type) {
 	case int:
-		return int64(data.(int)), nil
+		return int64(inst), nil
 	case int8:
-		return int64(data.(int8)), nil
+		return int64(inst), nil
 	case int16:
-		return int64(data.(int16)), nil
+		return int64(inst), nil
 	case int32:
-		return int64(data.(int32)), nil
+		return int64(inst), nil
 	case int64:
-		return int64(data.(int64)), nil
+		return int64(inst), nil
 	case float32:
-		return int64(data.(float32)), nil
+		return int64(inst), nil
 	case float64:
-		return int64(data.(float64)), nil
+		return int64(inst), nil
+	case json.Number:
+		return inst.Int64()
+	default:
+		return 0, fmt.Errorf("invalid int64 type:%T", inst)
 	}
-	return 0, errors.New("invalid int64 type")
 }
 
 // MGetString get string from m
