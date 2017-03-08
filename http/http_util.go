@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -155,17 +156,21 @@ func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader htt
 	if resp.StatusCode != 200 {
 		return nil, nil, fmt.Errorf("Status:%d,msg:%s", resp.StatusCode, resp.Status)
 	}
-	var reader io.ReadCloser
-	switch resp.Header.Get("Content-Encoding") {
-	case "gzip":
-		reader, err = gzip.NewReader(resp.Body)
-		defer reader.Close()
-	default:
-		reader = resp.Body
-	}
-	body, err = ioutil.ReadAll(reader)
+	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
+	}
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, err := gzip.NewReader(bytes.NewReader(body))
+		if err != nil {
+			return nil, nil, err
+		}
+		defer reader.Close()
+		body, err = ioutil.ReadAll(reader)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	return resp.Header, body, nil
 }
