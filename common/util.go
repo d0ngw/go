@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -64,6 +65,8 @@ type Shutdownhook struct {
 	ch         chan os.Signal //接收信号的channel
 	hooks      []func()       //停机时需要调用的方法列表
 	sync.Mutex                //同步锁
+	stop       int32
+	osStop     int32
 }
 
 // NewShutdownhook 创建一个Shutdownhook,sig是要监听的信号,默认会监听syscall.SIGINT,syscall.SIGTERM
@@ -76,6 +79,12 @@ func NewShutdownhook(sig ...os.Signal) *Shutdownhook {
 	return &Shutdownhook{ch: ch}
 }
 
+func (p *Shutdownhook) getCh() chan os.Signal {
+	p.Lock()
+	defer p.Unlock()
+	return p.ch
+}
+
 // AddHook 增加一个Hook函数
 func (p *Shutdownhook) AddHook(hookFunc func()) {
 	p.Lock()
@@ -85,26 +94,44 @@ func (p *Shutdownhook) AddHook(hookFunc func()) {
 
 // WaitShutdown 等待进程退出的信号,当收到进程退出的信号后,依次执行注册的hook函数
 func (p *Shutdownhook) WaitShutdown() {
-	p.Lock()
-	defer p.Unlock()
-
-	if p.ch == nil {
-		panic("singal channel is nil")
+	ch := p.getCh()
+	if ch == nil {
+		return
 	}
 
-	if s, ok := <-p.ch; ok {
-		signal.Stop(p.ch)
-		close(p.ch)
-		p.ch = nil
-
+	if s, ok := <-ch; ok {
 		Infof("Receive signal:%v,Run hooks", s)
-		for _, f := range p.hooks {
-			f()
-		}
-		Infof("Finished run hooks")
+		atomic.StoreInt32(&p.osStop, 1)
+		p.Stop()
 	} else {
 		Warnf("Receive signal error,%v", ok)
 	}
+
+	p.Lock()
+	defer p.Unlock()
+	Infof("begin run hooks")
+	for _, f := range p.hooks {
+		f()
+	}
+	Infof("finished run hooks")
+}
+
+// Stop the shutdownhook
+func (p *Shutdownhook) Stop() {
+	p.Lock()
+	defer p.Unlock()
+	ch := p.ch
+	if ch != nil {
+		signal.Stop(p.ch)
+		close(p.ch)
+	}
+	p.ch = nil
+	p.stop = 1
+}
+
+// IsOSStop 是否OS触发的停止
+func (p *Shutdownhook) IsOSStop() bool {
+	return atomic.LoadInt32(&p.osStop) == 1
 }
 
 // RandomUUID 生成随机的UUID
