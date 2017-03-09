@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"compress/flate"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -18,6 +19,54 @@ import (
 
 	c "github.com/d0ngw/go/common"
 )
+
+// RequestError is the http request response error
+type RequestError struct {
+	Status int
+	Err    error
+}
+
+func (p *RequestError) Error() string {
+	return fmt.Sprintf("status:%d,data:%s", p.Status, p.Err)
+}
+
+// CheckRequestError if err is RequestError,then return response status code
+func CheckRequestError(err error) (status int, ok bool) {
+	if err == nil {
+		return
+	}
+	if e, ok := err.(*RequestError); ok {
+		return e.Status, true
+	}
+	return
+}
+
+// RedirectError redirect error
+type RedirectError struct {
+	RedirectURL string
+}
+
+func (p *RedirectError) Error() string {
+	return fmt.Sprintf("redirect:%s", p.RedirectURL)
+}
+
+// CheckRedirectError if err is RedirectError ,then return redirect error
+func CheckRedirectError(err error) (url string, ok bool) {
+	if err == nil {
+		return
+	}
+	if e, ok := err.(*RedirectError); ok {
+		return e.RedirectURL, true
+	}
+	return
+}
+
+// NewRedirectError redirect error
+func NewRedirectError(req *http.Request, via []*http.Request) error {
+	return &RedirectError{
+		RedirectURL: req.URL.String(),
+	}
+}
 
 // Resp JSON Http响应
 type Resp struct {
@@ -148,23 +197,41 @@ func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader htt
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, nil, err
+		e := &RequestError{Err: err}
+		if resp != nil {
+			e.Status = resp.StatusCode
+		}
+		return nil, nil, e
 	}
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if resp.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("Status:%d,msg:%s", resp.StatusCode, resp.Status)
+		return nil, nil, &RequestError{Status: resp.StatusCode}
 	}
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}
-	switch resp.Header.Get("Content-Encoding") {
+	contentEncoding := resp.Header.Get("Content-Encoding")
+	switch contentEncoding {
 	case "gzip":
-		reader, err := gzip.NewReader(bytes.NewReader(body))
+		fallthrough
+	case "deflate":
+		var (
+			reader io.ReadCloser
+			err    error
+		)
+		if contentEncoding == "gzip" {
+			reader, err = gzip.NewReader(bytes.NewReader(body))
+		} else if contentEncoding == "deflate" {
+			reader = flate.NewReader(bytes.NewReader(body))
+		}
 		if err != nil {
 			return nil, nil, err
+		}
+		if reader == nil {
+			return nil, nil, fmt.Errorf("no uncompress reader")
 		}
 		defer reader.Close()
 		body, err = ioutil.ReadAll(reader)
@@ -207,7 +274,7 @@ func PostURLWithCookie(client *http.Client, url string, params url.Values, conte
 		defer resp.Body.Close()
 	}
 	if resp.StatusCode != 200 {
-		return nil, nil, fmt.Errorf("Status:%d,msg:%s", resp.StatusCode, resp.Status)
+		return nil, nil, &RequestError{Status: resp.StatusCode}
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
