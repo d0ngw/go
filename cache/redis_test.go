@@ -197,7 +197,7 @@ func TestGetObjects(t *testing.T) {
 
 	keys = append([]string{"-1"}, keys...)
 	var users []*TestUser
-	err := r.GetObjects(paramConf, keys, &users)
+	err := r.GetObjects(paramConf, keys, &users, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 11, len(users))
 	assert.Nil(t, users[0])

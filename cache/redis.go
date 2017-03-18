@@ -200,7 +200,7 @@ func (p *RedisClient) GetObject(param Param, dest interface{}) (ok bool, err err
 }
 
 // GetObjects batch get struct object,use MsgPackDecodeBytes to decode bytes and append  to dest
-func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest interface{}) error {
+func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest interface{}, getByKey func(string) (interface{}, error)) error {
 	val, ind, typ := c.ExtractRefTuple(dest)
 	if val.Kind() != reflect.Ptr || !ind.CanSet() {
 		return fmt.Errorf("dest must be pointer of slice,and must can set")
@@ -230,23 +230,37 @@ func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest inter
 	}
 
 	destSlice := reflect.MakeSlice(typ, 0, len(replies))
-	var toAdd = make([]reflect.Value, 0, len(replies))
 	var zero = reflect.Zero(elemTyp)
 
-	for _, reply := range replies {
+	for i, reply := range replies {
 		if reply.Err != nil {
 			return reply.Err
 		}
 
 		if bytes, _ := redis.Bytes(reply.Reply, err); bytes != nil {
 			val := reflect.New(destElemTyp)
-			MsgPackDecodeBytes(bytes, val.Interface())
-			toAdd = append(toAdd, val)
+			err = MsgPackDecodeBytes(bytes, val.Interface())
+			if err != nil {
+				return err
+			}
+			destSlice = reflect.Append(destSlice, val)
 		} else {
-			toAdd = append(toAdd, zero)
+			var found bool
+			if getByKey != nil {
+				ret, err := getByKey(keys[i])
+				if err != nil {
+					return err
+				}
+				if ret != nil {
+					destSlice = reflect.Append(destSlice, reflect.ValueOf(ret))
+					found = true
+				}
+			}
+			if !found {
+				destSlice = reflect.Append(destSlice, reflect.ValueOf(zero))
+			}
 		}
 	}
-	destSlice = reflect.Append(destSlice, toAdd...)
 	ind.Set(destSlice)
 	return nil
 }
