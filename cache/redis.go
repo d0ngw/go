@@ -257,7 +257,7 @@ func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest inter
 				}
 			}
 			if !found {
-				destSlice = reflect.Append(destSlice, reflect.ValueOf(zero))
+				destSlice = reflect.Append(destSlice, zero)
 			}
 		}
 	}
