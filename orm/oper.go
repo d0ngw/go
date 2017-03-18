@@ -196,18 +196,55 @@ func Get(dbOper *DBOper, entity EntityInterface, id interface{}) (EntityInterfac
 func Query(dbOper *DBOper, entity EntityInterface, condition string, params ...interface{}) ([]EntityInterface, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
-		return modelInfo.queryFunc(dbOper.tx, entity, condition, params)
+		return modelInfo.entityQueryFunc(dbOper.tx, entity, condition, params)
 	}
-	return modelInfo.queryFunc(dbOper.db, entity, condition, params)
+	return modelInfo.entityQueryFunc(dbOper.db, entity, condition, params)
 }
 
 // QueryColumns 根据条件查询columns指定的字段
 func QueryColumns(dbOper *DBOper, entity EntityInterface, columns []string, condition string, params ...interface{}) ([]EntityInterface, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
-		return modelInfo.queryColumnFunc(dbOper.tx, entity, columns, condition, params)
+		return modelInfo.entityQueryColumnFunc(dbOper.tx, entity, columns, condition, params)
 	}
-	return modelInfo.queryColumnFunc(dbOper.db, entity, columns, condition, params)
+	return modelInfo.entityQueryColumnFunc(dbOper.db, entity, columns, condition, params)
+}
+
+type count struct {
+	Count int64
+}
+
+// QueryCount 根据条件查询条数
+func QueryCount(dbOper *DBOper, entity EntityInterface, column string, condition string, params ...interface{}) (num int64, err error) {
+	modelInfo := getEntityModelInfo(entity)
+	columns := []string{"count(" + column + ")"}
+	var counts []*count
+	if dbOper.tx != nil {
+		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, &counts, columns, condition, params)
+	} else {
+		err = modelInfo.clumnsQueryFunc(dbOper.db, entity, &counts, columns, condition, params)
+	}
+	if err != nil {
+		return
+	}
+	if len(counts) > 0 {
+		num = counts[0].Count
+	}
+	return
+}
+
+// QueryColumnsWithSlice 根据条件查询条数
+func QueryColumnsWithSlice(dbOper *DBOper, entity EntityInterface, destSlice interface{}, columns []string, condition string, params ...interface{}) (err error) {
+	modelInfo := getEntityModelInfo(entity)
+	if dbOper.tx != nil {
+		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, destSlice, columns, condition, params)
+	} else {
+		err = modelInfo.clumnsQueryFunc(dbOper.db, entity, destSlice, columns, condition, params)
+	}
+	if err != nil {
+		return
+	}
+	return
 }
 
 // Del 根据ID删除实体

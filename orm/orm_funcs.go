@@ -2,6 +2,7 @@ package orm
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -252,6 +253,65 @@ func createQueryColumnFunc(modelInfo *modelMeta) entityQueryColumnFunc {
 			}
 		}
 		return rt, nil
+	}
+}
+
+//构建查询函数
+func createQueryColumnsFunc(modelInfo *modelMeta) queryColumnsFunc {
+	return func(executor interface{}, entity EntityInterface, destStructs interface{}, columns []string, condition string, params []interface{}) error {
+		if destStructs == nil {
+			return errors.New("dest must not be nil")
+		}
+
+		ptrVal := reflect.ValueOf(destStructs)
+		if ptrVal.Kind() != reflect.Ptr {
+			return errors.New("the length of dest must be 1")
+		}
+
+		var destVal = ptrVal.Elem()
+		if destVal.Kind() != reflect.Slice {
+			return errors.New("the destStructs must be slice")
+		}
+
+		destStructTyp := destVal.Type().Elem()
+		if destStructTyp.Kind() != reflect.Ptr || destStructTyp.Elem().Kind() != reflect.Struct {
+			return errors.New("the element of dest must be struct pointer")
+		}
+
+		destTyp := destStructTyp.Elem()
+		if destTyp.NumField() < len(columns) {
+			return fmt.Errorf("number of %T's fields must >= columns", destTyp)
+		}
+
+		querySQL := fmt.Sprintf("SELECT %s FROM %s ", strings.Join(columns, ","), entity.TableName())
+		if len(condition) > 0 {
+			querySQL += condition
+		}
+		c.Debugf("querySql:%v", querySQL)
+
+		rows, err := query(executor, querySQL, params)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+
+		var rt = reflect.MakeSlice(destVal.Type(), 0, 10)
+		for rows.Next() {
+			ptrValue := reflect.New(destTyp)
+			ptrValueInd := reflect.Indirect(ptrValue)
+			ptrValueSlice := make([]interface{}, 0, destTyp.NumField())
+			for i := 0; i < destTyp.NumField(); i++ {
+				fv := ptrValueInd.Field(i).Addr().Interface()
+				ptrValueSlice = append(ptrValueSlice, fv)
+			}
+			if err := rows.Scan(ptrValueSlice...); err == nil {
+				rt = reflect.Append(rt, ptrValue)
+			} else {
+				return err
+			}
+		}
+		ptrVal.Elem().Set(rt)
+		return nil
 	}
 }
 

@@ -14,20 +14,21 @@ import (
 
 //模型元信息
 type modelMeta struct {
-	name               string
-	pkField            *modelField
-	fields             []*modelField
-	columnFields       map[string]*modelField
-	modelType          reflect.Type
-	insertFunc         entityInsertFunc
-	updateFunc         entityUpdateFunc
-	updateColumnsFunc  entityUpdateColumnFunc
-	queryFunc          entityQueryFunc
-	queryColumnFunc    entityQueryColumnFunc
-	getFunc            entityGetFunc
-	delFunc            entityDeleteFunc
-	delEFunc           entityDeleteByIDFunc
-	insertOrUpdateFunc entityInsertOrUpdateFunc
+	name                  string
+	pkField               *modelField
+	fields                []*modelField
+	columnFields          map[string]*modelField
+	modelType             reflect.Type
+	insertFunc            entityInsertFunc
+	updateFunc            entityUpdateFunc
+	updateColumnsFunc     entityUpdateColumnFunc
+	entityQueryFunc       entityQueryFunc
+	entityQueryColumnFunc entityQueryColumnFunc
+	clumnsQueryFunc       queryColumnsFunc
+	getFunc               entityGetFunc
+	delFunc               entityDeleteFunc
+	delEFunc              entityDeleteByIDFunc
+	insertOrUpdateFunc    entityInsertOrUpdateFunc
 }
 
 //模型的字段定义
@@ -65,6 +66,7 @@ type entityUpdateFunc func(executor interface{}, entity EntityInterface) (bool, 
 type entityUpdateColumnFunc func(executor interface{}, entity EntityInterface, columns string, contition string, params []interface{}) (int64, error)
 type entityQueryFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error)
 type entityQueryColumnFunc func(executor interface{}, entity EntityInterface, columns []string, condition string, params []interface{}) ([]EntityInterface, error)
+type queryColumnsFunc func(executor interface{}, entity EntityInterface, destStruct interface{}, columns []string, condition string, params []interface{}) error
 type entityGetFunc func(executor interface{}, entity EntityInterface, id interface{}) (EntityInterface, error)
 type entityDeleteFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error)
 type entityDeleteByIDFunc func(executor interface{}, entity EntityInterface, id interface{}) (bool, error)
@@ -138,14 +140,15 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	mInfo.insertFunc = createInsertFunc(mInfo)
 	mInfo.updateFunc = createUpdateFunc(mInfo)
 	mInfo.updateColumnsFunc = createUpdateColumnsFunc(mInfo)
-	mInfo.queryFunc = createQueryFunc(mInfo)
-	mInfo.queryColumnFunc = createQueryColumnFunc(mInfo)
+	mInfo.entityQueryFunc = createQueryFunc(mInfo)
+	mInfo.entityQueryColumnFunc = createQueryColumnFunc(mInfo)
+	mInfo.clumnsQueryFunc = createQueryColumnsFunc(mInfo)
 	mInfo.insertOrUpdateFunc = createInsertOrUpdateFunc(mInfo)
 	mInfo.delFunc = createDelFunc(mInfo)
 	mInfo.getFunc = func(executor interface{}, entity EntityInterface, id interface{}) (e EntityInterface, err error) {
 		e = nil
 		var l []EntityInterface
-		if l, err = mInfo.queryFunc(executor, entity, " WHERE "+mInfo.pkField.column+" = ?", []interface{}{id}); err == nil {
+		if l, err = mInfo.entityQueryFunc(executor, entity, " WHERE "+mInfo.pkField.column+" = ?", []interface{}{id}); err == nil {
 			if len(l) == 1 {
 				e = l[0]
 			}

@@ -203,3 +203,14 @@ func TestGet(t *testing.T) {
 	checkError(err, true, t, "Del")
 	t.Logf("del rt:%v", rt)
 }
+
+func TestCount(t *testing.T) {
+	_modelReg.clean()
+	tm := tmodel{}
+	err = _modelReg.RegModel(&tm)
+
+	dboper := &DBOper{db: dbpool.db}
+	total, err := QueryCount(dboper, &tm, "id", "")
+	checkError(err, true, t, "Count")
+	t.Logf("countl:%v", total)
+}

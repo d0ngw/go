@@ -34,6 +34,21 @@ type EntityInterface interface {
 	TableName() string
 }
 
+// SliceEntityInterface type for slice of EntityInterface
+type SliceEntityInterface []EntityInterface
+
+// InterfaceSlice convert SliceEntityInterface to []interface{}
+func (p SliceEntityInterface) InterfaceSlice() []interface{} {
+	if p == nil {
+		return nil
+	}
+	ret := make([]interface{}, len(p))
+	for i := range p {
+		ret[i] = p[i]
+	}
+	return ret
+}
+
 // DBPool 数据库连接池
 type DBPool struct {
 	db *sql.DB
