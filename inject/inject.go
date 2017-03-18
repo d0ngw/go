@@ -165,6 +165,15 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 	fieldNum := ind.NumField()
 	for i := 0; i < fieldNum; i++ {
 		fieldVal := ind.Field(i)
+
+		if reflect.Indirect(fieldVal).Kind() == reflect.Struct {
+			if fieldVal.Kind() == reflect.Ptr {
+				p.injectInstanceWithOverrideTags(fieldVal.Interface(), injectTags)
+			} else if fieldVal.CanAddr() && fieldVal.CanInterface() {
+				p.injectInstanceWithOverrideTags(fieldVal.Addr().Interface(), injectTags)
+			}
+			continue
+		}
 		structField := typ.Field(i)
 		sfTag := structField.Tag
 
