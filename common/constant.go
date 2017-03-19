@@ -14,3 +14,8 @@ const (
 func (p Status) IsValid() bool {
 	return p == DISABLE || p == ENABLE
 }
+
+// Value 状态的值
+func (p Status) Value() int8 {
+	return int8(p)
+}
