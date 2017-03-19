@@ -233,13 +233,13 @@ func QueryCount(dbOper *DBOper, entity EntityInterface, column string, condition
 	return
 }
 
-// QueryColumnsWithSlice 根据条件查询条数
-func QueryColumnsWithSlice(dbOper *DBOper, entity EntityInterface, destSlice interface{}, columns []string, condition string, params ...interface{}) (err error) {
+// QueryColumnsForDestSlice 根据条件查询数据,结果保存到destSlicePtr
+func QueryColumnsForDestSlice(dbOper *DBOper, entity EntityInterface, destSlicePtr interface{}, columns []string, condition string, params ...interface{}) (err error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
-		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, destSlice, columns, condition, params)
+		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, destSlicePtr, columns, condition, params)
 	} else {
-		err = modelInfo.clumnsQueryFunc(dbOper.db, entity, destSlice, columns, condition, params)
+		err = modelInfo.clumnsQueryFunc(dbOper.db, entity, destSlicePtr, columns, condition, params)
 	}
 	if err != nil {
 		return
