@@ -75,6 +75,22 @@ type Resp struct {
 	Msg     string      `json:"msg"`
 }
 
+// NewSuccResp 构建成功的响应
+func NewSuccResp(data interface{}) *Resp {
+	return &Resp{
+		Success: true,
+		Data:    data,
+	}
+}
+
+// NewFailResp 构建失败的响应
+func NewFailResp(msg string) *Resp {
+	return &Resp{
+		Success: false,
+		Msg:     msg,
+	}
+}
+
 var (
 	errNoparam = fmt.Errorf("missing param")
 )

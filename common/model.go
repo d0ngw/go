@@ -35,14 +35,14 @@ func (p *PageParam) EndIndex() int {
 // ResultSet is the result set with total and items
 type ResultSet interface {
 	SetTotal(total int64)
-	SetItems(items []interface{})
+	SetData(data interface{})
 }
 
 //PageResult 分页结果
 type PageResult struct {
 	PageParam
-	Total int64 `json:"total"`
-	Items []interface{}
+	Total int64       `json:"total"`
+	Items interface{} `json:"items"`
 }
 
 // SetTotal implements ResultSet.SetTotal
@@ -50,9 +50,9 @@ func (p *PageResult) SetTotal(total int64) {
 	p.Total = total
 }
 
-// SetItems  implements ResultSet.SetItems
-func (p *PageResult) SetItems(items []interface{}) {
-	p.Items = items
+// SetData implements ResultSet.SetData
+func (p *PageResult) SetData(data interface{}) {
+	p.Items = data
 }
 
 //Query 基本的查询参数

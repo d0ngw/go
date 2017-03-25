@@ -193,6 +193,19 @@ func GetPrincipal(ctx context.Context) (Principal, error) {
 	return nil, nil
 }
 
+// GetRequiredPerm 在ctx中取得需要权限
+func GetRequiredPerm(ctx context.Context) ([]*Perm, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("Ctx must not be nil")
+	}
+
+	reqPerms, ok := ctx.Value(required).([]*Perm)
+	if !ok {
+		return nil, nil
+	}
+	return reqPerms, nil
+}
+
 // HasPermWithPrinciapl 检查principal是否拥有ctx中要求的权限
 func HasPermWithPrinciapl(ctx context.Context, principal Principal) bool {
 	if ctx == nil {

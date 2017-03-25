@@ -103,7 +103,6 @@ func (p *TokenMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 
 // CheckPermMiddleware 用于检查用户的权限
 type CheckPermMiddleware struct {
-	AuthService AuthService `inject:"_"` //认证服务
 }
 
 // Handle 检查权限
