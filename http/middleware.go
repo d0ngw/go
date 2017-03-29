@@ -8,6 +8,11 @@ import (
 	"github.com/d0ngw/go/common/perm"
 )
 
+const (
+	//TokenHeader token in header
+	TokenHeader = "X-TOKEN"
+)
+
 // MiddlewareFunc middleware函数
 type MiddlewareFunc func(http.ResponseWriter, *http.Request)
 
@@ -83,14 +88,24 @@ type TokenMiddleware struct {
 // Handle 解析token
 func (p *TokenMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tokenCookie, err := r.Cookie(p.TokenName)
-		if err == nil && len(tokenCookie.Value) > 0 {
+		var token string
+		token = r.Header.Get(TokenHeader)
+		if token == "" {
+			tokenCookie, err := r.Cookie(p.TokenName)
+			if err != nil {
+				token = ""
+			} else if tokenCookie != nil {
+				token = tokenCookie.Value
+			}
+		}
+
+		if len(token) > 0 {
 			//检查是否已经有principal了
 			principal, _ := perm.GetPrincipal(r.Context())
 			if principal == nil {
-				authUser, err := p.AuthService.AuthToken(tokenCookie.Value)
+				authUser, err := p.AuthService.AuthToken(token)
 				if err != nil {
-					c.Errorf("auth by token %s fail,err:%s", tokenCookie.Value, err)
+					c.Errorf("auth by token %s fail,err:%s", token, err)
 				} else {
 					ctx, _ := perm.BindPrincipal(r.Context(), authUser)
 					r = r.WithContext(ctx)
