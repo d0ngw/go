@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	c "github.com/d0ngw/go/common"
 )
 
 // Operation 定义操作类型
@@ -41,6 +43,24 @@ func ParseOperation(operation string) Operation {
 	return op
 }
 
+// String 将权限转为字符串表达
+func (p Operation) String() string {
+	str := ""
+	if p&OPRead != 0 {
+		str += "r"
+	}
+	if p&OPInsert != 0 {
+		str += "i"
+	}
+	if p&OPDelete != 0 {
+		str += "d"
+	}
+	if p&OPUpdate != 0 {
+		str += "u"
+	}
+	return str
+}
+
 // Resource 定义资源
 type Resource struct {
 	parent *Resource
@@ -65,14 +85,14 @@ func (p *Resource) GetID() string {
 
 // ResourceRegistry 记录所有的资源
 type ResourceRegistry struct {
-	resouceReg map[string]*Resource
+	resouceReg *c.LinkedMap
 	lastError  error
 }
 
 // NewResourceRegistry 构建资源注册
 func NewResourceRegistry() *ResourceRegistry {
 	return &ResourceRegistry{
-		resouceReg: map[string]*Resource{},
+		resouceReg: c.NewLinkedMap(),
 		lastError:  nil,
 	}
 }
@@ -82,19 +102,58 @@ func (p *ResourceRegistry) Add(resource *Resource) error {
 	if resource == nil {
 		return fmt.Errorf("Not allow nil resource")
 	}
-
 	rid := resource.GetID()
-	if _, ok := p.resouceReg[rid]; ok {
+	if _, ok := p.resouceReg.Get(rid); ok {
 		return fmt.Errorf("Duplicate resouce id:%s", rid)
 	}
-	p.resouceReg[rid] = resource
+	p.resouceReg.Put(rid, resource)
 	return nil
 }
 
 // IsExist 检查指定的资源id是否存在
 func (p *ResourceRegistry) IsExist(resID string) bool {
-	_, ok := p.resouceReg[resID]
+	_, ok := p.resouceReg.Get(resID)
 	return ok
+}
+
+// ResourceGroup 资源分组
+type ResourceGroup struct {
+	Name      string      //组名称
+	Resources []*Resource //资源
+}
+
+// BuildResourceGroup 构建resource group列表
+func (p *ResourceRegistry) BuildResourceGroup(depth int) (groups []*ResourceGroup, err error) {
+	var result = c.NewLinkedMap()
+	for _, v := range p.resouceReg.Entries() {
+		id := v.Key.(string)
+		resource := v.Value.(*Resource)
+		ids := c.SplitTrimOmitEmpty(id, ".")
+		if len(ids) > depth {
+			fmt.Printf("%s\n", ids)
+			groupID := strings.Join(ids[0:depth], ".")
+			exist, ok := result.Get(groupID)
+			if !ok {
+				group := &ResourceGroup{}
+				groupResource, ok := p.resouceReg.Get(groupID)
+				if ok && groupResource != nil {
+					group.Name = groupResource.(*Resource).GetName()
+				} else {
+					err = fmt.Errorf("can't find group id %s", groupID)
+					return
+				}
+				result.Put(groupID, group)
+				exist = group
+			}
+			group := exist.(*ResourceGroup)
+			group.Resources = append(group.Resources, resource)
+		}
+	}
+	var ret []*ResourceGroup
+	for _, v := range result.Entries() {
+		ret = append(ret, v.Value.(*ResourceGroup))
+	}
+	return ret, nil
 }
 
 // NewResource 创建一个新的资源
