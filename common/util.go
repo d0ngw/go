@@ -457,3 +457,4 @@ func MGetString(m map[string]interface{}, key string) (string, error) {
 	}
 	return "", errors.New("invalid string type")
 }
+

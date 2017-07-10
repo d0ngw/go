@@ -194,8 +194,8 @@ func GetURLWithCookie(client *http.Client, url string, params url.Values, cookie
 	return string(body), nil
 }
 
-// GetURLRaw 请求URL
-func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string) (header http.Header, body []byte, err error) {
+// GetURLRawToWriter 请求URL
+func GetURLRawToWriter(client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string, writer io.Writer) (header http.Header, err error) {
 	var req *http.Request
 	if params != nil {
 		req, err = http.NewRequest("GET", url+"?"+params.Encode(), nil)
@@ -203,7 +203,7 @@ func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader htt
 		req, err = http.NewRequest("GET", url, nil)
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if reqHeader != nil {
 		req.Header = reqHeader
@@ -217,17 +217,13 @@ func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader htt
 		if resp != nil {
 			e.Status = resp.StatusCode
 		}
-		return nil, nil, e
+		return nil, e
 	}
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
 	if resp.StatusCode != 200 {
-		return nil, nil, &RequestError{Status: resp.StatusCode}
-	}
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, err
+		return nil, &RequestError{Status: resp.StatusCode}
 	}
 	contentEncoding := resp.Header.Get("Content-Encoding")
 	switch contentEncoding {
@@ -239,23 +235,38 @@ func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader htt
 			err    error
 		)
 		if contentEncoding == "gzip" {
-			reader, err = gzip.NewReader(bytes.NewReader(body))
+			reader, err = gzip.NewReader(resp.Body)
 		} else if contentEncoding == "deflate" {
-			reader = flate.NewReader(bytes.NewReader(body))
+			reader = flate.NewReader(resp.Body)
 		}
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		if reader == nil {
-			return nil, nil, fmt.Errorf("no uncompress reader")
+			return nil, fmt.Errorf("no uncompress reader")
 		}
 		defer reader.Close()
-		body, err = ioutil.ReadAll(reader)
+		_, err = io.Copy(writer, reader)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
+		}
+	default:
+		_, err = io.Copy(writer, resp.Body)
+		if err != nil {
+			return nil, err
 		}
 	}
-	return resp.Header, body, nil
+	return resp.Header, nil
+}
+
+// GetURLRaw 请求URL
+func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string) (header http.Header, body []byte, err error) {
+	var writer = &bytes.Buffer{}
+	header, err = GetURLRawToWriter(client, url, params, reqHeader, cookies, writer)
+	if err != nil {
+		return header, nil, err
+	}
+	return header, writer.Bytes(), nil
 }
 
 // PostURL 请求URL
