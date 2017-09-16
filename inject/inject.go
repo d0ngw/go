@@ -164,7 +164,12 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 
 	fieldNum := ind.NumField()
 	for i := 0; i < fieldNum; i++ {
+		field := typ.Field(i)
 		fieldVal := ind.Field(i)
+		if !fieldVal.CanSet() {
+			c.Debugf("skip inject filed %s", field.Name)
+			continue
+		}
 
 		if reflect.Indirect(fieldVal).Kind() == reflect.Struct {
 			if fieldVal.Kind() == reflect.Ptr {
