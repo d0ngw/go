@@ -111,7 +111,7 @@ func (p *ResponseHandler) FailWithMsg(msg string) {
 	p.Msg = msg
 }
 
-func (p *ResponseHandler) run() {
+func (p *ResponseHandler) Run() {
 	if !p.Success {
 		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg})
 	} else {
