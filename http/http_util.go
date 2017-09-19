@@ -91,6 +91,41 @@ func NewFailResp(msg string) *Resp {
 	}
 }
 
+// ResponseHandler 响应处理
+type ResponseHandler struct {
+	Success bool
+	Data    interface{}
+	Msg     string
+	w       http.ResponseWriter
+}
+
+// SuccessWithData 设置成功及数据
+func (p *ResponseHandler) SuccessWithData(data interface{}) {
+	p.Success = true
+	p.Data = data
+}
+
+// FailWithMsg 设置失败及出错的消息
+func (p *ResponseHandler) FailWithMsg(msg string) {
+	p.Success = false
+	p.Msg = msg
+}
+
+func (p *ResponseHandler) run() {
+	if !p.Success {
+		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg})
+	} else {
+		RenderJSON(p.w, &Resp{Success: true, Data: p.Data})
+	}
+}
+
+// NewResponseHandler 构建响应处理
+func NewResponseHandler(w http.ResponseWriter) *ResponseHandler {
+	return &ResponseHandler{
+		w: w,
+	}
+}
+
 var (
 	errNoparam = fmt.Errorf("missing param")
 )
