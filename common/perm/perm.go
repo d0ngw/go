@@ -276,12 +276,17 @@ func HasPermWithPrinciapl(ctx context.Context, principal Principal) bool {
 		return true
 	}
 
-	if len(reqPerms) == 0 {
-		return true
-	}
+	return HasPermWithPrincipalAndPerms(principal, reqPerms)
+}
 
+// HasPermWithPrincipalAndPerms 检查principal是否拥有reqPerms指定的权限
+func HasPermWithPrincipalAndPerms(principal Principal, reqPerms []*Perm) bool {
 	if principal == nil {
 		return false
+	}
+
+	if len(reqPerms) == 0 {
+		return true
 	}
 
 	roles := principal.GetRoles()
