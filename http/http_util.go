@@ -312,6 +312,11 @@ func PostURL(client *http.Client, url string, params url.Values, contentType str
 
 // PostURLWithCookie 请求URL
 func PostURLWithCookie(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
+	return PostURLWithCookieAndHeader(client, url, params, nil, contentType, requestBody, cookies)
+}
+
+// PostURLWithCookieAndHeader 请求URL
+func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Values, header map[string]string, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
 	if requestBody == nil {
 		requestBody = strings.NewReader(params.Encode())
 	} else {
@@ -325,6 +330,11 @@ func PostURLWithCookie(client *http.Client, url string, params url.Values, conte
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
+
+	for k, v := range header {
+		req.Header.Add(k, v)
+	}
+
 	for k, v := range cookies {
 		req.AddCookie(&http.Cookie{Name: k, Value: v})
 	}
