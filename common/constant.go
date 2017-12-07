@@ -19,3 +19,15 @@ func (p Status) IsValid() bool {
 func (p Status) Value() int8 {
 	return int8(p)
 }
+
+// 定义环境变量
+const (
+	EnvWorkfDir = "work_dir"
+)
+
+// 定义环境的常量
+const (
+	EnvDev        = "dev"
+	EnvTest       = "test"
+	EnvProduction = "prod"
+)

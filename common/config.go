@@ -1,12 +1,18 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"path"
 	"reflect"
 	"runtime"
 
 	"gopkg.in/yaml.v2"
+)
+
+var (
+	errInvalidConf = errors.New("invalid conf")
 )
 
 // LoadYAMLFromPath 将YAML文件中的配置加载到到结构体target中
@@ -89,4 +95,32 @@ func Parse(conf interface{}) error {
 		}
 	}
 	return nil
+}
+
+// LoadConfig 从configDir目录下的多个path指定的配置文件中加载配置
+func LoadConfig(config Configurer, configDir string, pathes ...string) (err error) {
+	if len(pathes) == 0 {
+		return errInvalidConf
+	}
+
+	var content []byte
+	for _, p := range pathes {
+		p = path.Join(configDir, p)
+		Infof("load conf from:%s", p)
+		cnt, err := ioutil.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if len(cnt) == 0 {
+			Warnf("empty content in %s", p)
+			continue
+		}
+		content = append(content, cnt...)
+		content = append(content, []byte("\n")...)
+	}
+	err = LoadYAMl(content, config)
+	if err != nil {
+		return err
+	}
+	return
 }
