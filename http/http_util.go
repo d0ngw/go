@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/flate"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -232,6 +233,11 @@ func GetURLWithCookie(client *http.Client, url string, params url.Values, cookie
 
 // GetURLRawToWriter 请求URL
 func GetURLRawToWriter(client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string, writer io.Writer) (header http.Header, err error) {
+	return GetURLRawToWriterWithContext(nil, client, url, params, reqHeader, cookies, writer)
+}
+
+// GetURLRawToWriterWithContext 请求URL
+func GetURLRawToWriterWithContext(ctx context.Context, client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string, writer io.Writer) (header http.Header, err error) {
 	var req *http.Request
 	if params != nil {
 		req, err = http.NewRequest("GET", url+"?"+params.Encode(), nil)
@@ -240,6 +246,9 @@ func GetURLRawToWriter(client *http.Client, url string, params url.Values, reqHe
 	}
 	if err != nil {
 		return nil, err
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
 	}
 	if reqHeader != nil {
 		req.Header = reqHeader
