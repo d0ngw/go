@@ -38,7 +38,7 @@ func (config *MysqlDBConfig) NewDBPool() (*DBPool, error) {
 
 // MySQLDBService implements DBService interface for MySql
 type MySQLDBService struct {
-	Config *DBConfig `inject:"_"`
+	Config DBConfigurer `inject:"_"`
 	pool   *DBPool
 }
 
@@ -52,7 +52,7 @@ func (p *MySQLDBService) Init() error {
 		return fmt.Errorf("No db config")
 	}
 
-	mysqlDbConfig := (*MysqlDBConfig)(p.Config)
+	mysqlDbConfig := (*MysqlDBConfig)(p.Config.DBConfig())
 	pool, err := mysqlDbConfig.NewDBPool()
 	if err != nil {
 		return err
