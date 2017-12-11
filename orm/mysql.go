@@ -23,9 +23,14 @@ func (config *MysqlDBConfig) NewDBPool() (*DBPool, error) {
 		return nil, &DBError{"Invalid config", nil}
 	}
 
+	charset := config.Charset
+	if charset == "" {
+		charset = "utf8"
+	}
+
 	//设置时间为本地时间,并解析时间
 	loc, err := time.LoadLocation("Local")
-	connectURL := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8&loc=%s&parseTime=true", config.User, config.Pass, config.Url, config.Schema, url.QueryEscape(loc.String()))
+	connectURL := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=%s&loc=%s&parseTime=true", config.User, config.Pass, config.Url, config.Schema, charset, url.QueryEscape(loc.String()))
 	db, err := sql.Open("mysql", connectURL)
 	if err != nil {
 		log.Println("Error on initializing database connection,", err.Error())

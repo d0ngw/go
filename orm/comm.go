@@ -67,6 +67,7 @@ type DBConfig struct {
 	Schema  string
 	MaxConn int
 	MaxIdle int
+	Charset string
 }
 
 // DBPoolCreator 数据库连接池创建
