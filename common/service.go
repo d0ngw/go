@@ -90,11 +90,12 @@ func ServiceInit(service Service) bool {
 		return true
 	}
 	Infof("Init %T#%s", service, service.Name())
-	if service.Init() == nil && service.setState(INITED) {
+	err := service.Init()
+	if err == nil && service.setState(INITED) {
 		Debugf("Init %T#%s succ", service, service.Name())
 		return true
 	}
-	Infof("Init %T#%s fail", service, service.Name())
+	Infof("Init %T#%s fail,err:%s", service, service.Name(), err)
 	service.setState(FAILED)
 	return false
 }
