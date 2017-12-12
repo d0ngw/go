@@ -127,9 +127,9 @@ func ServiceStop(service Service) bool {
 
 // BaseService 提供基本的Service接口实现
 type BaseService struct {
-	SName        string       //服务的名称
-	state        ServiceState //服务的状态
-	sync.RWMutex              //读写锁
+	SName     string       //服务的名称
+	state     ServiceState //服务的状态
+	stateLock sync.RWMutex //读写锁
 }
 
 // Name 服务名称
@@ -154,15 +154,15 @@ func (p *BaseService) Stop() bool {
 
 // State 取得服务的状态
 func (p *BaseService) State() ServiceState {
-	p.RLock()
-	defer p.RUnlock()
+	p.stateLock.RLock()
+	defer p.stateLock.RUnlock()
 	return p.state
 }
 
 func (p *BaseService) setState(newState ServiceState) bool {
+	p.stateLock.Lock()
+	defer p.stateLock.Unlock()
 	if IsValidServiceState(p.state, newState) {
-		p.Lock()
-		defer p.Unlock()
 		p.state = newState
 		return true
 	}
