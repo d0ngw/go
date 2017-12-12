@@ -46,12 +46,13 @@ type Service struct {
 	serveMux     *http.ServeMux
 	graceHandler *GraceableHandler
 	server       *http.Server
+	lock         sync.Mutex
 }
 
 // Init 初始化Http服务
 func (p *Service) Init() bool {
-	p.Lock()
-	defer p.Unlock()
+	p.lock.Lock()
+	defer p.lock.Unlock()
 
 	serveMux := http.NewServeMux()
 
@@ -113,8 +114,8 @@ func (p *Service) handleWithMiddleware(handler *handlerWithMiddleware) http.Hand
 
 // Start 启动Http服务,开始端口监听和服务处理
 func (p *Service) Start() bool {
-	p.Lock()
-	defer p.Unlock()
+	p.lock.Lock()
+	defer p.lock.Unlock()
 
 	c.Infof("Listen at %s", p.Conf.Addr)
 	ln, err := net.Listen("tcp", p.Conf.Addr)
@@ -144,8 +145,8 @@ func (p *Service) Start() bool {
 
 // Stop 停止Http服务,关闭端口监听和服务处理
 func (p *Service) Stop() bool {
-	p.Lock()
-	defer p.Unlock()
+	p.lock.Lock()
+	defer p.lock.Unlock()
 
 	if p.listener != nil {
 		if err := p.listener.Close(); err != nil {
