@@ -77,6 +77,11 @@ func (p *AppConfig) Parse() error {
 	return Parse(p)
 }
 
+// GetValidateRuleConfig implements ValidateConfiguer
+func (p *AppConfig) GetValidateRuleConfig() *ValidateRuleConfig {
+	return p.ValidateRuleConfig
+}
+
 // Parse 解析配置
 func Parse(conf interface{}) error {
 	config := reflect.Indirect(reflect.ValueOf(conf))

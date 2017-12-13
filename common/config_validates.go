@@ -60,10 +60,27 @@ type ValidateRule struct {
 
 type validateRuleMap map[string]*ValidateRule
 
+// ValidateConfigurer validateConfig
+type ValidateConfigurer interface {
+	GetValidateRuleConfig() *ValidateRuleConfig
+}
+
 // RuleValidateService  根据规则进行的验证服务
 type RuleValidateService struct {
 	BaseService
-	rules validateRuleMap
+	Config ValidateConfigurer `inject:"_"`
+	rules  validateRuleMap
+}
+
+// Init implements Initable
+func (p *RuleValidateService) Init() error {
+	if p.Config == nil || p.Config.GetValidateRuleConfig() == nil {
+		return fmt.Errorf("no validate config")
+	}
+	config := p.Config.GetValidateRuleConfig()
+	p.SName = config.SName
+	p.rules = config.parsed
+	return nil
 }
 
 // Validate 验证
