@@ -132,3 +132,19 @@ func WaitStop() os.Signal {
 	s := <-c
 	return s
 }
+
+// CreateDirIfAbsent 当目录不存在时创建
+func CreateDirIfAbsent(dir string) error {
+	info, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = os.MkdirAll(dir, os.ModePerm)
+			if err != nil {
+				return fmt.Errorf("Can't create dir:%s,err:%s", dir, err)
+			}
+		}
+	} else if !info.IsDir() {
+		return fmt.Errorf("Not a dir `%s`", dir)
+	}
+	return nil
+}
