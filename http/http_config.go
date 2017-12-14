@@ -98,7 +98,9 @@ func (p *Config) RegStaticFunc(patternAndPath map[string]string) error {
 		return nil
 	}
 	for pattern, path := range patternAndPath {
-		fs := http.FileServer(NoDirFS{Fs: http.Dir(path)})
+		httpDir := http.Dir(path)
+		fs := http.FileServer(NoDirFS{Fs: httpDir})
+		c.Infof("add static %s to %s", pattern, httpDir)
 		p.RegHandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 			fs.ServeHTTP(w, r)
 		})
