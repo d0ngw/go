@@ -41,8 +41,9 @@ type ResultSet interface {
 //PageResult 分页结果
 type PageResult struct {
 	PageParam
-	Total int64       `json:"total"`
-	Items interface{} `json:"items"`
+	Total     int64       `json:"total"`
+	TotalPage int64       `json:"totalPage"`
+	Items     interface{} `json:"items"`
 }
 
 // SetTotal implements ResultSet.SetTotal
@@ -53,6 +54,17 @@ func (p *PageResult) SetTotal(total int64) {
 // SetData implements ResultSet.SetData
 func (p *PageResult) SetData(data interface{}) {
 	p.Items = data
+}
+
+// CalTotalPage 计算总页数
+func (p *PageResult) CalTotalPage() {
+	if p.PageSize > 0 {
+		if p.Total%int64(p.PageSize) == 0 {
+			p.TotalPage = p.Total / int64(p.PageSize)
+		} else {
+			p.TotalPage = p.Total/int64(p.PageSize) + 1
+		}
+	}
 }
 
 //Query 基本的查询参数
