@@ -11,17 +11,17 @@ import (
 
 // RetrivedCookieJar 可持久化的Cookie
 type RetrivedCookieJar struct {
-	jar  *cookiejar.Jar
-	urls map[string]struct{}
-	mu   sync.Mutex
+	jar        *cookiejar.Jar
+	urlCookies map[string][]*http.Cookie
+	mu         sync.Mutex
 }
 
 // NewRetrivedCookieJar 构建PersistCookieJar
 func NewRetrivedCookieJar(o *cookiejar.Options) *RetrivedCookieJar {
 	jar, _ := cookiejar.New(o)
 	return &RetrivedCookieJar{
-		jar:  jar,
-		urls: map[string]struct{}{},
+		jar:        jar,
+		urlCookies: map[string][]*http.Cookie{},
 	}
 }
 
@@ -29,9 +29,11 @@ func NewRetrivedCookieJar(o *cookiejar.Options) *RetrivedCookieJar {
 func (p *RetrivedCookieJar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	p.jar.SetCookies(u, cookies)
 	cookieURL := u.String()
-	p.mu.Lock()
-	p.urls[cookieURL] = struct{}{}
-	p.mu.Unlock()
+	if u != nil && cookies != nil {
+		p.mu.Lock()
+		p.urlCookies[cookieURL] = append(p.urlCookies[cookieURL], cookies...)
+		p.mu.Unlock()
+	}
 }
 
 // Cookies implements CookeJar.Cookies
@@ -42,17 +44,10 @@ func (p *RetrivedCookieJar) Cookies(u *url.URL) []*http.Cookie {
 // URLAndCookies 取得所有的URL和Cookie
 func (p *RetrivedCookieJar) URLAndCookies() map[string][]*http.Cookie {
 	all := map[string][]*http.Cookie{}
-	for u := range p.urls {
-		cookieURL, err := url.Parse(u)
-		if err != nil {
-			c.Errorf("parse %s fail,err:%s", u, err)
-			continue
-		}
-
-		cookies := p.Cookies(cookieURL)
-		if cookies != nil {
-			all[u] = cookies
-		}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for k, v := range p.urlCookies {
+		all[k] = v
 	}
 	return all
 }
