@@ -97,6 +97,7 @@ type ResponseHandler struct {
 	Success bool
 	Data    interface{}
 	Msg     string
+	Cancel  bool
 	w       http.ResponseWriter
 }
 
@@ -114,6 +115,9 @@ func (p *ResponseHandler) FailWithMsg(msg string) {
 
 // Run exec run
 func (p *ResponseHandler) Run() {
+	if p.Cancel {
+		return
+	}
 	if !p.Success {
 		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg})
 	} else {
