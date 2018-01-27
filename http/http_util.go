@@ -256,6 +256,9 @@ func GetURLRawToWriterWithContext(ctx context.Context, client *http.Client, url 
 	}
 	if reqHeader != nil {
 		req.Header = reqHeader
+		if host := req.Header.Get("Host"); host != "" {
+			req.Host = host
+		}
 	}
 	for k, v := range cookies {
 		req.AddCookie(&http.Cookie{Name: k, Value: v})
@@ -346,6 +349,12 @@ func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Valu
 
 	for k, v := range header {
 		req.Header.Add(k, v)
+	}
+
+	if len(req.Header) > 0 {
+		if host := req.Header.Get("Host"); host != "" {
+			req.Host = host
+		}
 	}
 
 	for k, v := range cookies {
