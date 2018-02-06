@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"time"
 
+	c "github.com/d0ngw/go/common"
+
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -36,6 +38,9 @@ func (config *MysqlDBConfig) NewDBPool() (*DBPool, error) {
 		log.Println("Error on initializing database connection,", err.Error())
 		return nil, &DBError{"Can't open connection", err}
 	}
+
+	c.Infof("db max idle connections:%s,max open connections:%d", config.MaxIdle, config.MaxConn)
+
 	db.SetMaxIdleConns(config.MaxIdle)
 	db.SetMaxOpenConns(config.MaxConn)
 	return &DBPool{db}, nil
