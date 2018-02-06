@@ -43,6 +43,7 @@ func (config *MysqlDBConfig) NewDBPool() (*DBPool, error) {
 
 	db.SetMaxIdleConns(config.MaxIdle)
 	db.SetMaxOpenConns(config.MaxConn)
+	db.SetConnMaxLifetime(time.Duration(config.MaxTimeSecond) * time.Second)
 	return &DBPool{db}, nil
 }
 

@@ -61,13 +61,14 @@ func (p *DBPool) NewDBOper() *DBOper {
 
 //DBConfig 数据库配置
 type DBConfig struct {
-	User    string `yaml:"user"`
-	Pass    string `yaml:"pass"`
-	Url     string `yaml:"url"`
-	Schema  string `yaml:"schema"`
-	MaxConn int    `yaml:"maxConn"`
-	MaxIdle int    `yaml:"maxIdle"`
-	Charset string `yaml:"charset"`
+	User          string `yaml:"user"`
+	Pass          string `yaml:"pass"`
+	Url           string `yaml:"url"`
+	Schema        string `yaml:"schema"`
+	MaxConn       int    `yaml:"maxConn"`
+	MaxIdle       int    `yaml:"maxIdle"`
+	MaxTimeSecond int    `yaml:"maxTimeSecond"`
+	Charset       string `yaml:"charset"`
 }
 
 // DBPoolCreator 数据库连接池创建
