@@ -39,7 +39,7 @@ func (config *MysqlDBConfig) NewDBPool() (*DBPool, error) {
 		return nil, &DBError{"Can't open connection", err}
 	}
 
-	c.Infof("db max idle connections:%s,max open connections:%d", config.MaxIdle, config.MaxConn)
+	c.Infof("db max idle connections:%d,max open connections:%d,charset:%s", config.MaxIdle, config.MaxConn, config.Charset)
 
 	db.SetMaxIdleConns(config.MaxIdle)
 	db.SetMaxOpenConns(config.MaxConn)
