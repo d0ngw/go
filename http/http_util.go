@@ -368,12 +368,13 @@ func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Valu
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
-	if resp.StatusCode != 200 {
-		return nil, nil, &RequestError{Status: resp.StatusCode}
-	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
+	}
+	if resp.StatusCode != 200 {
+		c.Errorf("requst %s,response %s with status %d", url, string(body), resp.StatusCode)
+		return nil, nil, &RequestError{Status: resp.StatusCode}
 	}
 	return body, resp.Header, nil
 }
