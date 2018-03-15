@@ -298,14 +298,14 @@ func GetURLRawToWriterWithContext(ctx context.Context, client *http.Client, url 
 			return nil, fmt.Errorf("no uncompress reader")
 		}
 		defer reader.Close()
-		_, err = io.Copy(writer, reader)
+		bnum, err := io.Copy(writer, reader)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read compressed data fail,readed %d bytes,err:%v", bnum, err)
 		}
 	default:
-		_, err = io.Copy(writer, resp.Body)
+		bnum, err := io.Copy(writer, resp.Body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read data fail,readed %d bytes,err:%v", bnum, err)
 		}
 	}
 	return resp.Header, nil
@@ -316,7 +316,7 @@ func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader htt
 	var writer = &bytes.Buffer{}
 	header, err = GetURLRawToWriter(client, url, params, reqHeader, cookies, writer)
 	if err != nil {
-		return header, nil, err
+		return header, writer.Bytes(), err
 	}
 	return header, writer.Bytes(), nil
 }
