@@ -74,6 +74,7 @@ type Resp struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data"`
 	Msg     string      `json:"msg"`
+	Code    int32       `json:"code"`
 }
 
 // NewSuccResp 构建成功的响应
@@ -98,6 +99,7 @@ type ResponseHandler struct {
 	Data    interface{}
 	Msg     string
 	Cancel  bool
+	Code    int32
 	w       http.ResponseWriter
 }
 
@@ -119,9 +121,9 @@ func (p *ResponseHandler) Run() {
 		return
 	}
 	if !p.Success {
-		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg})
+		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg, Code: p.Code})
 	} else {
-		RenderJSON(p.w, &Resp{Success: true, Data: p.Data})
+		RenderJSON(p.w, &Resp{Success: true, Msg: p.Msg, Data: p.Data, Code: p.Code})
 	}
 }
 
@@ -335,14 +337,26 @@ func PostURLWithCookie(client *http.Client, url string, params url.Values, conte
 func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Values, header map[string]string, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
 	if requestBody == nil {
 		requestBody = strings.NewReader(params.Encode())
+		if contentType == "" {
+			contentType = "application/x-www-form-urlencoded"
+		}
 	} else {
-		url = url + "?" + params.Encode()
+		if len(params) > 0 {
+			if !strings.Contains(url, "?") {
+				url = url + "?"
+			}
+			if strings.Contains(url, "&") {
+				url = url + "&"
+			}
+			url = url + params.Encode()
+		}
 	}
 
 	req, err := http.NewRequest("POST", url, requestBody)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
