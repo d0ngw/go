@@ -72,7 +72,11 @@ func (p *ShardDBService) NewOpByName(poolName string) (op *Op, err error) {
 	return
 }
 
-//
-func (p *ShardDBService) NewOpByEntityMeta(meta Entity) (op *Op, err error) {
+// NewOpByMeta create Op by meta
+func (p *ShardDBService) NewOpByMeta(meta Meta) (op *Op, err error) {
+	if meta == nil {
+		err = fmt.Errorf("invalid meta")
+		return
+	}
 	return
 }

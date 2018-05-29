@@ -12,12 +12,39 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-//模型元信息
+type metaReg struct {
+	lock  *sync.RWMutex
+	cache map[string]*meta
+	done  bool
+}
+
+var (
+	_metaReg = &metaReg{
+		lock:  new(sync.RWMutex),
+		cache: make(map[string]*meta),
+		done:  false,
+	}
+)
+
+// Meta meta
+type Meta interface {
+	Name() string
+}
+
+//AddMeta 注册数据模型
+func AddMeta(model Entity) Meta {
+	_meta, err := _metaReg.regModel(model)
+	if err != nil {
+		panic(err)
+	}
+	return _meta
+}
+
 type meta struct {
 	name                  string
-	pkField               *modelField
-	fields                []*modelField
-	columnFields          map[string]*modelField
+	pkField               *metaField
+	fields                []*metaField
+	columnFields          map[string]*metaField
 	modelType             reflect.Type
 	insertFunc            entityInsertFunc
 	updateFunc            entityUpdateFunc
@@ -31,8 +58,12 @@ type meta struct {
 	insertOrUpdateFunc    entityInsertOrUpdateFunc
 }
 
-//模型的字段定义
-type modelField struct {
+// Name implements Meta.Name
+func (p *meta) Name() string {
+	return p.name
+}
+
+type metaField struct {
 	name        string              //struct中的字段名称
 	column      string              //表列名
 	pk          bool                //是否主键
@@ -41,25 +72,9 @@ type modelField struct {
 	structField reflect.StructField //StructField
 }
 
-func (f *modelField) String() string {
+func (f *metaField) String() string {
 	return fmt.Sprintf("{name:%v,conlumn:%v,pk:%v,pkAuto:%v}", f.name, f.column, f.pk, f.pkAuto)
 }
-
-//模型注册
-type modelReg struct {
-	lock  *sync.RWMutex
-	cache map[string]*meta
-	done  bool
-}
-
-var (
-	//模型注册实例
-	_modelReg = &modelReg{
-		lock:  new(sync.RWMutex),
-		cache: make(map[string]*meta),
-		done:  false,
-	}
-)
 
 type entityInsertFunc func(executor interface{}, entity Entity) error
 type entityUpdateFunc func(executor interface{}, entity Entity) (bool, error)
@@ -81,26 +96,21 @@ func getFullModelName(typ reflect.Type) string {
 	return typ.PkgPath() + "." + typ.Name()
 }
 
-//AddModel 注册数据模型
-func AddModel(model Entity) error {
-	return _modelReg.regModel(model)
-}
-
 func findModelInfo(typ reflect.Type) *meta {
-	if v, ok := _modelReg.cache[getFullModelName(typ)]; ok {
+	if v, ok := _metaReg.cache[getFullModelName(typ)]; ok {
 		return v
 	}
 	return nil
 }
 
-func (reg *modelReg) clean() {
+func (reg *metaReg) clean() {
 	reg.lock.Lock()
-	defer _modelReg.lock.Unlock()
+	defer _metaReg.lock.Unlock()
 	reg.cache = make(map[string]*meta)
 }
 
 //注册一个数据模型
-func (reg *modelReg) regModel(model Entity) error {
+func (reg *metaReg) regModel(model Entity) (*meta, error) {
 	if model == nil {
 		panic(NewDBError(nil, "Invalid model"))
 	}
@@ -116,9 +126,9 @@ func (reg *modelReg) regModel(model Entity) error {
 	}
 
 	fieldCount := ind.NumField()
-	fields := make([]*modelField, 0, fieldCount)
+	fields := make([]*metaField, 0, fieldCount)
 	mInfo := &meta{name: fullName, modelType: typ}
-	var pkField *modelField
+	var pkField *metaField
 
 	fields = reg.parseFields(nil, ind, typ, &pkField, fields)
 	if pkField == nil {
@@ -165,19 +175,19 @@ func (reg *modelReg) regModel(model Entity) error {
 		return
 	}
 
-	columnFields := map[string]*modelField{}
+	columnFields := map[string]*metaField{}
 	for _, field := range mInfo.fields {
 		columnFields[field.column] = field
 	}
 	mInfo.columnFields = columnFields
 
-	_modelReg.lock.Lock()
-	defer _modelReg.lock.Unlock()
-	if _, exist := _modelReg.cache[fullName]; exist {
-		return &DBError{"Duplicate mode name:" + fullName, nil}
+	_metaReg.lock.Lock()
+	defer _metaReg.lock.Unlock()
+	if _, exist := _metaReg.cache[fullName]; exist {
+		return nil, &DBError{"Duplicate mode name:" + fullName, nil}
 	}
-	_modelReg.cache[fullName] = mInfo
-	return nil
+	_metaReg.cache[fullName] = mInfo
+	return mInfo, nil
 }
 
 var (
@@ -185,7 +195,7 @@ var (
 	valuerType  = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
 )
 
-func (reg *modelReg) parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **modelField, fields []*modelField) []*modelField {
+func (reg *metaReg) parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **metaField, fields []*metaField) []*metaField {
 	for i := 0; i < ind.NumField(); i++ {
 		structField := typ.Field(i)
 		if structField.Type.Kind() == reflect.Ptr {
@@ -208,7 +218,7 @@ func (reg *modelReg) parseFields(index []int, ind reflect.Value, typ reflect.Typ
 		}
 
 		fieldIndex := append(index, i)
-		mField := &modelField{
+		mField := &metaField{
 			name:        structField.Name,
 			column:      column,
 			pk:          pk == "y",

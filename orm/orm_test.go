@@ -38,15 +38,15 @@ func checkError(err error, noError bool, t *testing.T, msg string) {
 func TestReflect(t *testing.T) {
 	var err error
 	tm := tmodel{}
-	_modelReg.clean()
-	err = _modelReg.regModel(&tm)
+	_metaReg.clean()
+	_, err = _metaReg.regModel(&tm)
 	checkError(err, true, t, "pointer tm")
 }
 
 func TestAdd(t *testing.T) {
 	tm := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
-	_modelReg.clean()
-	err = _modelReg.regModel(&tm)
+	_metaReg.clean()
+	_, err = _metaReg.regModel(&tm)
 	dboper := &Op{pool: dbpool}
 
 	err = Add(dboper, &tm)
@@ -100,8 +100,8 @@ func TestUpdate(t *testing.T) {
 	tm := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 	tm2 := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 
-	_modelReg.clean()
-	err = _modelReg.regModel(&tm)
+	_metaReg.clean()
+	_, err = _metaReg.regModel(&tm)
 
 	dboper := &Op{pool: dbpool}
 
@@ -145,9 +145,9 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateColumns(t *testing.T) {
-	_modelReg.clean()
+	_metaReg.clean()
 	tm := tmodel{}
-	err = _modelReg.regModel(&tm)
+	_, err = _metaReg.regModel(&tm)
 
 	tm = tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 	dboper := &Op{pool: dbpool}
@@ -164,9 +164,9 @@ func TestUpdateColumns(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	_modelReg.clean()
+	_metaReg.clean()
 	tm := tmodel{}
-	err = _modelReg.regModel(&tm)
+	_, err = _metaReg.regModel(&tm)
 
 	tm = tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 	dboper := &Op{pool: dbpool}
@@ -205,12 +205,19 @@ func TestGet(t *testing.T) {
 }
 
 func TestCount(t *testing.T) {
-	_modelReg.clean()
+	_metaReg.clean()
 	tm := tmodel{}
-	err = _modelReg.regModel(&tm)
+	_, err = _metaReg.regModel(&tm)
 
 	dboper := &Op{pool: dbpool}
 	total, err := QueryCount(dboper, &tm, "id", "")
 	checkError(err, true, t, "Count")
 	t.Logf("countl:%v", total)
+}
+
+func TestAddMeta(t *testing.T) {
+	_metaReg.clean()
+	tm := tmodel{}
+	_meta := AddMeta(&tm)
+	fmt.Println(_meta.Name())
 }

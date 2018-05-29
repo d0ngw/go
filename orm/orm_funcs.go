@@ -20,7 +20,7 @@ func toSlice(s string, count int) []string {
 }
 
 //除了自增主键的过滤函数
-var exceptIDPred = func(field *modelField) bool {
+var exceptIDPred = func(field *metaField) bool {
 	if field == nil || (field.pk && field.pkAuto) {
 		return false
 	}
@@ -28,7 +28,7 @@ var exceptIDPred = func(field *modelField) bool {
 }
 
 //除了主键的过滤函数
-var noIDPred = func(field *modelField) bool {
+var noIDPred = func(field *metaField) bool {
 	if field == nil || field.pk {
 		return false
 	}
@@ -74,7 +74,7 @@ func query(executor interface{}, execSQL string, args []interface{}) (rows *sql.
 	return
 }
 
-func buildParamValues(ind reflect.Value, fields []*modelField) []interface{} {
+func buildParamValues(ind reflect.Value, fields []*metaField) []interface{} {
 	paramValues := make([]interface{}, 0, len(fields))
 	for _, field := range fields {
 		fv := ind.FieldByIndex(field.index).Interface()
@@ -85,8 +85,8 @@ func buildParamValues(ind reflect.Value, fields []*modelField) []interface{} {
 
 //构建实体模型的插入函数
 func createInsertFunc(modelInfo *meta) entityInsertFunc {
-	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
-	columns := strings.Join(fun.Map(func(field *modelField) string {
+	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*metaField)
+	columns := strings.Join(fun.Map(func(field *metaField) string {
 		return field.column
 	}, insertFields).([]string), ",")
 	params := strings.Join(toSlice("?", len(insertFields)), ",")
@@ -115,8 +115,8 @@ func createInsertFunc(modelInfo *meta) entityInsertFunc {
 
 //构建实体模型的更新函数
 func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
-	updateFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
-	columns := strings.Join(fun.Map(func(field *modelField) string {
+	updateFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*metaField)
+	columns := strings.Join(fun.Map(func(field *metaField) string {
 		return field.column + "=?"
 	}, updateFields).([]string), ",")
 
@@ -175,7 +175,7 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 
 //构建查询函数
 func createQueryFunc(modelInfo *meta) entityQueryFunc {
-	columns := strings.Join(fun.Map(func(field *modelField) string {
+	columns := strings.Join(fun.Map(func(field *metaField) string {
 		return "`" + field.column + "`"
 	}, modelInfo.fields).([]string), ",")
 
@@ -217,7 +217,7 @@ func createQueryFunc(modelInfo *meta) entityQueryFunc {
 func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
 	return func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error) {
 		ind := checkEntity(modelInfo, entity, executor)
-		fields := make([]*modelField, 0, len(columns))
+		fields := make([]*metaField, 0, len(columns))
 		for _, column := range columns {
 			if field, ok := modelInfo.columnFields[column]; ok {
 				fields = append(fields, field)
@@ -339,14 +339,14 @@ func createDelFunc(modelInfo *meta) entityDeleteFunc {
 }
 
 func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
-	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
-	columns := strings.Join(fun.Map(func(field *modelField) string {
+	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*metaField)
+	columns := strings.Join(fun.Map(func(field *metaField) string {
 		return field.column
 	}, insertFields).([]string), ",")
 	insertParams := strings.Join(toSlice("?", len(insertFields)), ",")
 
-	updateFields := fun.Filter(noIDPred, modelInfo.fields).([]*modelField)
-	updateColumns := strings.Join(fun.Map(func(field *modelField) string {
+	updateFields := fun.Filter(noIDPred, modelInfo.fields).([]*metaField)
+	updateColumns := strings.Join(fun.Map(func(field *metaField) string {
 		return field.column + "=?"
 	}, updateFields).([]string), ",")
 

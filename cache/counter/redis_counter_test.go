@@ -71,10 +71,7 @@ func init() {
 		panic(err)
 	}
 	r = cache.NewRedisClientWithConf(&redisConf)
-	err = orm.AddModel(&V{})
-	if err != nil {
-		panic(err)
-	}
+	orm.AddMeta(&V{})
 }
 
 type persistMock struct {

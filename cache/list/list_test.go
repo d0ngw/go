@@ -61,12 +61,8 @@ func init() {
 		panic(err)
 	}
 	r = cache.NewRedisClientWithConf(&redisConf)
-	err = orm.AddModel(&testCounterEntity{})
-	err = orm.AddModel(&testListEntity{})
-	if err != nil {
-		panic(err)
-	}
-
+	orm.AddMeta(&testCounterEntity{})
+	orm.AddMeta(&testListEntity{})
 }
 
 func TestList(t *testing.T) {
