@@ -18,13 +18,13 @@ import (
 
 // EntityCounter entity counter
 type EntityCounter interface {
-	orm.EntityInterface
+	orm.Entity
 	// Fields convert entity to Fields
 	Fields() (Fields, error)
 	// ZeroFields return zero fields,must not nil
 	ZeroFields() Fields
 	// Entity convert fields to EntityInterface
-	Entity(counterID string, fields Fields) (orm.EntityInterface, error)
+	Entity(counterID string, fields Fields) (orm.Entity, error)
 }
 
 // BaseEntity is the base counter entity
@@ -56,7 +56,7 @@ func (p *BaseEntity) ZeroFields() Fields {
 	panic("please override ZeroFields method")
 }
 
-// BaseEntity convert counterID and fields to BaseEntity
+// ToBaseEntity convert counterID and fields to BaseEntity
 func (p *BaseEntity) ToBaseEntity(counterID string, fields Fields) (*BaseEntity, error) {
 	v := &BaseEntity{ID: counterID}
 	if fields == nil {
@@ -89,7 +89,7 @@ func NewDBPersist(dbService orm.DBService, entityType EntityCounter) (*DBPersist
 
 // Load  implements Persist.Load
 func (p *DBPersist) Load(counterID string) (fields Fields, err error) {
-	oper, err := p.dbService.NewDBOper()
+	oper, err := p.dbService.NewOp()
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (p *DBPersist) Load(counterID string) (fields Fields, err error) {
 
 // Del implements Persist.Del
 func (p *DBPersist) Del(counterID string) (deleted bool, err error) {
-	oper, err := p.dbService.NewDBOper()
+	oper, err := p.dbService.NewOp()
 	if err != nil {
 		return false, err
 	}
@@ -121,7 +121,7 @@ func (p *DBPersist) Del(counterID string) (deleted bool, err error) {
 
 // Store implements Persist.Store
 func (p *DBPersist) Store(counterID string, fields Fields) (err error) {
-	oper, err := p.dbService.NewDBOper()
+	oper, err := p.dbService.NewOp()
 	if err != nil {
 		return err
 	}

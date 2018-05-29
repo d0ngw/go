@@ -23,7 +23,7 @@ func (p *V) TableName() string {
 	return "v"
 }
 
-func (p *V) Entity(counterID string, fields Fields) (orm.EntityInterface, error) {
+func (p *V) Entity(counterID string, fields Fields) (orm.Entity, error) {
 	e, err := p.BaseEntity.ToBaseEntity(counterID, fields)
 	if err != nil {
 		return nil, err
@@ -42,14 +42,18 @@ var dbService orm.DBService
 
 func init() {
 	var err error
-	config := &orm.MysqlDBConfig{
-		"root",
-		"123456",
-		"127.0.0.1:3306",
-		"test",
-		100,
-		10}
-	dbService = &orm.MySQLDBService{Config: (*orm.DBConfig)(config)}
+	config := &orm.DBConfig{
+		User:    "root",
+		Pass:    "123456",
+		URL:     "127.0.0.1:3306",
+		Schema:  "test",
+		MaxConn: 100,
+		MaxIdle: 10}
+
+	simpleDBServcie := orm.NewSimpleDBService(orm.NewMySQLDBPool)
+	simpleDBServcie.Config = config
+	dbService = simpleDBServcie
+
 	dbService.Init()
 
 	redisServer := &cache.RedisServer{

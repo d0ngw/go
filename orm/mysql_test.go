@@ -6,7 +6,7 @@ import (
 )
 
 func TestMysqlCreateor(t *testing.T) {
-	dbp, err := config.NewDBPool()
+	dbp, err := NewMySQLDBPool(&config)
 	if err != nil {
 		t.Errorf("Create fail %s", err.Error())
 		return

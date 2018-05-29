@@ -32,16 +32,18 @@ func (p *testListEntity) TableName() string {
 
 func init() {
 	var err error
-	config := &orm.MysqlDBConfig{
-		"root",
-		"123456",
-		"127.0.0.1:3306",
-		"test",
-		100,
-		10}
-	dbService = &orm.MySQLDBService{
-		Config: (*orm.DBConfig)(config),
-	}
+	config := &orm.DBConfig{
+		User:    "root",
+		Pass:    "123456",
+		URL:     "127.0.0.1:3306",
+		Schema:  "test",
+		MaxConn: 100,
+		MaxIdle: 10}
+
+	simpleDBService := orm.NewSimpleDBService(orm.NewMySQLDBPool)
+	simpleDBService.Config = config
+
+	dbService = simpleDBService
 	dbService.Init()
 
 	redisServer := &cache.RedisServer{

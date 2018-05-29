@@ -36,7 +36,7 @@ var noIDPred = func(field *modelField) bool {
 }
 
 //检查实体参数
-func checkEntity(modelInfo *modelMeta, entity EntityInterface, tx interface{}) (ind reflect.Value) {
+func checkEntity(modelInfo *meta, entity Entity, tx interface{}) (ind reflect.Value) {
 	val, ind, typ := extract(entity)
 	if val.Kind() != reflect.Ptr {
 		panic(NewDBErrorf(nil, "Expect ptr ,but it's %s,type:%s", val.Kind(), typ))
@@ -84,14 +84,14 @@ func buildParamValues(ind reflect.Value, fields []*modelField) []interface{} {
 }
 
 //构建实体模型的插入函数
-func createInsertFunc(modelInfo *modelMeta) entityInsertFunc {
+func createInsertFunc(modelInfo *meta) entityInsertFunc {
 	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return field.column
 	}, insertFields).([]string), ",")
 	params := strings.Join(toSlice("?", len(insertFields)), ",")
 
-	return func(executor interface{}, entity EntityInterface) error {
+	return func(executor interface{}, entity Entity) error {
 		ind := checkEntity(modelInfo, entity, executor)
 		paramValues := buildParamValues(ind, insertFields)
 		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", entity.TableName(), columns, params)
@@ -114,13 +114,13 @@ func createInsertFunc(modelInfo *modelMeta) entityInsertFunc {
 }
 
 //构建实体模型的更新函数
-func createUpdateFunc(modelInfo *modelMeta) entityUpdateFunc {
+func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
 	updateFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return field.column + "=?"
 	}, updateFields).([]string), ",")
 
-	return func(executor interface{}, entity EntityInterface) (bool, error) {
+	return func(executor interface{}, entity Entity) (bool, error) {
 		ind := checkEntity(modelInfo, entity, executor)
 		id := ind.FieldByIndex(modelInfo.pkField.index).Interface()
 		paramValues := buildParamValues(ind, updateFields)
@@ -145,8 +145,8 @@ func createUpdateFunc(modelInfo *modelMeta) entityUpdateFunc {
 }
 
 //构建实体模型的指定类名的更新函数
-func createUpdateColumnsFunc(modelInfo *modelMeta) entityUpdateColumnFunc {
-	return func(executor interface{}, entity EntityInterface, columns string, condition string, params []interface{}) (int64, error) {
+func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
+	return func(executor interface{}, entity Entity, columns string, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
 		if len(columns) == 0 {
 			panic(NewDBError(nil, "Can't update empty columns"))
@@ -174,12 +174,12 @@ func createUpdateColumnsFunc(modelInfo *modelMeta) entityUpdateColumnFunc {
 }
 
 //构建查询函数
-func createQueryFunc(modelInfo *modelMeta) entityQueryFunc {
+func createQueryFunc(modelInfo *meta) entityQueryFunc {
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return "`" + field.column + "`"
 	}, modelInfo.fields).([]string), ",")
 
-	return func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error) {
+	return func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error) {
 		ind := checkEntity(modelInfo, entity, executor)
 		querySQL := fmt.Sprintf("SELECT %s FROM %s ", columns, entity.TableName())
 		if len(condition) > 0 {
@@ -194,7 +194,7 @@ func createQueryFunc(modelInfo *modelMeta) entityQueryFunc {
 
 		defer rows.Close()
 
-		var rt = make([]EntityInterface, 0, 10)
+		var rt = make([]Entity, 0, 10)
 		for rows.Next() {
 			ptrValue := reflect.New(ind.Type())
 			ptrValueInd := reflect.Indirect(ptrValue)
@@ -204,7 +204,7 @@ func createQueryFunc(modelInfo *modelMeta) entityQueryFunc {
 				ptrValueSlice = append(ptrValueSlice, fv)
 			}
 			if err := rows.Scan(ptrValueSlice...); err == nil {
-				rt = append(rt, ptrValue.Interface().(EntityInterface))
+				rt = append(rt, ptrValue.Interface().(Entity))
 			} else {
 				return nil, err
 			}
@@ -214,8 +214,8 @@ func createQueryFunc(modelInfo *modelMeta) entityQueryFunc {
 }
 
 //构建查询函数
-func createQueryColumnFunc(modelInfo *modelMeta) entityQueryColumnFunc {
-	return func(executor interface{}, entity EntityInterface, columns []string, condition string, params []interface{}) ([]EntityInterface, error) {
+func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
+	return func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error) {
 		ind := checkEntity(modelInfo, entity, executor)
 		fields := make([]*modelField, 0, len(columns))
 		for _, column := range columns {
@@ -236,7 +236,7 @@ func createQueryColumnFunc(modelInfo *modelMeta) entityQueryColumnFunc {
 		}
 		defer rows.Close()
 
-		var rt = make([]EntityInterface, 0, 10)
+		var rt = make([]Entity, 0, 10)
 		for rows.Next() {
 			ptrValue := reflect.New(ind.Type())
 			ptrValueInd := reflect.Indirect(ptrValue)
@@ -247,7 +247,7 @@ func createQueryColumnFunc(modelInfo *modelMeta) entityQueryColumnFunc {
 			}
 
 			if err := rows.Scan(ptrValueSlice...); err == nil {
-				rt = append(rt, ptrValue.Interface().(EntityInterface))
+				rt = append(rt, ptrValue.Interface().(Entity))
 			} else {
 				return nil, err
 			}
@@ -257,8 +257,8 @@ func createQueryColumnFunc(modelInfo *modelMeta) entityQueryColumnFunc {
 }
 
 //构建查询函数
-func createQueryColumnsFunc(modelInfo *modelMeta) queryColumnsFunc {
-	return func(executor interface{}, entity EntityInterface, destStructs interface{}, columns []string, condition string, params []interface{}) error {
+func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
+	return func(executor interface{}, entity Entity, destStructs interface{}, columns []string, condition string, params []interface{}) error {
 		if destStructs == nil {
 			return errors.New("dest must not be nil")
 		}
@@ -316,8 +316,8 @@ func createQueryColumnsFunc(modelInfo *modelMeta) queryColumnsFunc {
 }
 
 //构建删除函数
-func createDelFunc(modelInfo *modelMeta) entityDeleteFunc {
-	return func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error) {
+func createDelFunc(modelInfo *meta) entityDeleteFunc {
+	return func(executor interface{}, entity Entity, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
 		delSQL := fmt.Sprintf("DELETE FROM %s ", entity.TableName())
 		if len(condition) > 0 {
@@ -338,7 +338,7 @@ func createDelFunc(modelInfo *modelMeta) entityDeleteFunc {
 	}
 }
 
-func createInsertOrUpdateFunc(modelInfo *modelMeta) entityInsertOrUpdateFunc {
+func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*modelField)
 	columns := strings.Join(fun.Map(func(field *modelField) string {
 		return field.column
@@ -350,7 +350,7 @@ func createInsertOrUpdateFunc(modelInfo *modelMeta) entityInsertOrUpdateFunc {
 		return field.column + "=?"
 	}, updateFields).([]string), ",")
 
-	return func(executor interface{}, entity EntityInterface) (int64, error) {
+	return func(executor interface{}, entity Entity) (int64, error) {
 		ind := checkEntity(modelInfo, entity, executor)
 		paramValues := buildParamValues(ind, insertFields)
 		updateParamValues := buildParamValues(ind, updateFields)

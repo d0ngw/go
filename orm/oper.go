@@ -7,31 +7,42 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// DBOper 数据库操作接口
-type DBOper struct {
-	db           *sql.DB //数据连接
+// OpTxFunc 在事务中处理的函数
+type OpTxFunc func(tx *sql.Tx) (interface{}, error)
+
+// OpCreator Op
+type OpCreator interface {
+	//NewOp create a new Op
+	NewOp() (*Op, error)
+}
+
+// Op 数据库操作接口
+type Op struct {
+	pool         *Pool   //数据连接
 	tx           *sql.Tx //事务
 	txDone       bool    //事务是否结束
 	rollbackOnly bool    //是否只回滚
 	transDepth   int     //调用的深度
 }
 
-// NewDBOper 创建数据库操作接口
-func NewDBOper(db *sql.DB) *DBOper {
-	return &DBOper{db: db}
+// DB sql.DB
+func (p *Op) DB() *sql.DB {
+	return p.pool.db
 }
 
-// DBOperTxFunc 在事务中处理的函数
-type DBOperTxFunc func(tx *sql.Tx) (interface{}, error)
+// Pool pool
+func (p *Op) Pool() *Pool {
+	return p.pool
+}
 
-func (p *DBOper) close() {
+func (p *Op) close() {
 	p.tx = nil
 	p.rollbackOnly = false
 	p.transDepth = 0
 }
 
 //检查事务的状态
-func (p *DBOper) checkTransStatus() error {
+func (p *Op) checkTransStatus() error {
 	if p.txDone {
 		return sql.ErrTxDone
 	}
@@ -41,12 +52,12 @@ func (p *DBOper) checkTransStatus() error {
 	return nil
 }
 
-func (p *DBOper) incrTransDepth() {
+func (p *Op) incrTransDepth() {
 	p.transDepth = p.transDepth + 1
 	c.Debugf("p.tranDepth:%v", p.transDepth)
 }
 
-func (p *DBOper) decrTransDepth() error {
+func (p *Op) decrTransDepth() error {
 	p.transDepth = p.transDepth - 1
 	c.Debugf("p.tranDepth:%v", p.transDepth)
 	if p.transDepth < 0 {
@@ -56,7 +67,7 @@ func (p *DBOper) decrTransDepth() error {
 }
 
 //结束事务
-func (p *DBOper) finishTrans() error {
+func (p *Op) finishTrans() error {
 	if err := p.checkTransStatus(); err != nil {
 		return err
 	}
@@ -77,12 +88,12 @@ func (p *DBOper) finishTrans() error {
 }
 
 // BeginTx 开始事务,支持简单的嵌套调用,如果已经开始了事务,则直接返回成功
-func (p *DBOper) BeginTx() (err error) {
+func (p *Op) BeginTx() (err error) {
 	p.incrTransDepth()
 	if p.tx != nil {
 		return nil //事务已经开启
 	}
-	if tx, err := p.db.Begin(); err == nil {
+	if tx, err := p.DB().Begin(); err == nil {
 		p.tx = tx
 		return nil
 	}
@@ -90,28 +101,28 @@ func (p *DBOper) BeginTx() (err error) {
 }
 
 // Commit 提交事务
-func (p *DBOper) Commit() error {
+func (p *Op) Commit() error {
 	return p.finishTrans()
 }
 
 // Rollback 回滚事务
-func (p *DBOper) Rollback() error {
+func (p *Op) Rollback() error {
 	p.SetRollbackOnly(true)
 	return p.finishTrans()
 }
 
 // SetRollbackOnly 设置只回滚
-func (p *DBOper) SetRollbackOnly(rollback bool) {
+func (p *Op) SetRollbackOnly(rollback bool) {
 	p.rollbackOnly = rollback
 }
 
 // IsRollbackOnly 是否只回滚
-func (p *DBOper) IsRollbackOnly() bool {
+func (p *Op) IsRollbackOnly() bool {
 	return p.rollbackOnly
 }
 
 // DoInTrans 在事务中执行
-func (p *DBOper) DoInTrans(peration DBOperTxFunc) (rt interface{}, err error) {
+func (p *Op) DoInTrans(peration OpTxFunc) (rt interface{}, err error) {
 	if err := p.BeginTx(); err != nil {
 		return nil, err
 	}
@@ -139,7 +150,7 @@ func (p *DBOper) DoInTrans(peration DBOperTxFunc) (rt interface{}, err error) {
 }
 
 //查找实体对应的模型元
-func getEntityModelInfo(entity EntityInterface) *modelMeta {
+func getEntityModelInfo(entity Entity) *meta {
 	_, _, typ := extract(entity)
 	modelInfo := findModelInfo(typ)
 	if modelInfo == nil {
@@ -149,16 +160,16 @@ func getEntityModelInfo(entity EntityInterface) *modelMeta {
 }
 
 // Add 添加实体
-func Add(dbOper *DBOper, entity EntityInterface) error {
+func Add(dbOper *Op, entity Entity) error {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.insertFunc(dbOper.tx, entity)
 	}
-	return modelInfo.insertFunc(dbOper.db, entity)
+	return modelInfo.insertFunc(dbOper.DB(), entity)
 }
 
 // Update 更新实体
-func Update(dbOper *DBOper, entity EntityInterface) (bool, error) {
+func Update(dbOper *Op, entity Entity) (bool, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		bvalue, err := modelInfo.updateFunc(dbOper.tx, entity)
@@ -167,47 +178,47 @@ func Update(dbOper *DBOper, entity EntityInterface) (bool, error) {
 		}
 		return reflect.ValueOf(bvalue).Bool(), nil
 	}
-	return modelInfo.updateFunc(dbOper.db, entity)
+	return modelInfo.updateFunc(dbOper.DB(), entity)
 }
 
 // UpdateColumns 更新列
-func UpdateColumns(dbOper *DBOper, entity EntityInterface, columns string, condition string, params ...interface{}) (int64, error) {
+func UpdateColumns(dbOper *Op, entity Entity, columns string, condition string, params ...interface{}) (int64, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.updateColumnsFunc(dbOper.tx, entity, columns, condition, params)
 	}
-	return modelInfo.updateColumnsFunc(dbOper.db, entity, columns, condition, params)
+	return modelInfo.updateColumnsFunc(dbOper.DB(), entity, columns, condition, params)
 }
 
 // Get 根据ID查询实体
-func Get(dbOper *DBOper, entity EntityInterface, id interface{}) (EntityInterface, error) {
+func Get(dbOper *Op, entity Entity, id interface{}) (Entity, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		e, err := modelInfo.getFunc(dbOper.tx, entity, id)
 		if e == nil || err != nil {
 			return nil, err
 		}
-		return e.(EntityInterface), nil
+		return e.(Entity), nil
 	}
-	return modelInfo.getFunc(dbOper.db, entity, id)
+	return modelInfo.getFunc(dbOper.DB(), entity, id)
 }
 
 // Query 根据条件查询实体
-func Query(dbOper *DBOper, entity EntityInterface, condition string, params ...interface{}) ([]EntityInterface, error) {
+func Query(dbOper *Op, entity Entity, condition string, params ...interface{}) ([]Entity, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.entityQueryFunc(dbOper.tx, entity, condition, params)
 	}
-	return modelInfo.entityQueryFunc(dbOper.db, entity, condition, params)
+	return modelInfo.entityQueryFunc(dbOper.DB(), entity, condition, params)
 }
 
 // QueryColumns 根据条件查询columns指定的字段
-func QueryColumns(dbOper *DBOper, entity EntityInterface, columns []string, condition string, params ...interface{}) ([]EntityInterface, error) {
+func QueryColumns(dbOper *Op, entity Entity, columns []string, condition string, params ...interface{}) ([]Entity, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.entityQueryColumnFunc(dbOper.tx, entity, columns, condition, params)
 	}
-	return modelInfo.entityQueryColumnFunc(dbOper.db, entity, columns, condition, params)
+	return modelInfo.entityQueryColumnFunc(dbOper.DB(), entity, columns, condition, params)
 }
 
 type count struct {
@@ -215,14 +226,14 @@ type count struct {
 }
 
 // QueryCount 根据条件查询条数
-func QueryCount(dbOper *DBOper, entity EntityInterface, column string, condition string, params ...interface{}) (num int64, err error) {
+func QueryCount(dbOper *Op, entity Entity, column string, condition string, params ...interface{}) (num int64, err error) {
 	modelInfo := getEntityModelInfo(entity)
 	columns := []string{"count(" + column + ")"}
 	var counts []*count
 	if dbOper.tx != nil {
 		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, &counts, columns, condition, params)
 	} else {
-		err = modelInfo.clumnsQueryFunc(dbOper.db, entity, &counts, columns, condition, params)
+		err = modelInfo.clumnsQueryFunc(dbOper.DB(), entity, &counts, columns, condition, params)
 	}
 	if err != nil {
 		return
@@ -234,12 +245,12 @@ func QueryCount(dbOper *DBOper, entity EntityInterface, column string, condition
 }
 
 // QueryColumnsForDestSlice 根据条件查询数据,结果保存到destSlicePtr
-func QueryColumnsForDestSlice(dbOper *DBOper, entity EntityInterface, destSlicePtr interface{}, columns []string, condition string, params ...interface{}) (err error) {
+func QueryColumnsForDestSlice(dbOper *Op, entity Entity, destSlicePtr interface{}, columns []string, condition string, params ...interface{}) (err error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, destSlicePtr, columns, condition, params)
 	} else {
-		err = modelInfo.clumnsQueryFunc(dbOper.db, entity, destSlicePtr, columns, condition, params)
+		err = modelInfo.clumnsQueryFunc(dbOper.DB(), entity, destSlicePtr, columns, condition, params)
 	}
 	if err != nil {
 		return
@@ -248,28 +259,28 @@ func QueryColumnsForDestSlice(dbOper *DBOper, entity EntityInterface, destSliceP
 }
 
 // Del 根据ID删除实体
-func Del(dbOper *DBOper, entity EntityInterface, id interface{}) (bool, error) {
+func Del(dbOper *Op, entity Entity, id interface{}) (bool, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.delEFunc(dbOper.tx, entity, id)
 	}
-	return modelInfo.delEFunc(dbOper.db, entity, id)
+	return modelInfo.delEFunc(dbOper.DB(), entity, id)
 }
 
 // DelByCondition 根据条件删除
-func DelByCondition(dbOper *DBOper, entity EntityInterface, condition string, params ...interface{}) (int64, error) {
+func DelByCondition(dbOper *Op, entity Entity, condition string, params ...interface{}) (int64, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.delFunc(dbOper.tx, entity, condition, params)
 	}
-	return modelInfo.delFunc(dbOper.db, entity, condition, params)
+	return modelInfo.delFunc(dbOper.DB(), entity, condition, params)
 }
 
 // AddOrUpdate 添加或者更新实体(如果id已经存在),只支持MySql
-func AddOrUpdate(dbOper *DBOper, entity EntityInterface) (int64, error) {
+func AddOrUpdate(dbOper *Op, entity Entity) (int64, error) {
 	modelInfo := getEntityModelInfo(entity)
 	if dbOper.tx != nil {
 		return modelInfo.insertOrUpdateFunc(dbOper.tx, entity)
 	}
-	return modelInfo.insertOrUpdateFunc(dbOper.db, entity)
+	return modelInfo.insertOrUpdateFunc(dbOper.DB(), entity)
 }

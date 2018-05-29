@@ -23,7 +23,7 @@ type pairInt64 [2]int64
 
 // Entity define the list entity interface
 type Entity interface {
-	orm.EntityInterface
+	orm.Entity
 	// GetID return the id
 	GetID() int64
 	// GetOwnerID return the owner id
@@ -66,7 +66,7 @@ type CounterEntity struct {
 }
 
 // Entity implements  EntityCounter.Entity
-func (p *CounterEntity) Entity(counterID string, fields counter.Fields) (orm.EntityInterface, error) {
+func (p *CounterEntity) Entity(counterID string, fields counter.Fields) (orm.Entity, error) {
 	e, err := p.BaseEntity.ToBaseEntity(counterID, fields)
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 	defer cache.UnLock(lockKey, p.listOwnerCacheParam, p.redisClient)
 	defer p.redisClient.Del(p.listOwnerCacheParam.NewParamKey(ownerKey))
 
-	dbOper, err := p.dbService.NewDBOper()
+	dbOper, err := p.dbService.NewOp()
 	if err != nil {
 		return false, err
 	}
@@ -163,7 +163,7 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 
 // Del delete the ownerID, targetID from list cache
 func (p *Cache) Del(ownerID string, targetID int64) (bool, error) {
-	dbOper, err := p.dbService.NewDBOper()
+	dbOper, err := p.dbService.NewOp()
 	if err != nil {
 		return false, err
 	}
@@ -328,12 +328,12 @@ func (p *Cache) loadByPage(ownerID string, page, pageSize int64) (targetAndScore
 }
 
 func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScores []*pairInt64, err error) {
-	dbOper, err := p.dbService.NewDBOper()
+	dbOper, err := p.dbService.NewOp()
 	if err != nil {
 		return nil, err
 	}
 
-	var vals []orm.EntityInterface
+	var vals []orm.Entity
 
 	vals, err = orm.QueryColumns(dbOper, p.entityPrototype, []string{"t_id", "id"}, contition, params...)
 	if err != nil {
@@ -356,7 +356,7 @@ func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScore
 }
 
 func (p *Cache) getIDByOwnerAndTarget(ownerID string, targetID int64) (id int64, ok bool, err error) {
-	dbOper, err := p.dbService.NewDBOper()
+	dbOper, err := p.dbService.NewOp()
 	if err != nil {
 		return
 	}

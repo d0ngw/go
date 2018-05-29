@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	c "github.com/d0ngw/go/common"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -29,16 +28,16 @@ func NewDBErrorf(err error, msgFormat string, args ...interface{}) *DBError {
 	return &DBError{Msg: fmt.Sprintf(msgFormat, args...), Err: err}
 }
 
-// EntityInterface  模型的基本接口
-type EntityInterface interface {
+// Entity  实体基本接口
+type Entity interface {
 	TableName() string
 }
 
-// SliceEntityInterface type for slice of EntityInterface
-type SliceEntityInterface []EntityInterface
+// EntitySlice type for slice of EntityInterface
+type EntitySlice []Entity
 
-// InterfaceSlice convert SliceEntityInterface to []interface{}
-func (p SliceEntityInterface) InterfaceSlice() []interface{} {
+// ToInterface convert EntitySlice to []interface{}
+func (p EntitySlice) ToInterface() []interface{} {
 	if p == nil {
 		return nil
 	}
@@ -49,32 +48,20 @@ func (p SliceEntityInterface) InterfaceSlice() []interface{} {
 	return ret
 }
 
-// DBPool 数据库连接池
-type DBPool struct {
+// Pool 数据库连接池
+type Pool struct {
 	db *sql.DB
 }
 
-//NewDBOper 创建DBOper
-func (p *DBPool) NewDBOper() *DBOper {
-	return &DBOper{db: p.db}
-}
-
-//DBConfig 数据库配置
-type DBConfig struct {
-	User          string `yaml:"user"`
-	Pass          string `yaml:"pass"`
-	Url           string `yaml:"url"`
-	Schema        string `yaml:"schema"`
-	MaxConn       int    `yaml:"maxConn"`
-	MaxIdle       int    `yaml:"maxIdle"`
-	MaxTimeSecond int    `yaml:"maxTimeSecond"`
-	Charset       string `yaml:"charset"`
+//NewOp 创建DBOper
+func (p *Pool) NewOp() *Op {
+	return &Op{pool: p}
 }
 
 // DBPoolCreator 数据库连接池创建
 type DBPoolCreator interface {
 	//NewDBPool 创建数据库连接池
-	NewDBPool(config DBConfig) (*DBPool, error)
+	NewDBPool(config DBConfig) (*Pool, error)
 }
 
 // NullTime null time
@@ -93,11 +80,5 @@ func (nt NullTime) Value() (driver.Value, error) {
 	return nt.Time, nil
 }
 
-// DBService is the service that supply DBOper
-type DBService interface {
-	c.Initable
-	//NewDBOper create a new DBOper
-	NewDBOper() (*DBOper, error)
-	// Pool get the db pool
-	Pool() *DBPool
-}
+// PoolFunc the func to crate db pool
+type PoolFunc func(config *DBConfig) (pool *Pool, err error)

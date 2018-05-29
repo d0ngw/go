@@ -13,7 +13,7 @@ import (
 )
 
 //模型元信息
-type modelMeta struct {
+type meta struct {
 	name                  string
 	pkField               *modelField
 	fields                []*modelField
@@ -48,7 +48,7 @@ func (f *modelField) String() string {
 //模型注册
 type modelReg struct {
 	lock  *sync.RWMutex
-	cache map[string]*modelMeta
+	cache map[string]*meta
 	done  bool
 }
 
@@ -56,24 +56,24 @@ var (
 	//模型注册实例
 	_modelReg = &modelReg{
 		lock:  new(sync.RWMutex),
-		cache: make(map[string]*modelMeta),
+		cache: make(map[string]*meta),
 		done:  false,
 	}
 )
 
-type entityInsertFunc func(executor interface{}, entity EntityInterface) error
-type entityUpdateFunc func(executor interface{}, entity EntityInterface) (bool, error)
-type entityUpdateColumnFunc func(executor interface{}, entity EntityInterface, columns string, contition string, params []interface{}) (int64, error)
-type entityQueryFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) ([]EntityInterface, error)
-type entityQueryColumnFunc func(executor interface{}, entity EntityInterface, columns []string, condition string, params []interface{}) ([]EntityInterface, error)
-type queryColumnsFunc func(executor interface{}, entity EntityInterface, destStruct interface{}, columns []string, condition string, params []interface{}) error
-type entityGetFunc func(executor interface{}, entity EntityInterface, id interface{}) (EntityInterface, error)
-type entityDeleteFunc func(executor interface{}, entity EntityInterface, condition string, params []interface{}) (int64, error)
-type entityDeleteByIDFunc func(executor interface{}, entity EntityInterface, id interface{}) (bool, error)
-type entityInsertOrUpdateFunc func(executor interface{}, entity EntityInterface) (int64, error)
+type entityInsertFunc func(executor interface{}, entity Entity) error
+type entityUpdateFunc func(executor interface{}, entity Entity) (bool, error)
+type entityUpdateColumnFunc func(executor interface{}, entity Entity, columns string, contition string, params []interface{}) (int64, error)
+type entityQueryFunc func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error)
+type entityQueryColumnFunc func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error)
+type queryColumnsFunc func(executor interface{}, entity Entity, destStruct interface{}, columns []string, condition string, params []interface{}) error
+type entityGetFunc func(executor interface{}, entity Entity, id interface{}) (Entity, error)
+type entityDeleteFunc func(executor interface{}, entity Entity, condition string, params []interface{}) (int64, error)
+type entityDeleteByIDFunc func(executor interface{}, entity Entity, id interface{}) (bool, error)
+type entityInsertOrUpdateFunc func(executor interface{}, entity Entity) (int64, error)
 
 //抽取
-func extract(model EntityInterface) (reflect.Value, reflect.Value, reflect.Type) {
+func extract(model Entity) (reflect.Value, reflect.Value, reflect.Type) {
 	return c.ExtractRefTuple(model)
 }
 
@@ -82,11 +82,11 @@ func getFullModelName(typ reflect.Type) string {
 }
 
 //AddModel 注册数据模型
-func AddModel(model EntityInterface) error {
-	return _modelReg.RegModel(model)
+func AddModel(model Entity) error {
+	return _modelReg.regModel(model)
 }
 
-func findModelInfo(typ reflect.Type) *modelMeta {
+func findModelInfo(typ reflect.Type) *meta {
 	if v, ok := _modelReg.cache[getFullModelName(typ)]; ok {
 		return v
 	}
@@ -96,11 +96,11 @@ func findModelInfo(typ reflect.Type) *modelMeta {
 func (reg *modelReg) clean() {
 	reg.lock.Lock()
 	defer _modelReg.lock.Unlock()
-	reg.cache = make(map[string]*modelMeta)
+	reg.cache = make(map[string]*meta)
 }
 
 //注册一个数据模型
-func (reg *modelReg) RegModel(model EntityInterface) error {
+func (reg *modelReg) regModel(model Entity) error {
 	if model == nil {
 		panic(NewDBError(nil, "Invalid model"))
 	}
@@ -117,7 +117,7 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 
 	fieldCount := ind.NumField()
 	fields := make([]*modelField, 0, fieldCount)
-	mInfo := &modelMeta{name: fullName, modelType: typ}
+	mInfo := &meta{name: fullName, modelType: typ}
 	var pkField *modelField
 
 	fields = reg.parseFields(nil, ind, typ, &pkField, fields)
@@ -145,9 +145,9 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 	mInfo.clumnsQueryFunc = createQueryColumnsFunc(mInfo)
 	mInfo.insertOrUpdateFunc = createInsertOrUpdateFunc(mInfo)
 	mInfo.delFunc = createDelFunc(mInfo)
-	mInfo.getFunc = func(executor interface{}, entity EntityInterface, id interface{}) (e EntityInterface, err error) {
+	mInfo.getFunc = func(executor interface{}, entity Entity, id interface{}) (e Entity, err error) {
 		e = nil
-		var l []EntityInterface
+		var l []Entity
 		if l, err = mInfo.entityQueryFunc(executor, entity, " WHERE "+mInfo.pkField.column+" = ?", []interface{}{id}); err == nil {
 			if len(l) == 1 {
 				e = l[0]
@@ -155,7 +155,7 @@ func (reg *modelReg) RegModel(model EntityInterface) error {
 		}
 		return
 	}
-	mInfo.delEFunc = func(executor interface{}, entity EntityInterface, id interface{}) (r bool, err error) {
+	mInfo.delEFunc = func(executor interface{}, entity Entity, id interface{}) (r bool, err error) {
 		var l int64
 		if l, err = mInfo.delFunc(executor, entity, " WHERE "+mInfo.pkField.column+" = ?", []interface{}{id}); err == nil {
 			if l == 1 {

@@ -8,7 +8,7 @@ import (
 )
 
 type tmodel struct {
-	Id   int64           `column:"id" pk:"Y"`
+	ID   int64           `column:"id" pk:"Y"`
 	Name sql.NullString  `column:"name"`
 	Time sql.NullInt64   `column:"create_time"`
 	F64  sql.NullFloat64 `column:"f64"`
@@ -39,23 +39,23 @@ func TestReflect(t *testing.T) {
 	var err error
 	tm := tmodel{}
 	_modelReg.clean()
-	err = _modelReg.RegModel(&tm)
+	err = _modelReg.regModel(&tm)
 	checkError(err, true, t, "pointer tm")
 }
 
 func TestAdd(t *testing.T) {
-	tm := tmodel{Name: sql.NullString{"d0ngw", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
+	tm := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 	_modelReg.clean()
-	err = _modelReg.RegModel(&tm)
-	dboper := &DBOper{db: dbpool.db}
+	err = _modelReg.regModel(&tm)
+	dboper := &Op{pool: dbpool}
 
 	err = Add(dboper, &tm)
 	checkError(err, true, t, "Add")
-	if tm.Id <= 0 {
+	if tm.ID <= 0 {
 		t.Error("No id")
 	}
 
-	tm = tmodel{Name: sql.NullString{"d0ngw2", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
+	tm = tmodel{Name: sql.NullString{String: "d0ngw2", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 
 	defer func() {
 		err := dboper.Rollback()
@@ -64,16 +64,16 @@ func TestAdd(t *testing.T) {
 
 	dboper.BeginTx()
 
-	t.Logf("tx:%d", dboper.tx)
+	t.Logf("tx:%v", dboper.tx)
 
 	err = Add(dboper, &tm)
 	checkError(err, true, t, "Add")
-	if tm.Id <= 0 {
+	if tm.ID <= 0 {
 		t.Error("No id")
 	}
-	t.Logf("Add id:%d", tm.Id)
+	t.Logf("Add id:%d", tm.ID)
 
-	r, err := Del(dboper, &tm, tm.Id)
+	r, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")
 	if !r {
 		t.Error("Del fail")
@@ -97,13 +97,13 @@ func TestAdd(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	tm := tmodel{Name: sql.NullString{"d0ngw", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
-	tm2 := tmodel{Name: sql.NullString{"d0ngw", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
+	tm := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
+	tm2 := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 
 	_modelReg.clean()
-	err = _modelReg.RegModel(&tm)
+	err = _modelReg.regModel(&tm)
 
-	dboper := &DBOper{db: dbpool.db}
+	dboper := &Op{pool: dbpool}
 
 	err = Add(dboper, &tm)
 	checkError(err, true, t, "Add")
@@ -113,44 +113,44 @@ func TestUpdate(t *testing.T) {
 
 	defer dboper.Rollback()
 	_, err := dboper.DoInTrans(func(tx *sql.Tx) (interface{}, error) {
-		tm.Name = sql.NullString{"d0ngw1", true}
+		tm.Name = sql.NullString{String: "d0ngw1", Valid: true}
 		rt, err := Update(dboper, &tm)
 		checkError(err, true, t, "Update")
 		if !rt {
-			t.Error("Update fail", err, tm.Id, rt)
+			t.Error("Update fail", err, tm.ID, rt)
 		}
 		rt, err = Update(dboper, &tm2)
-		checkError(err, true, t, "Update"+fmt.Sprint("%d", tm2.Id))
+		checkError(err, true, t, "Update"+fmt.Sprintf("%d", tm2.ID))
 		if rt {
-			t.Error("No change,but Updated ", err, tm2.Id, rt)
+			t.Error("No change,but Updated ", err, tm2.ID, rt)
 		}
-		e, err := Get(dboper, &tm, tm.Id)
+		e, err := Get(dboper, &tm, tm.ID)
 		checkError(err, true, t, "Get")
 		t.Logf("Get:%v", e)
 		return nil, err
 	})
 	checkError(err, true, t, "Update")
 
-	rt, err := Del(dboper, &tm, tm.Id)
+	rt, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")
 	if !rt {
-		t.Error("Update fail", err, tm.Id, rt)
+		t.Error("Update fail", err, tm.ID, rt)
 	}
 
-	rt, err = Del(dboper, &tm2, tm2.Id)
+	rt, err = Del(dboper, &tm2, tm2.ID)
 	checkError(err, true, t, "Del")
 	if !rt {
-		t.Error("Update fail", err, tm2.Id, rt)
+		t.Error("Update fail", err, tm2.ID, rt)
 	}
 }
 
 func TestUpdateColumns(t *testing.T) {
 	_modelReg.clean()
 	tm := tmodel{}
-	err = _modelReg.RegModel(&tm)
+	err = _modelReg.regModel(&tm)
 
-	tm = tmodel{Name: sql.NullString{"d0ngw", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
-	dboper := &DBOper{db: dbpool.db}
+	tm = tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
+	dboper := &Op{pool: dbpool}
 	err = Add(dboper, &tm)
 	checkError(err, true, t, "Add")
 
@@ -158,7 +158,7 @@ func TestUpdateColumns(t *testing.T) {
 	checkError(err, true, t, "Update")
 	t.Logf("update l:%v", l)
 
-	rt, err := Del(dboper, &tm, tm.Id)
+	rt, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")
 	t.Logf("del rt:%v", rt)
 }
@@ -166,14 +166,14 @@ func TestUpdateColumns(t *testing.T) {
 func TestGet(t *testing.T) {
 	_modelReg.clean()
 	tm := tmodel{}
-	err = _modelReg.RegModel(&tm)
+	err = _modelReg.regModel(&tm)
 
-	tm = tmodel{Name: sql.NullString{"d0ngw", true}, Time: sql.NullInt64{time.Now().Unix(), true}}
-	dboper := &DBOper{db: dbpool.db}
+	tm = tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
+	dboper := &Op{pool: dbpool}
 	err = Add(dboper, &tm)
 	checkError(err, true, t, "Add")
 
-	e, err := Get(dboper, &tm, tm.Id)
+	e, err := Get(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Get")
 	t.Logf("e:%v,%T", e, e)
 
@@ -199,7 +199,7 @@ func TestGet(t *testing.T) {
 		t.Logf("el:%T,%T", el, tm)
 	}
 
-	rt, err := Del(dboper, &tm, tm.Id)
+	rt, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")
 	t.Logf("del rt:%v", rt)
 }
@@ -207,9 +207,9 @@ func TestGet(t *testing.T) {
 func TestCount(t *testing.T) {
 	_modelReg.clean()
 	tm := tmodel{}
-	err = _modelReg.RegModel(&tm)
+	err = _modelReg.regModel(&tm)
 
-	dboper := &DBOper{db: dbpool.db}
+	dboper := &Op{pool: dbpool}
 	total, err := QueryCount(dboper, &tm, "id", "")
 	checkError(err, true, t, "Count")
 	t.Logf("countl:%v", total)
