@@ -11,6 +11,17 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
+type entityInsertFunc func(executor interface{}, entity Entity) error
+type entityUpdateFunc func(executor interface{}, entity Entity) (bool, error)
+type entityUpdateColumnFunc func(executor interface{}, entity Entity, columns string, contition string, params []interface{}) (int64, error)
+type entityQueryFunc func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error)
+type entityQueryColumnFunc func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error)
+type queryColumnsFunc func(executor interface{}, entity Entity, destStruct interface{}, columns []string, condition string, params []interface{}) error
+type entityGetFunc func(executor interface{}, entity Entity, id interface{}) (Entity, error)
+type entityDeleteFunc func(executor interface{}, entity Entity, condition string, params []interface{}) (int64, error)
+type entityDeleteByIDFunc func(executor interface{}, entity Entity, id interface{}) (bool, error)
+type entityInsertOrUpdateFunc func(executor interface{}, entity Entity) (int64, error)
+
 func toSlice(s string, count int) []string {
 	slice := make([]string, 0, count)
 	for i := 0; i < count; i++ {
@@ -94,7 +105,11 @@ func createInsertFunc(modelInfo *meta) entityInsertFunc {
 	return func(executor interface{}, entity Entity) error {
 		ind := checkEntity(modelInfo, entity, executor)
 		paramValues := buildParamValues(ind, insertFields)
-		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", entity.TableName(), columns, params)
+		tname, err := tblName(entity)
+		if err != nil {
+			return err
+		}
+		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", tname, columns, params)
 		c.Debugf("insertSql:%s", insertSQL)
 
 		rs, err := exec(executor, insertSQL, paramValues)
@@ -126,7 +141,12 @@ func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
 		paramValues := buildParamValues(ind, updateFields)
 		paramValues = append(paramValues, id)
 
-		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", entity.TableName(), columns, modelInfo.pkField.column, "?")
+		tname, err := tblName(entity)
+		if err != nil {
+			return false, err
+		}
+
+		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", tname, columns, modelInfo.pkField.column, "?")
 		c.Debugf("updateSql:%s", updateSQL)
 		rs, err := exec(executor, updateSQL, paramValues)
 		if err != nil {
@@ -151,7 +171,12 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 		if len(columns) == 0 {
 			panic(NewDBError(nil, "Can't update empty columns"))
 		}
-		updateSQL := fmt.Sprintf("UPDATE %s SET %s ", entity.TableName(), columns)
+
+		tname, err := tblName(entity)
+		if err != nil {
+			return 0, err
+		}
+		updateSQL := fmt.Sprintf("UPDATE %s SET %s ", tname, columns)
 		if len(condition) > 0 {
 			updateSQL += condition
 
@@ -181,7 +206,11 @@ func createQueryFunc(modelInfo *meta) entityQueryFunc {
 
 	return func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error) {
 		ind := checkEntity(modelInfo, entity, executor)
-		querySQL := fmt.Sprintf("SELECT %s FROM %s ", columns, entity.TableName())
+		tname, err := tblName(entity)
+		if err != nil {
+			return nil, err
+		}
+		querySQL := fmt.Sprintf("SELECT %s FROM %s ", columns, tname)
 		if len(condition) > 0 {
 			querySQL += condition
 		}
@@ -224,7 +253,12 @@ func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
 			}
 		}
 
-		querySQL := fmt.Sprintf("SELECT %s FROM %s ", strings.Join(columns, ","), entity.TableName())
+		tname, err := tblName(entity)
+		if err != nil {
+			return nil, err
+		}
+
+		querySQL := fmt.Sprintf("SELECT %s FROM %s ", strings.Join(columns, ","), tname)
 		if len(condition) > 0 {
 			querySQL += condition
 		}
@@ -283,7 +317,12 @@ func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
 			return fmt.Errorf("number of %T's fields must >= columns", destTyp)
 		}
 
-		querySQL := fmt.Sprintf("SELECT %s FROM %s ", strings.Join(columns, ","), entity.TableName())
+		tname, err := tblName(entity)
+		if err != nil {
+			return err
+		}
+
+		querySQL := fmt.Sprintf("SELECT %s FROM %s ", strings.Join(columns, ","), tname)
 		if len(condition) > 0 {
 			querySQL += condition
 		}
@@ -319,7 +358,11 @@ func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
 func createDelFunc(modelInfo *meta) entityDeleteFunc {
 	return func(executor interface{}, entity Entity, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
-		delSQL := fmt.Sprintf("DELETE FROM %s ", entity.TableName())
+		tname, err := tblName(entity)
+		if err != nil {
+			return 0, err
+		}
+		delSQL := fmt.Sprintf("DELETE FROM %s ", tname)
 		if len(condition) > 0 {
 			delSQL += condition
 		}
@@ -355,7 +398,11 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 		paramValues := buildParamValues(ind, insertFields)
 		updateParamValues := buildParamValues(ind, updateFields)
 		allParamValues := append(paramValues, updateParamValues...)
-		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s) ON DUPLICATE KEY UPDATE %s", entity.TableName(), columns, insertParams, updateColumns)
+		tname, err := tblName(entity)
+		if err != nil {
+			return 0, err
+		}
+		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s) ON DUPLICATE KEY UPDATE %s", tname, columns, insertParams, updateColumns)
 		c.Debugf("insertSql:%s", insertSQL)
 
 		rs, err := exec(executor, insertSQL, allParamValues)
@@ -371,4 +418,14 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 		}
 		return 0, err
 	}
+}
+
+// tblName 确定表名
+func tblName(entity Entity) (string, error) {
+	if shardEntity, ok := entity.(ShardEntity); ok {
+		if shardEntity.ShardFunc() != nil {
+			return shardEntity.ShardFunc()()
+		}
+	}
+	return entity.TableName(), nil
 }

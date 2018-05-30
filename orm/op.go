@@ -150,75 +150,75 @@ func (p *Op) DoInTrans(peration OpTxFunc) (rt interface{}, err error) {
 }
 
 //查找实体对应的模型元
-func getEntityModelInfo(entity Entity) *meta {
+func findEntityMeta(entity Entity) *meta {
 	_, _, typ := extract(entity)
-	modelInfo := findModelInfo(typ)
-	if modelInfo == nil {
-		panic(NewDBErrorf(nil, "Can't find modelInfo for:%v ", typ))
+	modelMeta := findMeta(typ)
+	if modelMeta == nil {
+		panic(NewDBErrorf(nil, "Can't find modelMeta for:%v ", typ))
 	}
-	return modelInfo
+	return modelMeta
 }
 
 // Add 添加实体
-func Add(dbOper *Op, entity Entity) error {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		return modelInfo.insertFunc(dbOper.tx, entity)
+func Add(op *Op, entity Entity) error {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		return modelMeta.insertFunc(op.tx, entity)
 	}
-	return modelInfo.insertFunc(dbOper.DB(), entity)
+	return modelMeta.insertFunc(op.DB(), entity)
 }
 
 // Update 更新实体
-func Update(dbOper *Op, entity Entity) (bool, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		bvalue, err := modelInfo.updateFunc(dbOper.tx, entity)
+func Update(op *Op, entity Entity) (bool, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		bvalue, err := modelMeta.updateFunc(op.tx, entity)
 		if err != nil {
 			return false, err
 		}
 		return reflect.ValueOf(bvalue).Bool(), nil
 	}
-	return modelInfo.updateFunc(dbOper.DB(), entity)
+	return modelMeta.updateFunc(op.DB(), entity)
 }
 
 // UpdateColumns 更新列
-func UpdateColumns(dbOper *Op, entity Entity, columns string, condition string, params ...interface{}) (int64, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		return modelInfo.updateColumnsFunc(dbOper.tx, entity, columns, condition, params)
+func UpdateColumns(op *Op, entity Entity, columns string, condition string, params ...interface{}) (int64, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		return modelMeta.updateColumnsFunc(op.tx, entity, columns, condition, params)
 	}
-	return modelInfo.updateColumnsFunc(dbOper.DB(), entity, columns, condition, params)
+	return modelMeta.updateColumnsFunc(op.DB(), entity, columns, condition, params)
 }
 
 // Get 根据ID查询实体
-func Get(dbOper *Op, entity Entity, id interface{}) (Entity, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		e, err := modelInfo.getFunc(dbOper.tx, entity, id)
+func Get(op *Op, entity Entity, id interface{}) (Entity, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		e, err := modelMeta.getFunc(op.tx, entity, id)
 		if e == nil || err != nil {
 			return nil, err
 		}
 		return e.(Entity), nil
 	}
-	return modelInfo.getFunc(dbOper.DB(), entity, id)
+	return modelMeta.getFunc(op.DB(), entity, id)
 }
 
 // Query 根据条件查询实体
-func Query(dbOper *Op, entity Entity, condition string, params ...interface{}) ([]Entity, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		return modelInfo.entityQueryFunc(dbOper.tx, entity, condition, params)
+func Query(op *Op, entity Entity, condition string, params ...interface{}) ([]Entity, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		return modelMeta.entityQueryFunc(op.tx, entity, condition, params)
 	}
-	return modelInfo.entityQueryFunc(dbOper.DB(), entity, condition, params)
+	return modelMeta.entityQueryFunc(op.DB(), entity, condition, params)
 }
 
 // QueryColumns 根据条件查询columns指定的字段
-func QueryColumns(dbOper *Op, entity Entity, columns []string, condition string, params ...interface{}) ([]Entity, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		return modelInfo.entityQueryColumnFunc(dbOper.tx, entity, columns, condition, params)
+func QueryColumns(op *Op, entity Entity, columns []string, condition string, params ...interface{}) ([]Entity, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		return modelMeta.entityQueryColumnFunc(op.tx, entity, columns, condition, params)
 	}
-	return modelInfo.entityQueryColumnFunc(dbOper.DB(), entity, columns, condition, params)
+	return modelMeta.entityQueryColumnFunc(op.DB(), entity, columns, condition, params)
 }
 
 type count struct {
@@ -226,14 +226,14 @@ type count struct {
 }
 
 // QueryCount 根据条件查询条数
-func QueryCount(dbOper *Op, entity Entity, column string, condition string, params ...interface{}) (num int64, err error) {
-	modelInfo := getEntityModelInfo(entity)
+func QueryCount(op *Op, entity Entity, column string, condition string, params ...interface{}) (num int64, err error) {
+	modelMeta := findEntityMeta(entity)
 	columns := []string{"count(" + column + ")"}
 	var counts []*count
-	if dbOper.tx != nil {
-		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, &counts, columns, condition, params)
+	if op.tx != nil {
+		err = modelMeta.clumnsQueryFunc(op.tx, entity, &counts, columns, condition, params)
 	} else {
-		err = modelInfo.clumnsQueryFunc(dbOper.DB(), entity, &counts, columns, condition, params)
+		err = modelMeta.clumnsQueryFunc(op.DB(), entity, &counts, columns, condition, params)
 	}
 	if err != nil {
 		return
@@ -245,12 +245,12 @@ func QueryCount(dbOper *Op, entity Entity, column string, condition string, para
 }
 
 // QueryColumnsForDestSlice 根据条件查询数据,结果保存到destSlicePtr
-func QueryColumnsForDestSlice(dbOper *Op, entity Entity, destSlicePtr interface{}, columns []string, condition string, params ...interface{}) (err error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		err = modelInfo.clumnsQueryFunc(dbOper.tx, entity, destSlicePtr, columns, condition, params)
+func QueryColumnsForDestSlice(op *Op, entity Entity, destSlicePtr interface{}, columns []string, condition string, params ...interface{}) (err error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		err = modelMeta.clumnsQueryFunc(op.tx, entity, destSlicePtr, columns, condition, params)
 	} else {
-		err = modelInfo.clumnsQueryFunc(dbOper.DB(), entity, destSlicePtr, columns, condition, params)
+		err = modelMeta.clumnsQueryFunc(op.DB(), entity, destSlicePtr, columns, condition, params)
 	}
 	if err != nil {
 		return
@@ -259,28 +259,28 @@ func QueryColumnsForDestSlice(dbOper *Op, entity Entity, destSlicePtr interface{
 }
 
 // Del 根据ID删除实体
-func Del(dbOper *Op, entity Entity, id interface{}) (bool, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		return modelInfo.delEFunc(dbOper.tx, entity, id)
+func Del(op *Op, entity Entity, id interface{}) (bool, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		return modelMeta.delEFunc(op.tx, entity, id)
 	}
-	return modelInfo.delEFunc(dbOper.DB(), entity, id)
+	return modelMeta.delEFunc(op.DB(), entity, id)
 }
 
 // DelByCondition 根据条件删除
-func DelByCondition(dbOper *Op, entity Entity, condition string, params ...interface{}) (int64, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		return modelInfo.delFunc(dbOper.tx, entity, condition, params)
+func DelByCondition(op *Op, entity Entity, condition string, params ...interface{}) (int64, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		return modelMeta.delFunc(op.tx, entity, condition, params)
 	}
-	return modelInfo.delFunc(dbOper.DB(), entity, condition, params)
+	return modelMeta.delFunc(op.DB(), entity, condition, params)
 }
 
 // AddOrUpdate 添加或者更新实体(如果id已经存在),只支持MySql
-func AddOrUpdate(dbOper *Op, entity Entity) (int64, error) {
-	modelInfo := getEntityModelInfo(entity)
-	if dbOper.tx != nil {
-		return modelInfo.insertOrUpdateFunc(dbOper.tx, entity)
+func AddOrUpdate(op *Op, entity Entity) (int64, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		return modelMeta.insertOrUpdateFunc(op.tx, entity)
 	}
-	return modelInfo.insertOrUpdateFunc(dbOper.DB(), entity)
+	return modelMeta.insertOrUpdateFunc(op.DB(), entity)
 }

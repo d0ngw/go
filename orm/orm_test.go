@@ -5,23 +5,28 @@ import (
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type tmodel struct {
-	ID   int64           `column:"id" pk:"Y"`
-	Name sql.NullString  `column:"name"`
-	Time sql.NullInt64   `column:"create_time"`
-	F64  sql.NullFloat64 `column:"f64"`
+	ID        int64           `column:"id" pk:"Y"`
+	Name      sql.NullString  `column:"name"`
+	Time      sql.NullInt64   `column:"create_time"`
+	F64       sql.NullFloat64 `column:"f64"`
+	shardFunc ShardHandler
 }
 
-func (tm tmodel) TableName() string {
+func (tm *tmodel) TableName() string {
 	return "tt"
 }
 
-type mf float64
+func (tm *tmodel) ShardFunc() ShardHandler {
+	return tm.shardFunc
+}
 
-func (tm mf) TableName() string {
-	return "t"
+func (tm *tmodel) SetShardFunc(f ShardHandler) {
+	tm.shardFunc = f
 }
 
 func checkError(err error, noError bool, t *testing.T, msg string) {
@@ -38,15 +43,16 @@ func checkError(err error, noError bool, t *testing.T, msg string) {
 func TestReflect(t *testing.T) {
 	var err error
 	tm := tmodel{}
-	_metaReg.clean()
-	_, err = _metaReg.regModel(&tm)
+	defaultMetaReg.clean()
+
+	_, err = defaultMetaReg.regModel(&tm)
 	checkError(err, true, t, "pointer tm")
 }
 
 func TestAdd(t *testing.T) {
 	tm := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
-	_metaReg.clean()
-	_, err = _metaReg.regModel(&tm)
+	defaultMetaReg.clean()
+	_, err = defaultMetaReg.regModel(&tm)
 	dboper := &Op{pool: dbpool}
 
 	err = Add(dboper, &tm)
@@ -100,8 +106,8 @@ func TestUpdate(t *testing.T) {
 	tm := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 	tm2 := tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 
-	_metaReg.clean()
-	_, err = _metaReg.regModel(&tm)
+	defaultMetaReg.clean()
+	_, err = defaultMetaReg.regModel(&tm)
 
 	dboper := &Op{pool: dbpool}
 
@@ -145,9 +151,9 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateColumns(t *testing.T) {
-	_metaReg.clean()
+	defaultMetaReg.clean()
 	tm := tmodel{}
-	_, err = _metaReg.regModel(&tm)
+	_, err = defaultMetaReg.regModel(&tm)
 
 	tm = tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 	dboper := &Op{pool: dbpool}
@@ -164,9 +170,9 @@ func TestUpdateColumns(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	_metaReg.clean()
+	defaultMetaReg.clean()
 	tm := tmodel{}
-	_, err = _metaReg.regModel(&tm)
+	_, err = defaultMetaReg.regModel(&tm)
 
 	tm = tmodel{Name: sql.NullString{String: "d0ngw", Valid: true}, Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true}}
 	dboper := &Op{pool: dbpool}
@@ -205,9 +211,9 @@ func TestGet(t *testing.T) {
 }
 
 func TestCount(t *testing.T) {
-	_metaReg.clean()
+	defaultMetaReg.clean()
 	tm := tmodel{}
-	_, err = _metaReg.regModel(&tm)
+	_, err = defaultMetaReg.regModel(&tm)
 
 	dboper := &Op{pool: dbpool}
 	total, err := QueryCount(dboper, &tm, "id", "")
@@ -216,8 +222,20 @@ func TestCount(t *testing.T) {
 }
 
 func TestAddMeta(t *testing.T) {
-	_metaReg.clean()
+	defaultMetaReg.clean()
 	tm := tmodel{}
 	_meta := AddMeta(&tm)
 	fmt.Println(_meta.Name())
+}
+
+func TestShardEntity(t *testing.T) {
+	tm := &tmodel{}
+	tm.Name = sql.NullString{String: "abc", Valid: true}
+
+	var entity Entity = tm
+
+	shardEntity, ok := entity.(ShardEntity)
+	assert.True(t, ok)
+	assert.Equal(t, entity, shardEntity)
+	assert.True(t, entity == shardEntity)
 }

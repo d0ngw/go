@@ -8,10 +8,11 @@ import (
 
 // ShardDBService implements DBService interface
 type ShardDBService struct {
-	Config      DBShardConfigurer `inject:"_"`
-	poolFunc    PoolFunc
-	pools       map[string]*Pool
-	defaultPool *Pool
+	DBConfig     DBShardConfigurer     `inject:"_"`
+	EntityConfig EntityShardConfigurer `inject:"_,optional"`
+	poolFunc     PoolFunc
+	pools        map[string]*Pool
+	defaultPool  *Pool
 }
 
 // Init implements Initable.Init()
@@ -22,14 +23,14 @@ func (p *ShardDBService) Init() error {
 	if p.pools != nil {
 		return fmt.Errorf("Inited")
 	}
-	if p.Config == nil {
+	if p.DBConfig == nil {
 		return fmt.Errorf("no db shard config")
 	}
 
 	pools := map[string]*Pool{}
 	var defaultPool *Pool
 
-	config := p.Config.ShardConfig()
+	config := p.DBConfig.DBShardConfig()
 	if config == nil {
 		c.Warnf("no db shard config")
 	} else {
@@ -79,4 +80,9 @@ func (p *ShardDBService) NewOpByMeta(meta Meta) (op *Op, err error) {
 		return
 	}
 	return
+}
+
+func (p *ShardDBService) SetUpShardFunc(shardEntity ShardEntity, val interface{}) func() string {
+
+	return nil
 }

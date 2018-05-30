@@ -7,38 +7,58 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-	"sync"
 
 	c "github.com/d0ngw/go/common"
-)
-
-type metaReg struct {
-	lock  *sync.RWMutex
-	cache map[string]*meta
-	done  bool
-}
-
-var (
-	_metaReg = &metaReg{
-		lock:  new(sync.RWMutex),
-		cache: make(map[string]*meta),
-		done:  false,
-	}
 )
 
 // Meta meta
 type Meta interface {
 	Name() string
+	Type() reflect.Type
 }
 
-//AddMeta 注册数据模型
-func AddMeta(model Entity) Meta {
-	_meta, err := _metaReg.regModel(model)
+//AddMeta register entity meta
+func AddMeta(entity Entity) Meta {
+	m, err := defaultMetaReg.regModel(entity)
 	if err != nil {
 		panic(err)
 	}
-	return _meta
+	return m
 }
+
+//MetaOf parse meta
+func MetaOf(entity Entity) Meta {
+	m, err := parseMeta(entity)
+	if err != nil {
+		panic(err)
+	}
+	return m
+}
+
+func findMeta(typ reflect.Type) *meta {
+	pkgPath := typ.PkgPath()
+	name := typ.Name()
+
+	pkgPathCache := defaultMetaReg.pkgCache[pkgPath]
+	if pkgPathCache == nil {
+		return nil
+	}
+	return pkgPathCache[name]
+}
+
+type metaReg struct {
+	cache    map[string]*meta
+	pkgCache map[string]map[string]*meta
+	done     bool
+}
+
+var (
+	defaultMetaReg = &metaReg{
+		cache:    make(map[string]*meta),
+		pkgCache: make(map[string]map[string]*meta),
+		done:     false,
+	}
+)
 
 type meta struct {
 	name                  string
@@ -63,6 +83,11 @@ func (p *meta) Name() string {
 	return p.name
 }
 
+// Type implements Meta.Type
+func (p *meta) Type() reflect.Type {
+	return p.modelType
+}
+
 type metaField struct {
 	name        string              //struct中的字段名称
 	column      string              //表列名
@@ -76,47 +101,67 @@ func (f *metaField) String() string {
 	return fmt.Sprintf("{name:%v,conlumn:%v,pk:%v,pkAuto:%v}", f.name, f.column, f.pk, f.pkAuto)
 }
 
-type entityInsertFunc func(executor interface{}, entity Entity) error
-type entityUpdateFunc func(executor interface{}, entity Entity) (bool, error)
-type entityUpdateColumnFunc func(executor interface{}, entity Entity, columns string, contition string, params []interface{}) (int64, error)
-type entityQueryFunc func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error)
-type entityQueryColumnFunc func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error)
-type queryColumnsFunc func(executor interface{}, entity Entity, destStruct interface{}, columns []string, condition string, params []interface{}) error
-type entityGetFunc func(executor interface{}, entity Entity, id interface{}) (Entity, error)
-type entityDeleteFunc func(executor interface{}, entity Entity, condition string, params []interface{}) (int64, error)
-type entityDeleteByIDFunc func(executor interface{}, entity Entity, id interface{}) (bool, error)
-type entityInsertOrUpdateFunc func(executor interface{}, entity Entity) (int64, error)
-
-//抽取
-func extract(model Entity) (reflect.Value, reflect.Value, reflect.Type) {
-	return c.ExtractRefTuple(model)
+func (reg *metaReg) clean() {
+	reg.cache = make(map[string]*meta)
+	reg.pkgCache = make(map[string]map[string]*meta)
 }
 
-func getFullModelName(typ reflect.Type) string {
-	return typ.PkgPath() + "." + typ.Name()
-}
-
-func findModelInfo(typ reflect.Type) *meta {
-	if v, ok := _metaReg.cache[getFullModelName(typ)]; ok {
-		return v
+func (reg *metaReg) regModel(model Entity) (*meta, error) {
+	if model == nil {
+		return nil, NewDBError(nil, "invalid model")
 	}
+	m, err := parseMeta(model)
+	if err != nil {
+		return nil, err
+	}
+
+	err = reg.regMeta(m)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (reg *metaReg) regMeta(m *meta) error {
+	if m == nil {
+		return NewDBError(nil, "Invalid meta")
+	}
+
+	if _, exist := reg.cache[m.name]; exist {
+		return &DBError{"Duplicate mode name:" + m.name, nil}
+	}
+
+	metaType := m.Type()
+	pkgPath := metaType.PkgPath()
+	name := metaType.Name()
+
+	pkgPathCache := reg.pkgCache[pkgPath]
+	if pkgPathCache == nil {
+		pkgPathCache = make(map[string]*meta)
+		reg.pkgCache[pkgPath] = pkgPathCache
+	}
+
+	if _, exist := pkgPathCache[name]; exist {
+		return &DBError{"Duplicate mode name:" + m.name, nil}
+	}
+
+	pkgPathCache[name] = m
+	reg.cache[m.name] = m
 	return nil
 }
 
-func (reg *metaReg) clean() {
-	reg.lock.Lock()
-	defer _metaReg.lock.Unlock()
-	reg.cache = make(map[string]*meta)
-}
+var (
+	scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
+	valuerType  = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
+)
 
-//注册一个数据模型
-func (reg *metaReg) regModel(model Entity) (*meta, error) {
+func parseMeta(model Entity) (*meta, error) {
 	if model == nil {
-		panic(NewDBError(nil, "Invalid model"))
+		return nil, NewDBError(nil, "Invalid model")
 	}
 
 	val, ind, typ := extract(model)
-	fullName := getFullModelName(typ)
+	fullName := fullTypeName(typ)
 
 	if val.Kind() != reflect.Ptr {
 		panic(NewDBErrorf(nil, "Expect ptr ,but it's %s,type:%s", val.Kind(), typ))
@@ -130,7 +175,7 @@ func (reg *metaReg) regModel(model Entity) (*meta, error) {
 	mInfo := &meta{name: fullName, modelType: typ}
 	var pkField *metaField
 
-	fields = reg.parseFields(nil, ind, typ, &pkField, fields)
+	fields = parseFields(nil, ind, typ, &pkField, fields)
 	if pkField == nil {
 		panic(NewDBErrorf(nil, "Can't find pk column for %s", typ))
 	} else {
@@ -181,50 +226,50 @@ func (reg *metaReg) regModel(model Entity) (*meta, error) {
 	}
 	mInfo.columnFields = columnFields
 
-	_metaReg.lock.Lock()
-	defer _metaReg.lock.Unlock()
-	if _, exist := _metaReg.cache[fullName]; exist {
-		return nil, &DBError{"Duplicate mode name:" + fullName, nil}
-	}
-	_metaReg.cache[fullName] = mInfo
 	return mInfo, nil
 }
 
-var (
-	scannerType = reflect.TypeOf((*sql.Scanner)(nil)).Elem()
-	valuerType  = reflect.TypeOf((*driver.Valuer)(nil)).Elem()
-)
-
-func (reg *metaReg) parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **metaField, fields []*metaField) []*metaField {
+func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **metaField, fields []*metaField) []*metaField {
 	for i := 0; i < ind.NumField(); i++ {
-		structField := typ.Field(i)
-		if structField.Type.Kind() == reflect.Ptr {
-			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter", structField.Name))
-		}
-		stFieldType := structField.Type
-		if stFieldType.Kind() == reflect.Struct && !(reflect.PtrTo(stFieldType).Implements(scannerType) && stFieldType.Implements(valuerType)) {
-			if !structField.Anonymous {
-				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", structField.Name))
-			}
-			fields = reg.parseFields(append(index, i), ind.Field(i), stFieldType, pkField, fields)
+		field := typ.Field(i)
+		if field.PkgPath != "" {
+			c.Debugf("skip unexported field %s", typ, field.Name)
 			continue
 		}
-		sfTag := structField.Tag
-		column := sfTag.Get("column")
-		pk := strings.ToLower(sfTag.Get("pk"))
-		pkAuto := strings.ToLower(sfTag.Get("pkAuto"))
+
+		tag := field.Tag
+		column, exist := tag.Lookup("column")
+		if !exist {
+			continue
+		}
+
 		if len(column) == 0 {
-			panic(NewDBErrorf(nil, "Can't find the column tag for %s.%s", typ, structField.Name))
+			panic(NewDBErrorf(nil, "Can't find the column tag for %s.%s,skip", typ, field.Name))
+		}
+
+		pk := strings.ToLower(tag.Get("pk"))
+		pkAuto := strings.ToLower(tag.Get("pkAuto"))
+
+		if field.Type.Kind() == reflect.Ptr {
+			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter", field.Name))
+		}
+		stFieldType := field.Type
+		if stFieldType.Kind() == reflect.Struct && !(reflect.PtrTo(stFieldType).Implements(scannerType) && stFieldType.Implements(valuerType)) {
+			if !field.Anonymous {
+				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", field.Name))
+			}
+			fields = parseFields(append(index, i), ind.Field(i), stFieldType, pkField, fields)
+			continue
 		}
 
 		fieldIndex := append(index, i)
 		mField := &metaField{
-			name:        structField.Name,
+			name:        field.Name,
 			column:      column,
 			pk:          pk == "y",
 			pkAuto:      pk == "y" && !(pkAuto == "n"),
 			index:       fieldIndex,
-			structField: structField}
+			structField: field}
 
 		if mField.pk {
 			if *pkField == nil {
@@ -236,4 +281,12 @@ func (reg *metaReg) parseFields(index []int, ind reflect.Value, typ reflect.Type
 		fields = append(fields, mField)
 	}
 	return fields
+}
+
+func extract(model Entity) (reflect.Value, reflect.Value, reflect.Type) {
+	return c.ExtractRefTuple(model)
+}
+
+func fullTypeName(typ reflect.Type) string {
+	return typ.PkgPath() + "." + typ.Name()
 }

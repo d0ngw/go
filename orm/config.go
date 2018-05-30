@@ -6,6 +6,24 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
+// DBConfigurer DB配置器
+type DBConfigurer interface {
+	c.Configurer
+	DBConfig() *DBConfig
+}
+
+// DBShardConfigurer db shard configurer
+type DBShardConfigurer interface {
+	c.Configurer
+	DBShardConfig() *DBShardConfig
+}
+
+// EntityShardConfigurer entity shard configurer
+type EntityShardConfigurer interface {
+	c.Configurer
+	EntityShardConfig() *EntityShardConfig
+}
+
 //DBConfig 数据库配置
 type DBConfig struct {
 	User          string `yaml:"user"`
@@ -34,12 +52,6 @@ func (p *DBConfig) DBConfig() *DBConfig {
 	return p
 }
 
-// DBConfigurer DB配置器
-type DBConfigurer interface {
-	c.Configurer
-	DBConfig() *DBConfig
-}
-
 // DBShardConfig db shard config
 type DBShardConfig struct {
 	Shards  map[string]*DBConfig `yaml:"shards"`
@@ -64,13 +76,29 @@ func (p *DBShardConfig) Parse() error {
 	return nil
 }
 
-// ShardConfig implements DBShardConfigurer
-func (p *DBShardConfig) ShardConfig() *DBShardConfig {
+// DBShardConfig implements DBShardConfigurer
+func (p *DBShardConfig) DBShardConfig() *DBShardConfig {
 	return p
 }
 
-// DBShardConfigurer db shard configurer
-type DBShardConfigurer interface {
-	c.Configurer
-	ShardConfig() *DBShardConfig
+// ShardRuleConfig shard规则配置
+type ShardRuleConfig struct {
+	Name string            `yaml:"name"`
+	Conf map[string]string `yaml:"conf"`
+}
+
+// EntityShardConfig entity shad config
+type EntityShardConfig struct {
+	// pkgPath -> entity name -> shard name
+	Shards map[string]map[string]string `yaml:"shards"`
+}
+
+// Parse implements Configurer.Parse
+func (p *EntityShardConfig) Parse() error {
+	return nil
+}
+
+// EntityShardConfig implements EntityShardConfigurer
+func (p *EntityShardConfig) EntityShardConfig() *EntityShardConfig {
+	return p
 }
