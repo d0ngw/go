@@ -2,7 +2,10 @@ package orm
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
+
+	c "github.com/d0ngw/go/common"
 )
 
 // ShardPolicy 分片规则
@@ -10,6 +13,7 @@ type ShardPolicy string
 
 // ShardRule 分片规则的实现
 type ShardRule interface {
+	c.Configurer
 	// Policy 返回策略名称
 	Policy() ShardPolicy
 }
@@ -94,8 +98,48 @@ func (p *NumRangeRule) Parse() error {
 			return fmt.Errorf("invalid range begin:%d > end:%d", v.Begin, v.End)
 		}
 	}
-	//sort.Slice(p.Ranges,)
+	sort.Slice(p.Ranges, func(i, j int) bool {
+		return p.Ranges[i].Begin < p.Ranges[j].Begin
+	})
+
+	for i := 1; i < len(p.Ranges); i++ {
+		if p.Ranges[i].Begin <= p.Ranges[i-1].End {
+			return fmt.Errorf("invalid range[%d].Begin <= range[%d].End", i, i-1)
+		}
+	}
 	return nil
+}
+
+// OneRule 选择一个
+type OneRule struct {
+	Hash     *HashRule     `yaml:"hash"`
+	Named    *NamedRule    `yaml:"named"`
+	NumRange *NumRangeRule `yaml:"num_range"`
+	policy   ShardPolicy
+}
+
+// Parse implements Configurer
+func (p *OneRule) Parse() error {
+	var rules = []ShardRule{p.Hash, p.Named, p.NumRange}
+	for _, v := range rules {
+		if v == nil {
+			continue
+		}
+		if err := v.Parse(); err != nil {
+			return err
+		}
+		if p.policy == "" {
+			p.policy = v.Policy()
+		} else {
+			return fmt.Errorf("only allow one rule")
+		}
+	}
+	return nil
+}
+
+// Policy implements ShardPolicy.Policy
+func (p *OneRule) Policy() ShardPolicy {
+	return p.policy
 }
 
 // BuildHashShardFunc 构建Hash函数
@@ -139,10 +183,12 @@ func BuildNumRangeShardFunc(numRangeRule *NumRangeRule, valFunc func() int64) (f
 
 	f = func() (string, error) {
 		val := valFunc()
-		for _, v := range numRangeRule.Ranges {
-			if val >= v.Begin && val <= v.End {
-				return v.Name, nil
-			}
+		count := len(numRangeRule.Ranges)
+		n := sort.Search(count, func(i int) bool {
+			return numRangeRule.Ranges[i].Begin <= val && numRangeRule.Ranges[i].End >= val
+		})
+		if n < count {
+			return numRangeRule.Ranges[n].Name, nil
 		}
 		if numRangeRule.DefaultName != "" {
 			return numRangeRule.DefaultName, nil

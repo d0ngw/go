@@ -83,14 +83,14 @@ func (p *DBShardConfig) DBShardConfig() *DBShardConfig {
 
 // ShardRuleConfig shard规则配置
 type ShardRuleConfig struct {
-	Name string            `yaml:"name"`
-	Conf map[string]string `yaml:"conf"`
+	Name    string   `yaml:"name"`
+	OneRule *OneRule `yaml:"one"`
 }
 
 // EntityShardConfig entity shad config
 type EntityShardConfig struct {
 	// pkgPath -> entity name -> shard name
-	Shards map[string]map[string]string `yaml:"shards"`
+	Shards map[string]map[string]*ShardRuleConfig `yaml:"shards"`
 }
 
 // Parse implements Configurer.Parse
