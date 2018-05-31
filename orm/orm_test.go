@@ -10,23 +10,23 @@ import (
 )
 
 type tmodel struct {
-	ID        int64           `column:"id" pk:"Y"`
-	Name      sql.NullString  `column:"name"`
-	Time      sql.NullInt64   `column:"create_time"`
-	F64       sql.NullFloat64 `column:"f64"`
-	shardFunc ShardHandler
+	ID           int64           `column:"id" pk:"Y"`
+	Name         sql.NullString  `column:"name"`
+	Time         sql.NullInt64   `column:"create_time"`
+	F64          sql.NullFloat64 `column:"f64"`
+	tblShardFunc ShardHandler
 }
 
 func (tm *tmodel) TableName() string {
 	return "tt"
 }
 
-func (tm *tmodel) ShardFunc() ShardHandler {
-	return tm.shardFunc
+func (tm *tmodel) TableShardFunc() ShardHandler {
+	return tm.tblShardFunc
 }
 
-func (tm *tmodel) SetShardFunc(f ShardHandler) {
-	tm.shardFunc = f
+func (tm *tmodel) SetTableShardFunc(f ShardHandler) {
+	tm.tblShardFunc = f
 }
 
 func checkError(err error, noError bool, t *testing.T, msg string) {
@@ -225,7 +225,7 @@ func TestAddMeta(t *testing.T) {
 	defaultMetaReg.clean()
 	tm := tmodel{}
 	_meta := AddMeta(&tm)
-	fmt.Println(_meta.Name())
+	assert.Equal(t, "github.com/d0ngw/go/orm.tmodel", _meta.Name())
 }
 
 func TestShardEntity(t *testing.T) {

@@ -50,15 +50,15 @@ type Entity interface {
 }
 
 // ShardHandler 分片处理
-type ShardHandler func() (string, error)
+type ShardHandler func() (shardName string, err error)
 
-// ShardEntity 分片实体的接口
+// ShardEntity 支持按表分片实体的接口
 type ShardEntity interface {
 	Entity
-	//ShardFunc 分片函数
-	ShardFunc() ShardHandler
-	//SetShardFunc 设置分片函数
-	SetShardFunc(ShardHandler)
+	//TableShardFunc table分片函数
+	TableShardFunc() ShardHandler
+	//SetTableShardFunc table设置分片函数
+	SetTableShardFunc(ShardHandler)
 }
 
 // EntitySlice type for slice of EntityInterface

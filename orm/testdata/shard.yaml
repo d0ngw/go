@@ -1,0 +1,17 @@
+db_shards:
+  default: "test0"
+  shards:
+    test0:
+      user: "root"
+      pass: "123456"
+      url: "127.0.0.1:3306"
+      schema: "test"
+      charset: "utf8mb4"
+      maxConn: 100
+      maxIdle: 1
+
+entity_shards:
+  entities:
+    github.com/d0ngw/go/orm:
+      tmodel:
+

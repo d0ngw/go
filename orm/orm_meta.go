@@ -15,6 +15,7 @@ import (
 type Meta interface {
 	Name() string
 	Type() reflect.Type
+	FieldValue(entity Entity, name string) (val interface{}, err error)
 }
 
 //AddMeta register entity meta
@@ -39,6 +40,10 @@ func findMeta(typ reflect.Type) *meta {
 	pkgPath := typ.PkgPath()
 	name := typ.Name()
 
+	return findMetaWithPkgAndName(pkgPath, name)
+}
+
+func findMetaWithPkgAndName(pkgPath, name string) *meta {
 	pkgPathCache := defaultMetaReg.pkgCache[pkgPath]
 	if pkgPathCache == nil {
 		return nil
@@ -86,6 +91,20 @@ func (p *meta) Name() string {
 // Type implements Meta.Type
 func (p *meta) Type() reflect.Type {
 	return p.modelType
+}
+
+func (p *meta) FieldValue(entity Entity, name string) (val interface{}, err error) {
+	if entity == nil || name == "" {
+		return nil, fmt.Errorf("invalid params")
+	}
+
+	f := p.columnFields[name]
+	if f == nil {
+		return nil, fmt.Errorf("can't find field %s", name)
+	}
+
+	_, ind, _ := extract(entity)
+	return ind.FieldByIndex(f.index).Interface(), nil
 }
 
 type metaField struct {
@@ -283,7 +302,7 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 	return fields
 }
 
-func extract(model Entity) (reflect.Value, reflect.Value, reflect.Type) {
+func extract(model Entity) (val reflect.Value, ind reflect.Value, typ reflect.Type) {
 	return c.ExtractRefTuple(model)
 }
 

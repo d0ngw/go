@@ -60,6 +60,8 @@ type DBShardConfig struct {
 
 // Parse implements Configurer.Parse
 func (p *DBShardConfig) Parse() error {
+	c.Infof("db shards count:%d", len(p.Shards))
+
 	for k, v := range p.Shards {
 		if v == nil {
 			return fmt.Errorf("no db config for %s", k)
@@ -68,6 +70,7 @@ func (p *DBShardConfig) Parse() error {
 			return err
 		}
 	}
+
 	if p.Default != "" {
 		if p.Shards[p.Default] == nil {
 			return fmt.Errorf("can't find default shard %s", p.Default)
@@ -81,20 +84,82 @@ func (p *DBShardConfig) DBShardConfig() *DBShardConfig {
 	return p
 }
 
-// ShardRuleConfig shard规则配置
-type ShardRuleConfig struct {
-	Name    string   `yaml:"name"`
-	OneRule *OneRule `yaml:"one"`
+// EntityShardRuleConfig 实体的shard规则
+type EntityShardRuleConfig struct {
+	Name       string   `yaml:"name"`        //名称
+	DBShard    *OneRule `yaml:"db_shard"`    //数据库实例的配置
+	TableShard *OneRule `yaml:"table_shard"` //数据库表的配置
+	Default    bool     `yaml:"default"`     //是否是默认规则
+	meta       Meta
+}
+
+// Parse implements Configurer.Parse
+func (p *EntityShardRuleConfig) Parse() error {
+	if p.Name == "" {
+		return fmt.Errorf("invalid name")
+	}
+	if p.DBShard != nil {
+		if err := p.DBShard.Parse(); err != nil {
+			return fmt.Errorf("parse db_shard fail,name:%s,err:%v", p.Name, err)
+		}
+	}
+	if p.TableShard != nil {
+		if err := p.TableShard.Parse(); err != nil {
+			return fmt.Errorf("parse table_shard fail,name:%s,err:%v", p.Name, err)
+		}
+	}
+	return nil
+}
+
+type entityRule struct {
+	meta        Meta
+	defaultRule *EntityShardRuleConfig
+	rules       map[string]*EntityShardRuleConfig
 }
 
 // EntityShardConfig entity shad config
 type EntityShardConfig struct {
-	// pkgPath -> entity name -> shard name
-	Shards map[string]map[string]*ShardRuleConfig `yaml:"shards"`
+	// pkgPath -> entity name -> rule name -> rule config
+	Entities map[string]map[string]map[string]*EntityShardRuleConfig `yaml:"entities"`
+	entities map[string]map[string]*entityRule
 }
 
 // Parse implements Configurer.Parse
 func (p *EntityShardConfig) Parse() error {
+	if len(p.Entities) == 0 {
+		c.Infof("no entities")
+	}
+
+	entities := map[string]map[string]*entityRule{}
+
+	for pkgPath, pkgEntities := range p.Entities {
+		pkg := map[string]*entityRule{}
+		entities[pkgPath] = pkg
+		for entityName, rules := range pkgEntities {
+			meta := findMetaWithPkgAndName(pkgPath, entityName)
+			if meta == nil {
+				return fmt.Errorf("can't find meta for %s.%s", pkgPath, entityName)
+			}
+
+			entity := &entityRule{rules: map[string]*EntityShardRuleConfig{}, meta: meta}
+			pkg[entityName] = entity
+
+			for ruleName, rule := range rules {
+				if err := rule.Parse(); err != nil {
+					return fmt.Errorf("parse %s/%s %s fail,err:%v", pkgPath, entityName, ruleName, err)
+				}
+				if rule.Default {
+					if entity.defaultRule == nil {
+						entity.defaultRule = rule
+					} else {
+						return fmt.Errorf("duplicate default rule for %s/%s", pkgPath, entityName)
+					}
+				}
+				entity.rules[ruleName] = rule
+			}
+		}
+	}
+	p.entities = entities
 	return nil
 }
 

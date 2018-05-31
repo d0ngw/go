@@ -16,7 +16,7 @@ type OpCreator interface {
 	NewOp() (*Op, error)
 }
 
-// Op 数据库操作接口
+// Op 数据库操作接口,与sql.DB对应,封装了事务等
 type Op struct {
 	pool         *Pool   //数据连接
 	tx           *sql.Tx //事务

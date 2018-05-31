@@ -423,8 +423,8 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 // tblName 确定表名
 func tblName(entity Entity) (string, error) {
 	if shardEntity, ok := entity.(ShardEntity); ok {
-		if shardEntity.ShardFunc() != nil {
-			return shardEntity.ShardFunc()()
+		if shardEntity.TableShardFunc() != nil {
+			return shardEntity.TableShardFunc()()
 		}
 	}
 	return entity.TableName(), nil

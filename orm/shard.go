@@ -16,6 +16,10 @@ type ShardRule interface {
 	c.Configurer
 	// Policy 返回策略名称
 	Policy() ShardPolicy
+	// Shard 计算分片的名称
+	Shard(val interface{}) (shardName string, err error)
+	// ShardFieldName 用于分片的字段名称
+	ShardFieldName() string
 }
 
 const (
@@ -34,8 +38,9 @@ func (p ShardPolicy) IsValid() bool {
 
 // HashRule hash规则
 type HashRule struct {
-	Count      int64  `yaml:"count"`
-	NamePrefix string `yaml:"name_prefix"`
+	Count      int64  `yaml:"count"`       //hash的个数
+	NamePrefix string `yaml:"name_prefix"` //名称的前缀
+	FieldName  string `yaml:"field_name"`  //hash取值的字段名
 }
 
 // Policy implements ShardRule
@@ -51,7 +56,27 @@ func (p *HashRule) Parse() error {
 	if p.NamePrefix == "" {
 		return fmt.Errorf("invalid name_prefix")
 	}
+	if p.FieldName == "" {
+		return fmt.Errorf("invalid field_name")
+	}
 	return nil
+}
+
+// Shard implements ShardRule.Shard
+func (p *HashRule) Shard(val interface{}) (shardName string, err error) {
+	valInt64, err := c.Int64(val)
+	if err != nil {
+		return
+	}
+	if valInt64 < 0 {
+		return "", fmt.Errorf("invalid hash val %v", val)
+	}
+	return p.NamePrefix + strconv.FormatInt((valInt64%p.Count), 10), nil
+}
+
+// ShardFieldName 用于分片的字段名
+func (p *HashRule) ShardFieldName() string {
+	return p.FieldName
 }
 
 // NamedRule 指定命名
@@ -72,8 +97,19 @@ func (p *NamedRule) Parse() error {
 	return nil
 }
 
+// Shard implements ShardRule.Shard
+func (p *NamedRule) Shard(val interface{}) (shardName string, err error) {
+	return p.Name, nil
+}
+
+// ShardFieldName 用于分片的字段名
+func (p *NamedRule) ShardFieldName() string {
+	return ""
+}
+
 // NumRangeRule 数字区间
 type NumRangeRule struct {
+	FieldName   string `yaml:"field_name"` //分片取值的字段名
 	DefaultName string `yaml:"default_name"`
 	Ranges      []*struct {
 		Begin int64  `yaml:"begin"`
@@ -110,6 +146,30 @@ func (p *NumRangeRule) Parse() error {
 	return nil
 }
 
+// Shard implements ShardRule.Shard
+func (p *NumRangeRule) Shard(val interface{}) (shardName string, err error) {
+	valInt64, err := c.Int64(val)
+	if err != nil {
+		return
+	}
+	count := len(p.Ranges)
+	n := sort.Search(count, func(i int) bool {
+		return p.Ranges[i].Begin <= valInt64 && p.Ranges[i].End >= valInt64
+	})
+	if n < count {
+		return p.Ranges[n].Name, nil
+	}
+	if p.DefaultName != "" {
+		return p.DefaultName, nil
+	}
+	return "", fmt.Errorf("can't find name for val %d", val)
+}
+
+// ShardFieldName 用于分片的字段名
+func (p *NumRangeRule) ShardFieldName() string {
+	return p.FieldName
+}
+
 // OneRule 选择一个
 type OneRule struct {
 	Hash     *HashRule     `yaml:"hash"`
@@ -134,6 +194,10 @@ func (p *OneRule) Parse() error {
 			return fmt.Errorf("only allow one rule")
 		}
 	}
+
+	if p.policy == "" {
+		return fmt.Errorf("no rule")
+	}
 	return nil
 }
 
@@ -142,58 +206,30 @@ func (p *OneRule) Policy() ShardPolicy {
 	return p.policy
 }
 
-// BuildHashShardFunc 构建Hash函数
-func BuildHashShardFunc(hashRule *HashRule, valFunc func() int64) (f func() (string, error), err error) {
-	if hashRule == nil || valFunc == nil {
-		err = fmt.Errorf("invalid shard params")
+// Shard implements ShardPolicy.Shard
+func (p *OneRule) Shard(val interface{}) (shardName string, err error) {
+	rule, err := p.rule()
+	if err != nil {
 		return
 	}
-	f = func() (string, error) {
-		val := valFunc()
-		if val < 0 {
-			return "", fmt.Errorf("invalid hash val %d", val)
-		}
-		return hashRule.NamePrefix + strconv.FormatInt((val%hashRule.Count), 10), nil
-	}
-	return
+	return rule.Shard(val)
 }
 
-// BuildNamedShardFunc 构建Named函数
-func BuildNamedShardFunc(namedRule *NamedRule) (f func() (string, error), err error) {
-	if namedRule == nil {
-		err = fmt.Errorf("invalid nameRule")
-		return
-	}
-	f = func() (string, error) {
-		return namedRule.Name, nil
-	}
-	return
+// ShardFieldName 用于分片的字段名
+func (p *OneRule) ShardFieldName() string {
+	rule, _ := p.rule()
+	return rule.ShardFieldName()
 }
 
-// BuildNumRangeShardFunc 构建Num Range函数
-func BuildNumRangeShardFunc(numRangeRule *NumRangeRule, valFunc func() int64) (f func() (string, error), err error) {
-	if numRangeRule == nil {
-		err = fmt.Errorf("invalid numRangeRule")
-		return
+func (p *OneRule) rule() (ShardRule, error) {
+	switch p.policy {
+	case Hash:
+		return p.Hash, nil
+	case Named:
+		return p.Named, nil
+	case NumRange:
+		return p.NumRange, nil
+	default:
+		return nil, fmt.Errorf("unsupport shard policy:%s", p.policy)
 	}
-	if valFunc == nil {
-		err = fmt.Errorf("invalid valFunc")
-		return
-	}
-
-	f = func() (string, error) {
-		val := valFunc()
-		count := len(numRangeRule.Ranges)
-		n := sort.Search(count, func(i int) bool {
-			return numRangeRule.Ranges[i].Begin <= val && numRangeRule.Ranges[i].End >= val
-		})
-		if n < count {
-			return numRangeRule.Ranges[n].Name, nil
-		}
-		if numRangeRule.DefaultName != "" {
-			return numRangeRule.DefaultName, nil
-		}
-		return "", fmt.Errorf("can't find name for val %d", val)
-	}
-	return
 }
