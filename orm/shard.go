@@ -2,6 +2,7 @@ package orm
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 
@@ -109,8 +110,8 @@ func (p *NamedRule) ShardFieldName() string {
 
 // NumRangeRule 数字区间
 type NumRangeRule struct {
-	FieldName   string `yaml:"field_name"` //分片取值的字段名
-	DefaultName string `yaml:"default_name"`
+	FieldName   string `yaml:"field_name"`   //分片取值的字段名
+	DefaultName string `yaml:"default_name"` //默认名称
 	Ranges      []*struct {
 		Begin int64  `yaml:"begin"`
 		End   int64  `yaml:"end"`
@@ -140,7 +141,7 @@ func (p *NumRangeRule) Parse() error {
 
 	for i := 1; i < len(p.Ranges); i++ {
 		if p.Ranges[i].Begin <= p.Ranges[i-1].End {
-			return fmt.Errorf("invalid range[%d].Begin <= range[%d].End", i, i-1)
+			return fmt.Errorf("invalid range[%d].Begin %d <= range[%d].End %d", i, p.Ranges[i].Begin, i-1, p.Ranges[i-1].End)
 		}
 	}
 	return nil
@@ -152,12 +153,23 @@ func (p *NumRangeRule) Shard(val interface{}) (shardName string, err error) {
 	if err != nil {
 		return
 	}
-	count := len(p.Ranges)
-	n := sort.Search(count, func(i int) bool {
-		return p.Ranges[i].Begin <= valInt64 && p.Ranges[i].End >= valInt64
-	})
-	if n < count {
-		return p.Ranges[n].Name, nil
+
+	i, j, found := 0, len(p.Ranges), -1
+
+	for i < j {
+		h := int(uint(i+j) >> 1)
+		r := p.Ranges[h]
+		if r.Begin <= valInt64 && r.End >= valInt64 {
+			found = h
+			break
+		} else if r.Begin < valInt64 {
+			i = h + 1
+		} else if r.Begin > valInt64 {
+			j = h
+		}
+	}
+	if found >= 0 {
+		return p.Ranges[found].Name, nil
 	}
 	if p.DefaultName != "" {
 		return p.DefaultName, nil
@@ -176,13 +188,14 @@ type OneRule struct {
 	Named    *NamedRule    `yaml:"named"`
 	NumRange *NumRangeRule `yaml:"num_range"`
 	policy   ShardPolicy
+	rule     ShardRule
 }
 
 // Parse implements Configurer
 func (p *OneRule) Parse() error {
 	var rules = []ShardRule{p.Hash, p.Named, p.NumRange}
 	for _, v := range rules {
-		if v == nil {
+		if v == nil || reflect.ValueOf(v).IsNil() {
 			continue
 		}
 		if err := v.Parse(); err != nil {
@@ -190,12 +203,13 @@ func (p *OneRule) Parse() error {
 		}
 		if p.policy == "" {
 			p.policy = v.Policy()
+			p.rule = v
 		} else {
 			return fmt.Errorf("only allow one rule")
 		}
 	}
 
-	if p.policy == "" {
+	if p.policy == "" || p.rule == nil {
 		return fmt.Errorf("no rule")
 	}
 	return nil
@@ -208,28 +222,10 @@ func (p *OneRule) Policy() ShardPolicy {
 
 // Shard implements ShardPolicy.Shard
 func (p *OneRule) Shard(val interface{}) (shardName string, err error) {
-	rule, err := p.rule()
-	if err != nil {
-		return
-	}
-	return rule.Shard(val)
+	return p.rule.Shard(val)
 }
 
 // ShardFieldName 用于分片的字段名
 func (p *OneRule) ShardFieldName() string {
-	rule, _ := p.rule()
-	return rule.ShardFieldName()
-}
-
-func (p *OneRule) rule() (ShardRule, error) {
-	switch p.policy {
-	case Hash:
-		return p.Hash, nil
-	case Named:
-		return p.Named, nil
-	case NumRange:
-		return p.NumRange, nil
-	default:
-		return nil, fmt.Errorf("unsupport shard policy:%s", p.policy)
-	}
+	return p.rule.ShardFieldName()
 }

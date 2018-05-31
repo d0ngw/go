@@ -9,26 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type tmodel struct {
-	ID           int64           `column:"id" pk:"Y"`
-	Name         sql.NullString  `column:"name"`
-	Time         sql.NullInt64   `column:"create_time"`
-	F64          sql.NullFloat64 `column:"f64"`
-	tblShardFunc ShardHandler
-}
-
-func (tm *tmodel) TableName() string {
-	return "tt"
-}
-
-func (tm *tmodel) TableShardFunc() ShardHandler {
-	return tm.tblShardFunc
-}
-
-func (tm *tmodel) SetTableShardFunc(f ShardHandler) {
-	tm.tblShardFunc = f
-}
-
 func checkError(err error, noError bool, t *testing.T, msg string) {
 	if err != nil {
 		fmt.Printf("%v\n", err)

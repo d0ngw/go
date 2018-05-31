@@ -119,8 +119,8 @@ type entityRule struct {
 
 // EntityShardConfig entity shad config
 type EntityShardConfig struct {
-	// pkgPath -> entity name -> rule name -> rule config
-	Entities map[string]map[string]map[string]*EntityShardRuleConfig `yaml:"entities"`
+	// pkgPath -> entity name -> rules
+	Entities map[string]map[string][]*EntityShardRuleConfig `yaml:"entities"`
 	entities map[string]map[string]*entityRule
 }
 
@@ -128,6 +128,7 @@ type EntityShardConfig struct {
 func (p *EntityShardConfig) Parse() error {
 	if len(p.Entities) == 0 {
 		c.Infof("no entities")
+		return nil
 	}
 
 	entities := map[string]map[string]*entityRule{}
@@ -144,9 +145,9 @@ func (p *EntityShardConfig) Parse() error {
 			entity := &entityRule{rules: map[string]*EntityShardRuleConfig{}, meta: meta}
 			pkg[entityName] = entity
 
-			for ruleName, rule := range rules {
+			for _, rule := range rules {
 				if err := rule.Parse(); err != nil {
-					return fmt.Errorf("parse %s/%s %s fail,err:%v", pkgPath, entityName, ruleName, err)
+					return fmt.Errorf("parse %s/%s %s fail,err:%v", pkgPath, entityName, rule.Name, err)
 				}
 				if rule.Default {
 					if entity.defaultRule == nil {
@@ -155,7 +156,10 @@ func (p *EntityShardConfig) Parse() error {
 						return fmt.Errorf("duplicate default rule for %s/%s", pkgPath, entityName)
 					}
 				}
-				entity.rules[ruleName] = rule
+				if entity.rules[rule.Name] != nil {
+					return fmt.Errorf("duplicate default rule for %s/%s", pkgPath, entityName)
+				}
+				entity.rules[rule.Name] = rule
 			}
 		}
 	}

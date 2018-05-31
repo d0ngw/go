@@ -14,4 +14,38 @@ entity_shards:
   entities:
     github.com/d0ngw/go/orm:
       tmodel:
+        - name: default
+          default: true
+
+        - name: test_db_shard_hash
+          default: false
+          db_shard:
+            hash:
+              count: 100
+              name_prefix: "tt_"
+              field_name: "id"
+
+        - name: test_db_shard_named
+          default: false
+          db_shard:
+            named:
+              name: "tt"
+
+        - name: test_db_shard_num_range
+          default: false
+          db_shard:
+            num_range:
+              field_name: "id"
+              default_name: "tt"
+              ranges:
+                - begin: 101
+                  end: 200
+                  name: tt_200
+                - begin: 0
+                  end: 100
+                  name: tt_100
+                - begin: 500
+                  end: 1000
+                  name: tt_1000
+
 
