@@ -424,7 +424,9 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 func tblName(entity Entity) (string, error) {
 	if shardEntity, ok := entity.(ShardEntity); ok {
 		if shardEntity.TableShardFunc() != nil {
-			return shardEntity.TableShardFunc()()
+			tblName, err := shardEntity.TableShardFunc()()
+			c.Debugf("use shard func for %v,tblName:%s", shardEntity, tblName)
+			return tblName, err
 		}
 	}
 	return entity.TableName(), nil

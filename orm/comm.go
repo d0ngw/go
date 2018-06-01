@@ -61,6 +61,21 @@ type ShardEntity interface {
 	SetTableShardFunc(ShardHandler)
 }
 
+// BaseShardEntity 基础的分片实体
+type BaseShardEntity struct {
+	tblShardFunc ShardHandler
+}
+
+// TableShardFunc implements ShardEntity.TableShardFunc
+func (p *BaseShardEntity) TableShardFunc() ShardHandler {
+	return p.tblShardFunc
+}
+
+// SetTableShardFunc implements ShardEntity.SetTableShardFunc
+func (p *BaseShardEntity) SetTableShardFunc(f ShardHandler) {
+	p.tblShardFunc = f
+}
+
 // EntitySlice type for slice of EntityInterface
 type EntitySlice []Entity
 
@@ -78,12 +93,18 @@ func (p EntitySlice) ToInterface() []interface{} {
 
 // Pool 数据库连接池
 type Pool struct {
-	db *sql.DB
+	db   *sql.DB
+	name string
 }
 
 //NewOp 创建DBOper
 func (p *Pool) NewOp() *Op {
 	return &Op{pool: p}
+}
+
+// Name pool name
+func (p *Pool) Name() string {
+	return p.name
 }
 
 // PoolFunc the func to crate db pool

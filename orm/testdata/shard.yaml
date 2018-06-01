@@ -9,6 +9,14 @@ db_shards:
       charset: "utf8mb4"
       maxConn: 100
       maxIdle: 1
+    test_2:
+      user: "root"
+      pass: "123456"
+      url: "127.0.0.1:3306"
+      schema: "test"
+      charset: "utf8mb4"
+      maxConn: 100
+      maxIdle: 1
 
 entity_shards:
   entities:
@@ -22,6 +30,11 @@ entity_shards:
           db_shard:
             hash:
               count: 100
+              name_prefix: "test_"
+              field_name: "id"
+          table_shard:
+            hash:
+              count: 100
               name_prefix: "tt_"
               field_name: "id"
 
@@ -29,11 +42,28 @@ entity_shards:
           default: false
           db_shard:
             named:
+              name: "test0"
+          table_shard:
+            named:
               name: "tt"
 
         - name: test_db_shard_num_range
           default: false
           db_shard:
+            num_range:
+              field_name: "id"
+              default_name: "test0"
+              ranges:
+                - begin: 101
+                  end: 200
+                  name: test_200
+                - begin: 0
+                  end: 100
+                  name: test_100
+                - begin: 500
+                  end: 1000
+                  name: test_1000
+          table_shard:
             num_range:
               field_name: "id"
               default_name: "tt"
@@ -47,5 +77,17 @@ entity_shards:
                 - begin: 500
                   end: 1000
                   name: tt_1000
+
+      User:
+        - name: default
+          default: true
+          db_shard:
+            named:
+              name: "test_2"
+          table_shard:
+            hash:
+              count: 3
+              name_prefix: "user_"
+              field_name: "age"
 
 

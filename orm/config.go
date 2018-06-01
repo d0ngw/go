@@ -149,6 +149,7 @@ func (p *EntityShardConfig) Parse() error {
 				if err := rule.Parse(); err != nil {
 					return fmt.Errorf("parse %s/%s %s fail,err:%v", pkgPath, entityName, rule.Name, err)
 				}
+				rule.meta = meta
 				if rule.Default {
 					if entity.defaultRule == nil {
 						entity.defaultRule = rule

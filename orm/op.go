@@ -2,6 +2,8 @@ package orm
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"reflect"
 
 	c "github.com/d0ngw/go/common"
@@ -18,11 +20,12 @@ type OpCreator interface {
 
 // Op 数据库操作接口,与sql.DB对应,封装了事务等
 type Op struct {
-	pool         *Pool   //数据连接
-	tx           *sql.Tx //事务
-	txDone       bool    //事务是否结束
-	rollbackOnly bool    //是否只回滚
-	transDepth   int     //调用的深度
+	pool           *Pool          //数据连接
+	tx             *sql.Tx        //事务
+	txDone         bool           //事务是否结束
+	rollbackOnly   bool           //是否只回滚
+	transDepth     int            //调用的深度
+	sharDBSerevcie ShardDBService //分片服务
 }
 
 // DB sql.DB
@@ -33,6 +36,26 @@ func (p *Op) DB() *sql.DB {
 // Pool pool
 func (p *Op) Pool() *Pool {
 	return p.pool
+}
+
+// PoolName name of pool
+func (p *Op) PoolName() string {
+	return p.pool.name
+}
+
+// SetupTableShard use op pool setup entity table shard
+func (p *Op) SetupTableShard(entity Entity, ruleName string) error {
+	if p.sharDBSerevcie == nil {
+		return errors.New("no shard db service")
+	}
+	poolName, err := p.sharDBSerevcie.setupTableShard(entity, ruleName)
+	if err != nil {
+		return err
+	}
+	if poolName != p.PoolName() {
+		return fmt.Errorf("op.PoolName %s != entity.PoolName %s", p.PoolName(), poolName)
+	}
+	return nil
 }
 
 func (p *Op) close() {

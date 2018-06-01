@@ -2,9 +2,11 @@ package orm
 
 import (
 	"database/sql"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"testing"
 )
 
@@ -24,23 +26,26 @@ var (
 )
 
 type tmodel struct {
-	ID           int64           `column:"id" pk:"Y"`
-	Name         sql.NullString  `column:"name"`
-	Time         sql.NullInt64   `column:"create_time"`
-	F64          sql.NullFloat64 `column:"f64"`
-	tblShardFunc ShardHandler
+	BaseShardEntity
+	ID   int64           `column:"id" pk:"Y"`
+	Name sql.NullString  `column:"name"`
+	Time sql.NullInt64   `column:"create_time"`
+	F64  sql.NullFloat64 `column:"f64"`
 }
 
 func (tm *tmodel) TableName() string {
 	return "tt"
 }
 
-func (tm *tmodel) TableShardFunc() ShardHandler {
-	return tm.tblShardFunc
+type User struct {
+	BaseShardEntity
+	ID   int64          `column:"id" pk:"Y"`
+	Name sql.NullString `column:"name"`
+	Age  int64          `column:"age"`
 }
 
-func (tm *tmodel) SetTableShardFunc(f ShardHandler) {
-	tm.tblShardFunc = f
+func (p *User) TableName() string {
+	return "user"
 }
 
 func TestMain(m *testing.M) {
@@ -51,15 +56,30 @@ func TestMain(m *testing.M) {
 }
 
 func setUp() {
-	_, err := dbpool.db.Exec(string(setupSQL))
-	if err != nil {
-		panic(err)
+	sqls := strings.Split(string(setupSQL), "--")
+	for _, s := range sqls {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		_, err := dbpool.db.Exec(s)
+		if err != nil {
+			fmt.Println(s)
+			panic(err)
+		}
 	}
 }
 
 func teardown() {
-	_, err := dbpool.db.Exec(string(teardownSQL))
-	if err != nil {
-		panic(err)
+	sqls := strings.Split(string(teardownSQL), "--")
+	for _, s := range sqls {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		_, err := dbpool.db.Exec(s)
+		if err != nil {
+			panic(err)
+		}
 	}
 }

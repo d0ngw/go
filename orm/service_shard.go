@@ -6,8 +6,19 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// ShardDBService implements DBService interface
-type ShardDBService struct {
+// ShardDBService 支持分库,分表的DBService
+type ShardDBService interface {
+	DBService
+	// NewOpByShardName create op by shard name
+	NewOpByShardName(name string) (op *Op, err error)
+	// NewOpByEntity create Op for entity with rule name,if rule name is empty use default rule
+	NewOpByEntity(entity Entity, ruleName string) (op *Op, err error)
+	// setupTableShard setup ShardEntity.TableShardFunc with rule name,if rule name is empty use default rule
+	setupTableShard(entity Entity, ruleName string) (poolName string, err error)
+}
+
+// SimpleShardDBService implements DBService interface
+type SimpleShardDBService struct {
 	DBShardConfig     DBShardConfigurer     `inject:"_"`
 	EntityShardConfig EntityShardConfigurer `inject:"_,optional"`
 	poolFunc          PoolFunc
@@ -15,8 +26,13 @@ type ShardDBService struct {
 	defaultPool       *Pool
 }
 
+// NewSimpleShardDBService create
+func NewSimpleShardDBService(poolFunc PoolFunc) *SimpleShardDBService {
+	return &SimpleShardDBService{poolFunc: poolFunc}
+}
+
 // Init implements Initable.Init()
-func (p *ShardDBService) Init() error {
+func (p *SimpleShardDBService) Init() error {
 	if p.poolFunc == nil {
 		return fmt.Errorf("no pool func")
 	}
@@ -40,6 +56,7 @@ func (p *ShardDBService) Init() error {
 				return err
 			}
 			pools[k] = pool
+			pool.name = k
 		}
 
 		if config.Default != "" {
@@ -58,63 +75,51 @@ func (p *ShardDBService) Init() error {
 }
 
 // NewOp create default op
-func (p *ShardDBService) NewOp() *Op {
-	return p.defaultPool.NewOp()
+func (p *SimpleShardDBService) NewOp() (op *Op, err error) {
+	pool, err := p.getDefaultPool()
+	if err != nil {
+		return
+	}
+	op = pool.NewOp()
+	op.sharDBSerevcie = p
+	return
 }
 
-// NewOpByName create Op by pool name
-func (p *ShardDBService) NewOpByName(poolName string) (op *Op, err error) {
+// NewOpByShardName create Op by shard name
+func (p *SimpleShardDBService) NewOpByShardName(poolName string) (op *Op, err error) {
 	pool := p.pools[poolName]
 	if pool == nil {
 		err = fmt.Errorf("can't find pool by name %s", poolName)
 		return
 	}
 	op = pool.NewOp()
+	op.sharDBSerevcie = p
 	return
 }
 
-// NewOpByEntity create Op for entity with default rule
-func (p *ShardDBService) NewOpByEntity(entity Entity) (op *Op, err error) {
-	return p.newOpByEntity(entity, "")
-}
-
-// NewOpByEntityWithRuleName create op for entity with shard rule name
-func (p *ShardDBService) NewOpByEntityWithRuleName(entity Entity, ruleName string) (op *Op, err error) {
-	return p.newOpByEntity(entity, ruleName)
-}
-
-func (p *ShardDBService) newOpByEntity(entity Entity, ruleName string) (op *Op, err error) {
-	if entity == nil {
-		err = fmt.Errorf("invalid meta")
-		return
-	}
-
-	rule, err := p.findShardRule(entity, ruleName)
+// NewOpByEntity create Op for entity with rule name,if rule name is empty use default rule
+func (p *SimpleShardDBService) NewOpByEntity(entity Entity, ruleName string) (op *Op, err error) {
+	pool, err := p.matchPoolAndSetupTblShard(entity, ruleName)
 	if err != nil {
 		return
-	}
-
-	pool, err := p.findShardPool(entity, rule)
-	if err != nil {
-		return
-	}
-
-	if shardEntity, ok := entity.(ShardEntity); ok {
-		handler, err := p.findTableShardHandler(entity, rule)
-		if err != nil {
-			return nil, err
-		}
-		if handler != nil {
-			shardEntity.SetTableShardFunc(handler)
-
-		}
 	}
 
 	op = pool.NewOp()
+	op.sharDBSerevcie = p
 	return
 }
 
-func (p *ShardDBService) findShardRule(entity Entity, ruleName string) (rule *EntityShardRuleConfig, err error) {
+// setupTableShard setup ShardEntity.TableShardFunc
+func (p *SimpleShardDBService) setupTableShard(entity Entity, ruleName string) (poolName string, err error) {
+	pool, err := p.matchPoolAndSetupTblShard(entity, ruleName)
+	if err != nil {
+		return
+	}
+	poolName = pool.Name()
+	return
+}
+
+func (p *SimpleShardDBService) findShardRule(entity Entity, ruleName string) (rule *EntityShardRuleConfig, err error) {
 	if p.EntityShardConfig == nil || p.EntityShardConfig.EntityShardConfig() == nil {
 		return nil, nil
 	}
@@ -146,7 +151,7 @@ func (p *ShardDBService) findShardRule(entity Entity, ruleName string) (rule *En
 	return
 }
 
-func (p *ShardDBService) findShardPool(entity Entity, rule *EntityShardRuleConfig) (pool *Pool, err error) {
+func (p *SimpleShardDBService) findShardPool(entity Entity, rule *EntityShardRuleConfig) (pool *Pool, err error) {
 	if rule == nil || rule.DBShard == nil {
 		return p.getDefaultPool()
 	}
@@ -176,7 +181,7 @@ func (p *ShardDBService) findShardPool(entity Entity, rule *EntityShardRuleConfi
 	return
 }
 
-func (p *ShardDBService) findTableShardHandler(entity Entity, rule *EntityShardRuleConfig) (handler ShardHandler, err error) {
+func (p *SimpleShardDBService) findTableShardHandler(entity Entity, rule *EntityShardRuleConfig) (handler ShardHandler, err error) {
 	if rule == nil || rule.TableShard == nil {
 		return
 	}
@@ -204,7 +209,35 @@ func (p *ShardDBService) findTableShardHandler(entity Entity, rule *EntityShardR
 	return
 }
 
-func (p *ShardDBService) getDefaultPool() (pool *Pool, err error) {
+func (p *SimpleShardDBService) matchPoolAndSetupTblShard(entity Entity, ruleName string) (pool *Pool, err error) {
+	if entity == nil {
+		err = fmt.Errorf("invalid meta")
+		return
+	}
+
+	rule, err := p.findShardRule(entity, ruleName)
+	if err != nil {
+		return
+	}
+
+	pool, err = p.findShardPool(entity, rule)
+	if err != nil {
+		return
+	}
+
+	if shardEntity, ok := entity.(ShardEntity); ok {
+		handler, err := p.findTableShardHandler(entity, rule)
+		if err != nil {
+			return nil, err
+		}
+		if handler != nil {
+			shardEntity.SetTableShardFunc(handler)
+		}
+	}
+	return
+}
+
+func (p *SimpleShardDBService) getDefaultPool() (pool *Pool, err error) {
 	if p.defaultPool != nil {
 		return p.defaultPool, nil
 	}
