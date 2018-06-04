@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"fmt"
+	"reflect"
 	"strconv"
 	"testing"
 
@@ -197,7 +199,7 @@ func TestGetObjects(t *testing.T) {
 	}
 
 	keys = append([]string{"-1"}, keys...)
-	var users = make([]*TestUser, len(keys))
+	var users = make([]interface{}, len(keys))
 	c.FillSlice(len(keys), func(index int) { users[index] = &TestUser{} })
 
 	assert.NotNil(t, users[0])
@@ -206,9 +208,11 @@ func TestGetObjects(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 11, len(users))
 	assert.Nil(t, users[0])
+	fmt.Println(reflect.TypeOf(users[0]))
 	assert.True(t, users[0] == nil)
 	for i, v := range users[1:] {
-		assert.Equal(t, i, v.Age)
-		assert.Equal(t, "user"+strconv.Itoa(i), v.Name)
+		vu := v.(*TestUser)
+		assert.Equal(t, i, vu.Age)
+		assert.Equal(t, "user"+strconv.Itoa(i), vu.Name)
 	}
 }

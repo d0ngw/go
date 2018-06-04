@@ -201,13 +201,21 @@ func (p *RedisClient) GetObject(param Param, dest interface{}) (ok bool, err err
 
 // GetObjects batch get struct object,use MsgPackDecodeBytes to decode bytes and append  to dest
 func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest interface{}, getByKey func(key string, index int) (interface{}, error)) error {
+	if len(keys) == 0 {
+		return fmt.Errorf("not allow empty keys")
+	}
+
 	val, _, typ := c.ExtractRefTuple(dest)
 	if typ.Kind() != reflect.Slice {
 		return fmt.Errorf("dest must be pointer of slice")
 	}
 
-	elemTyp := typ.Elem()
-	if elemTyp.Kind() != reflect.Ptr || elemTyp.Elem().Kind() != reflect.Struct {
+	if val.Len() != len(keys) {
+		return fmt.Errorf("the length of keys %d != dest length %d", len(keys), val.Len())
+	}
+
+	valElemTyp := reflect.TypeOf(val.Index(0).Interface())
+	if valElemTyp.Kind() != reflect.Ptr || valElemTyp.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("dest element must be pointer of struct")
 	}
 
@@ -225,6 +233,8 @@ func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest inter
 	if err != nil {
 		return err
 	}
+
+	elemTyp := typ.Elem()
 
 	for i, reply := range replies {
 		if reply.Err != nil {

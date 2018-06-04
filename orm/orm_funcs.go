@@ -386,6 +386,7 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 	columns := strings.Join(fun.Map(func(field *metaField) string {
 		return field.column
 	}, insertFields).([]string), ",")
+
 	insertParams := strings.Join(toSlice("?", len(insertFields)), ",")
 
 	updateFields := fun.Filter(noIDPred, modelInfo.fields).([]*metaField)

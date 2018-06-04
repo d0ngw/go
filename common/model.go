@@ -1,5 +1,7 @@
 package common
 
+import "reflect"
+
 //PageParam 分页参数
 type PageParam struct {
 	Page     int `json:"page"`
@@ -41,9 +43,10 @@ type ResultSet interface {
 //PageResult 分页结果
 type PageResult struct {
 	PageParam
-	Total     int64       `json:"total"`
-	TotalPage int64       `json:"totalPage"`
-	Items     interface{} `json:"items"`
+	Total       int64                                      `json:"total"`
+	TotalPage   int64                                      `json:"totalPage"`
+	Items       interface{}                                `json:"items"`
+	ItemsSetter func(sum int, index int, elem interface{}) `json:"_"`
 }
 
 // SetTotal implements ResultSet.SetTotal
@@ -54,6 +57,21 @@ func (p *PageResult) SetTotal(total int64) {
 // SetData implements ResultSet.SetData
 func (p *PageResult) SetData(data interface{}) {
 	p.Items = data
+
+	if p.ItemsSetter == nil {
+		return
+	}
+
+	sliceVal, _, _ := ExtractRefTuple(data)
+	if sliceVal.Kind() != reflect.Slice {
+		return
+	}
+
+	itemsLen := sliceVal.Len()
+
+	for i := 0; i < itemsLen; i++ {
+		p.ItemsSetter(itemsLen, i, sliceVal.Index(i).Interface())
+	}
 }
 
 // CalTotalPage 计算总页数

@@ -85,8 +85,11 @@ func (p *RuleValidateService) Init() error {
 
 // Validate 验证
 func (p *RuleValidateService) Validate(ruleName string, s string) error {
-	p.BaseService.Name()
 	rule := p.rules[ruleName]
+	if rule == nil {
+		return fmt.Errorf("can't find validate rule %s", ruleName)
+	}
+
 	for _, v := range rule.validators {
 		if !v.Validate(s) {
 			return fmt.Errorf("%s", rule.desc)

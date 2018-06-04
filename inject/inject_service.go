@@ -40,7 +40,7 @@ func SetupInjector(config c.Configurer, env string, modules ...*Module) (*Inject
 	allConfs := []string{mainConf}
 	allConfs = append(allConfs, confs...)
 
-	err := c.LoadConfig(config, path.Join(workfDir, "conf"), allConfs...)
+	err := c.LoadConfig(config, path.Join("conf"), allConfs...)
 	if err != nil {
 		return nil, err
 	}

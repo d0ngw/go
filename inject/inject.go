@@ -196,8 +196,13 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 		}
 
 		foundBind := p.findBind(name, structField.Type)
-		if foundBind == nil && !optional {
-			panic(fmt.Errorf("Can't find bind instance for %v.%s", typ, structField.Name))
+		if foundBind == nil {
+			if !optional {
+				panic(fmt.Errorf("Can't find bind instance for %v.%s", typ, structField.Name))
+			} else {
+				c.Infof("skip optional %s %s ", name, structField.Type)
+				continue
+			}
 		}
 
 		if !fieldVal.CanSet() {
