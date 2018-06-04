@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS `tt` (
     `id` bigint(20) NOT NULL AUTO_INCREMENT,
     `name` varchar(64)  DEFAULT NULL,
+    `name2` varchar(64)  DEFAULT "",
     `create_time` bigint(20) DEFAULT NULL,
     `f64` double DEFAULT NULL,
     PRIMARY KEY (`id`)) 
@@ -9,6 +10,7 @@ CREATE TABLE IF NOT EXISTS `tt` (
 CREATE TABLE IF NOT EXISTS `tt_2` (
     `id` bigint(20) NOT NULL AUTO_INCREMENT,
     `name` varchar(64)  DEFAULT NULL,
+    `name2` varchar(64)  DEFAULT "",
     `create_time` bigint(20) DEFAULT NULL,
     `f64` double DEFAULT NULL,
     PRIMARY KEY (`id`)) 

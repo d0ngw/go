@@ -9,6 +9,12 @@ import (
 	"github.com/garyburd/redigo/redis"
 )
 
+// RedisConfigurer Redis配置器
+type RedisConfigurer interface {
+	c.Configurer
+	RedisConfig() *RedisConf
+}
+
 // RedisConf redis config
 type RedisConf struct {
 	Servers []*RedisServer      `yaml:"servers"` //实例列表
@@ -84,6 +90,11 @@ func (p *RedisConf) Parse() error {
 	}
 	p.groups = groups
 	return nil
+}
+
+// RedisConfig implements RedisConfigurer
+func (p *RedisConf) RedisConfig() *RedisConf {
+	return p
 }
 
 // RedisServer Redis实例的配置

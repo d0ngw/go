@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"testing"
 
+	c "github.com/d0ngw/go/common"
 	"github.com/garyburd/redigo/redis"
 	"github.com/stretchr/testify/assert"
 )
@@ -196,11 +197,16 @@ func TestGetObjects(t *testing.T) {
 	}
 
 	keys = append([]string{"-1"}, keys...)
-	var users []*TestUser
-	err := r.GetObjects(paramConf, keys, &users, nil)
+	var users = make([]*TestUser, len(keys))
+	c.FillSlice(len(keys), func(index int) { users[index] = &TestUser{} })
+
+	assert.NotNil(t, users[0])
+	assert.True(t, users[0] != nil)
+	err := r.GetObjects(paramConf, keys, users, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 11, len(users))
 	assert.Nil(t, users[0])
+	assert.True(t, users[0] == nil)
 	for i, v := range users[1:] {
 		assert.Equal(t, i, v.Age)
 		assert.Equal(t, "user"+strconv.Itoa(i), v.Name)

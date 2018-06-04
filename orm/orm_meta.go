@@ -196,7 +196,7 @@ func parseMeta(model Entity) (*meta, error) {
 
 	fields = parseFields(nil, ind, typ, &pkField, fields)
 	if pkField == nil {
-		panic(NewDBErrorf(nil, "Can't find pk column for %s", typ))
+		panic(NewDBErrorf(nil, "Can't find pk column for %s,found fields:%v", typ, fields))
 	} else {
 		mInfo.pkField = pkField
 	}
@@ -255,6 +255,17 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 			c.Debugf("skip unexported field %s", typ, field.Name)
 			continue
 		}
+		if field.Type.Kind() == reflect.Ptr {
+			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter", field.Name))
+		}
+		stFieldType := field.Type
+		if stFieldType.Kind() == reflect.Struct && !(reflect.PtrTo(stFieldType).Implements(scannerType) && stFieldType.Implements(valuerType)) {
+			if !field.Anonymous {
+				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", field.Name))
+			}
+			fields = parseFields(append(index, i), ind.Field(i), stFieldType, pkField, fields)
+			continue
+		}
 
 		tag := field.Tag
 		column, exist := tag.Lookup("column")
@@ -268,18 +279,6 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 
 		pk := strings.ToLower(tag.Get("pk"))
 		pkAuto := strings.ToLower(tag.Get("pkAuto"))
-
-		if field.Type.Kind() == reflect.Ptr {
-			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter", field.Name))
-		}
-		stFieldType := field.Type
-		if stFieldType.Kind() == reflect.Struct && !(reflect.PtrTo(stFieldType).Implements(scannerType) && stFieldType.Implements(valuerType)) {
-			if !field.Anonymous {
-				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", field.Name))
-			}
-			fields = parseFields(append(index, i), ind.Field(i), stFieldType, pkField, fields)
-			continue
-		}
 
 		fieldIndex := append(index, i)
 		mField := &metaField{

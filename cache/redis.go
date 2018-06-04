@@ -46,7 +46,7 @@ func NewRedisClientWithConf(conf *RedisConf) *RedisClient {
 func (p *RedisClient) getServerIndex(param Param, servers []*RedisServer) (index int, err error) {
 	serverCount := len(servers)
 	if serverCount == 0 {
-		return 0, fmt.Errorf("no servers for group %s", param.Group)
+		return 0, fmt.Errorf("no servers for group %s", param.Group())
 	}
 	if serverCount == 1 {
 		return 0, nil
@@ -200,20 +200,17 @@ func (p *RedisClient) GetObject(param Param, dest interface{}) (ok bool, err err
 }
 
 // GetObjects batch get struct object,use MsgPackDecodeBytes to decode bytes and append  to dest
-func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest interface{}, getByKey func(string) (interface{}, error)) error {
-	val, ind, typ := c.ExtractRefTuple(dest)
-	if val.Kind() != reflect.Ptr || !ind.CanSet() {
-		return fmt.Errorf("dest must be pointer of slice,and must can set")
-	}
+func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest interface{}, getByKey func(key string, index int) (interface{}, error)) error {
+	val, _, typ := c.ExtractRefTuple(dest)
 	if typ.Kind() != reflect.Slice {
 		return fmt.Errorf("dest must be pointer of slice")
 	}
+
 	elemTyp := typ.Elem()
 	if elemTyp.Kind() != reflect.Ptr || elemTyp.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("dest element must be pointer of struct")
 	}
 
-	destElemTyp := elemTyp.Elem()
 	pipeline, _ := NewPipeline(p)
 
 	defer pipeline.Close()
@@ -229,39 +226,35 @@ func (p *RedisClient) GetObjects(paramConf *ParamConf, keys []string, dest inter
 		return err
 	}
 
-	destSlice := reflect.MakeSlice(typ, 0, len(replies))
-	var zero = reflect.Zero(elemTyp)
-
 	for i, reply := range replies {
 		if reply.Err != nil {
 			return reply.Err
 		}
+		valElement := val.Index(i)
 
 		if bytes, _ := redis.Bytes(reply.Reply, err); bytes != nil {
-			val := reflect.New(destElemTyp)
-			err = MsgPackDecodeBytes(bytes, val.Interface())
+			err = MsgPackDecodeBytes(bytes, valElement.Interface())
 			if err != nil {
 				return err
 			}
-			destSlice = reflect.Append(destSlice, val)
 		} else {
 			var found bool
 			if getByKey != nil {
-				ret, err := getByKey(keys[i])
+				ret, err := getByKey(keys[i], i)
 				if err != nil {
 					return err
 				}
 				if ret != nil {
-					destSlice = reflect.Append(destSlice, reflect.ValueOf(ret))
+					valElement.Set(reflect.ValueOf(ret))
 					found = true
 				}
 			}
 			if !found {
-				destSlice = reflect.Append(destSlice, zero)
+				var zero = reflect.Zero(elemTyp)
+				valElement.Set(zero)
 			}
 		}
 	}
-	ind.Set(destSlice)
 	return nil
 }
 

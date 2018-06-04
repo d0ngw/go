@@ -458,3 +458,18 @@ func MGetString(m map[string]interface{}, key string) (string, error) {
 	return "", errors.New("invalid string type")
 }
 
+// FillSlice create slice
+func FillSlice(num int, fillFunc func(index int)) {
+	for i := 0; i < num; i++ {
+		fillFunc(i)
+	}
+}
+
+// ToSlice to slice
+func ToSlice(num int, fillFunc func(index int, dest []interface{})) []interface{} {
+	var ret = make([]interface{}, num)
+	for i := 0; i < num; i++ {
+		fillFunc(i, ret)
+	}
+	return ret
+}

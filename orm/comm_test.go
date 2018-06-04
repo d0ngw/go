@@ -25,9 +25,14 @@ var (
 	teardownSQL, _ = ioutil.ReadFile(path.Join("testdata", "teardown.sql"))
 )
 
+type AutoID struct {
+	ID    int64          `column:"id" pk:"Y"`
+	Name2 sql.NullString `column:"name2"`
+}
+
 type tmodel struct {
+	AutoID
 	BaseShardEntity
-	ID   int64           `column:"id" pk:"Y"`
 	Name sql.NullString  `column:"name"`
 	Time sql.NullInt64   `column:"create_time"`
 	F64  sql.NullFloat64 `column:"f64"`
