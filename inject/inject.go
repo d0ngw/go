@@ -239,3 +239,12 @@ func getFieldType(structObj interface{}, fieldIndex int) reflect.Type {
 	val := reflect.Indirect(reflect.ValueOf(structObj))
 	return val.Field(fieldIndex).Type()
 }
+
+// Merge 合并Module
+func Merge(modules ...[]*Module) []*Module {
+	var merged []*Module
+	for _, v := range modules {
+		merged = append(merged, v...)
+	}
+	return merged
+}

@@ -118,6 +118,15 @@ func (p *TokenMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 
 // CheckPermMiddleware 用于检查用户的权限
 type CheckPermMiddleware struct {
+	PermService PermServcie `inject:"_,optional"` //认证服务
+	useServcie  bool        //是否使用权限服务验证权限
+}
+
+// NewCheckPermMiddleware new
+func NewCheckPermMiddleware(useServcie bool) *CheckPermMiddleware {
+	return &CheckPermMiddleware{
+		useServcie: useServcie,
+	}
 }
 
 // Handle 检查权限
@@ -125,10 +134,46 @@ func (p *CheckPermMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		principal, _ := perm.GetPrincipal(r.Context())
-		if !perm.HasPermWithPrinciapl(ctx, principal) {
+		hasPerm := false
+		if p.useServcie {
+			if p.PermService == nil {
+				c.Errorf("need PermService")
+				RenderJSON(w, &Resp{Msg: "no perm servcie"})
+				return
+			}
+			requiredPerm, err := perm.GetRequiredPerm(ctx)
+			if err != nil {
+				c.Errorf("get required perm fail,err:%v", err)
+				RenderJSON(w, &Resp{Msg: "can't get requied permission"})
+				return
+			}
+			if len(requiredPerm) == 0 {
+				hasPerm = true
+			} else {
+				hasPerm, err = p.PermService.HasPerm(principal, requiredPerm)
+				if err != nil {
+					c.Errorf("check required perm fail,err:%v", err)
+					RenderJSON(w, &Resp{Msg: "can't check permission"})
+					return
+				}
+			}
+		} else {
+			hasPerm = perm.HasPermWithPrinciapl(ctx, principal)
+		}
+
+		if !hasPerm {
 			RenderJSON(w, &Resp{Msg: "No permission"})
 		} else {
 			next(w, r)
 		}
 	}
+}
+
+// Merge 合并Middleware
+func Merge(middlewares ...[]Middleware) []Middleware {
+	var merged []Middleware
+	for _, v := range middlewares {
+		merged = append(merged, v...)
+	}
+	return merged
 }

@@ -130,7 +130,6 @@ func (p *ResourceRegistry) BuildResourceGroup(depth int) (groups []*ResourceGrou
 		resource := v.Value.(*Resource)
 		ids := c.SplitTrimOmitEmpty(id, ".")
 		if len(ids) > depth {
-			fmt.Printf("%s\n", ids)
 			groupID := strings.Join(ids[0:depth], ".")
 			exist, ok := result.Get(groupID)
 			if !ok {
