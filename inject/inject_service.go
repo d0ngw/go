@@ -17,7 +17,7 @@ var (
 )
 
 // SetupInjector 从env指定的环境配置初始化配置,构建Injector
-func SetupInjector(config c.Configurer, env string, modules ...*Module) (*Injector, error) {
+func SetupInjector(config c.Configurer, addonConfig string, env string, modules ...*Module) (*Injector, error) {
 	injectMutex.Lock()
 	defer injectMutex.Unlock()
 
@@ -40,7 +40,17 @@ func SetupInjector(config c.Configurer, env string, modules ...*Module) (*Inject
 	allConfs := []string{mainConf}
 	allConfs = append(allConfs, confs...)
 
-	err := c.LoadConfig(config, path.Join("conf"), allConfs...)
+	existConfs := []string{}
+	//check
+	for _, confFile := range allConfs {
+		if _, err := os.Stat(path.Join("conf", confFile)); os.IsNotExist(err) {
+			c.Warnf("config %s does not exist,skip", confFile)
+		} else {
+			existConfs = append(existConfs, confFile)
+		}
+	}
+
+	err := c.LoadConfig(config, addonConfig, path.Join("conf"), existConfs...)
 	if err != nil {
 		return nil, err
 	}

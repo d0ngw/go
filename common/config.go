@@ -103,12 +103,16 @@ func Parse(conf interface{}) error {
 }
 
 // LoadConfig 从configDir目录下的多个path指定的配置文件中加载配置
-func LoadConfig(config Configurer, configDir string, pathes ...string) (err error) {
+func LoadConfig(config Configurer, addonConfig string, configDir string, pathes ...string) (err error) {
 	if len(pathes) == 0 {
 		return errInvalidConf
 	}
 
 	var content []byte
+	if addonConfig != "" {
+		content = append(content, addonConfig...)
+		content = append(content, []byte("\n")...)
+	}
 	for _, p := range pathes {
 		p = path.Join(configDir, p)
 		Infof("load conf from:%s", p)
