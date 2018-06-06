@@ -11,7 +11,7 @@ import (
 	"github.com/d0ngw/go/cache/counter"
 	c "github.com/d0ngw/go/common"
 	"github.com/d0ngw/go/orm"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 // load const params

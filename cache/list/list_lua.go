@@ -1,6 +1,6 @@
 package list
 
-import "github.com/garyburd/redigo/redis"
+import "github.com/gomodule/redigo/redis"
 
 var addLua = `
 local list_key = KEYS[1]

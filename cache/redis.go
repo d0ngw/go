@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	c "github.com/d0ngw/go/common"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 // redis的命令及响应

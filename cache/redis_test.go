@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	c "github.com/d0ngw/go/common"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 )
 

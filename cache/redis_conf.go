@@ -6,7 +6,7 @@ import (
 	"time"
 
 	c "github.com/d0ngw/go/common"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 // RedisConfigurer Redis配置器

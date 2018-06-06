@@ -9,7 +9,7 @@ import (
 
 	"github.com/d0ngw/go/cache"
 	c "github.com/d0ngw/go/common"
-	"github.com/garyburd/redigo/redis"
+	"github.com/gomodule/redigo/redis"
 )
 
 // PersistRedisCounter use redis implements Counter which be pesisisted by `Persist``
