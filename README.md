@@ -10,6 +10,7 @@ import (
 
 	c "github.com/d0ngw/go/common"
 	"github.com/d0ngw/go/inject"
+	"github.com/d0ngw/go/orm"
 )
 
 // WorkerApp woker服务,适用于后台执行的任务
@@ -66,10 +67,13 @@ func (p *WorkerApp) Run() {
 	shutdownHook.WaitShutdown()
 }
 
-
-var app = NewWorkerApp(xxxconfig,xxxmodules)
+var app *WorkerApp
 
 func init(){
+    var module = inject.NewModule()
+    module.Bind(orm.NewSimpleShardDBService(orm.NewMySQLDBPool))
+
+    app = NewWorkerApp(xxxconfig,[]*inject.Module{module})
     app.FlagInit()
 }
 
