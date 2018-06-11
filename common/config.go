@@ -104,7 +104,7 @@ func Parse(conf interface{}) error {
 
 // LoadConfig 从configDir目录下的多个path指定的配置文件中加载配置
 func LoadConfig(config Configurer, addonConfig string, configDir string, pathes ...string) (err error) {
-	if len(pathes) == 0 {
+	if len(pathes) == 0 && addonConfig == "" {
 		return errInvalidConf
 	}
 
