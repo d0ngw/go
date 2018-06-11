@@ -74,3 +74,10 @@ type ParamKey struct {
 func (p *ParamKey) Key() string {
 	return p.key
 }
+
+// NewWithExpire new key with expire
+func (p *ParamKey) NewWithExpire(expire int) *ParamKey {
+	var k = *p
+	k.expire = expire
+	return &k
+}

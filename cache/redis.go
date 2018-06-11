@@ -19,6 +19,8 @@ const (
 	HDEL             = "HDEL"
 	HGETALL          = "HGETALL"
 	HINCRBY          = "HINCRBY"
+	INCR             = "INCR"
+	INCRBY           = "INCRBY"
 	SET              = "SET"
 	SETEX            = "SETEX"
 	ZADD             = "ZADD"
@@ -115,15 +117,12 @@ func (p *RedisClient) Get(param Param) (reply interface{}, ok bool, err error) {
 	reply, err = p.Do(param, func(conn redis.Conn) (interface{}, error) {
 		if param.Expire() > 0 {
 			if err := conn.Send(GET, param.Key()); err != nil {
-				fmt.Printf("send cmd fail,err:%s", err)
 				return nil, err
 			}
 			if err := conn.Send(EXPIRE, param.Key(), param.Expire()); err != nil {
-				fmt.Printf("send cmd fail,err:%s", err)
 				return nil, err
 			}
 			if err := conn.Flush(); err != nil {
-				fmt.Printf("flush cmd fail,err:%s", err)
 				return nil, err
 			}
 			r, err := conn.Receive()
@@ -137,6 +136,33 @@ func (p *RedisClient) Get(param Param) (reply interface{}, ok bool, err error) {
 		ok = true
 	}
 	return
+}
+
+// IncrBy value from redis with param and key,if the param.Expire >0 then will EXPIRE the key
+func (p *RedisClient) IncrBy(param Param, increment int64) (val int64, err error) {
+	reply, err := p.Do(param, func(conn redis.Conn) (interface{}, error) {
+		if param.Expire() > 0 {
+			if err := conn.Send(INCRBY, param.Key(), increment); err != nil {
+				return nil, err
+			}
+			if err := conn.Send(EXPIRE, param.Key(), param.Expire()); err != nil {
+				return nil, err
+			}
+			if err := conn.Flush(); err != nil {
+				return nil, err
+			}
+			r, err := conn.Receive()
+			conn.Receive() //ignore expire
+			return r, err
+		}
+		return conn.Do(INCRBY, param.Key(), increment)
+	})
+	return redis.Int64(reply, err)
+}
+
+// Incr value from redis with param and key
+func (p *RedisClient) Incr(param Param) (val int64, err error) {
+	return p.IncrBy(param, 1)
 }
 
 // GetInt get int value from redis with param
@@ -452,4 +478,12 @@ func CheckNilErr(err error) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+// TTL get ttl for key
+func (p *RedisClient) TTL(param Param) (val int, err error) {
+	reply, err := p.Do(param, func(conn redis.Conn) (interface{}, error) {
+		return conn.Do("TTL", param.Key())
+	})
+	return redis.Int(reply, err)
 }

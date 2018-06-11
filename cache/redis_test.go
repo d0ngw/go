@@ -216,3 +216,33 @@ func TestGetObjects(t *testing.T) {
 		assert.Equal(t, "user"+strconv.Itoa(i), vu.Name)
 	}
 }
+
+func TestIncr(t *testing.T) {
+	paramConf := NewParamConf("test", "incu__", 10)
+
+	key := paramConf.NewParamKey("expire")
+	defer r.Del(key)
+	// set user
+	for i := 0; i < 10; i++ {
+		val, err := r.IncrBy(key, 2)
+		assert.NoError(t, err)
+		assert.Equal(t, 2*(i+1), val)
+	}
+
+	ttl, err := r.TTL(key)
+	assert.NoError(t, err)
+	assert.True(t, ttl > 0)
+
+	paramConf = NewParamConf("test", "incu__", 0)
+	key = paramConf.NewParamKey("noexpire")
+	defer r.Del(key)
+	for i := 0; i < 10; i++ {
+		val, err := r.IncrBy(key, 2)
+		assert.NoError(t, err)
+		assert.Equal(t, 2*(i+1), val)
+	}
+
+	ttl, err = r.TTL(key)
+	assert.NoError(t, err)
+	assert.Equal(t, -1, ttl)
+}
