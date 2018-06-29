@@ -34,19 +34,22 @@ func (p *PageParam) EndIndex() int {
 	return p.StartIndex() + p.PageSize - 1
 }
 
+// PageResultItemsSetter 结果设置
+type PageResultItemsSetter func(sum int, index int, elem interface{})
+
 // ResultSet is the result set with total and items
 type ResultSet interface {
 	SetTotal(total int64)
-	SetData(data interface{})
+	SetData(data interface{}, itemsSetter PageResultItemsSetter)
+	GetItemsSetter() PageResultItemsSetter
 }
 
 //PageResult 分页结果
 type PageResult struct {
 	PageParam
-	Total       int64                                      `json:"total"`
-	TotalPage   int64                                      `json:"totalPage"`
-	Items       interface{}                                `json:"items"`
-	ItemsSetter func(sum int, index int, elem interface{}) `json:"_"`
+	Total     int64       `json:"total"`
+	TotalPage int64       `json:"totalPage"`
+	Items     interface{} `json:"items"`
 }
 
 // SetTotal implements ResultSet.SetTotal
@@ -55,10 +58,10 @@ func (p *PageResult) SetTotal(total int64) {
 }
 
 // SetData implements ResultSet.SetData
-func (p *PageResult) SetData(data interface{}) {
+func (p *PageResult) SetData(data interface{}, itemsSetter PageResultItemsSetter) {
 	p.Items = data
 
-	if p.ItemsSetter == nil {
+	if itemsSetter == nil {
 		return
 	}
 
@@ -70,7 +73,7 @@ func (p *PageResult) SetData(data interface{}) {
 	itemsLen := sliceVal.Len()
 
 	for i := 0; i < itemsLen; i++ {
-		p.ItemsSetter(itemsLen, i, sliceVal.Index(i).Interface())
+		itemsSetter(itemsLen, i, sliceVal.Index(i).Interface())
 	}
 }
 

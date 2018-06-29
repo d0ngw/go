@@ -11,11 +11,13 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"unsafe"
 )
 
 // ExtractRefTuple 抽取反射的val:ValueOf ,ind:Indirect,typ:ind.Type
@@ -472,4 +474,34 @@ func ToSlice(num int, fillFunc func(index int, dest []interface{})) []interface{
 		fillFunc(i, ret)
 	}
 	return ret
+}
+
+// ByteSlice2String convert []byte to string
+func ByteSlice2String(bs []byte) (str string) {
+	sliceHdr := (*reflect.SliceHeader)(unsafe.Pointer(&bs))
+	strHdr := (*reflect.StringHeader)(unsafe.Pointer(&str))
+	strHdr.Data = sliceHdr.Data
+	strHdr.Len = sliceHdr.Len
+	// This KeepAlive line is essential to make the
+	// ByteSlice2String function be always valid
+	// when it is provided in custom package.
+	runtime.KeepAlive(&bs)
+	return
+}
+
+// StackTrace record the stack trace
+func StackTrace(all bool) string {
+	// Reserve 10K buffer at first
+	buf := make([]byte, 10240)
+	for {
+		size := runtime.Stack(buf, all)
+		// The size of the buffer may be not enough to hold the stacktrace,
+		// so double the buffer size
+		if size == len(buf) {
+			buf = make([]byte, len(buf)<<1)
+			continue
+		}
+		break
+	}
+	return string(buf)
 }
