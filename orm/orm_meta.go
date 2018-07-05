@@ -66,21 +66,22 @@ var (
 )
 
 type meta struct {
-	name                  string
-	pkField               *metaField
-	fields                []*metaField
-	columnFields          map[string]*metaField
-	modelType             reflect.Type
-	insertFunc            entityInsertFunc
-	updateFunc            entityUpdateFunc
-	updateColumnsFunc     entityUpdateColumnFunc
-	entityQueryFunc       entityQueryFunc
-	entityQueryColumnFunc entityQueryColumnFunc
-	clumnsQueryFunc       queryColumnsFunc
-	getFunc               entityGetFunc
-	delFunc               entityDeleteFunc
-	delEFunc              entityDeleteByIDFunc
-	insertOrUpdateFunc    entityInsertOrUpdateFunc
+	name                     string
+	pkField                  *metaField
+	fields                   []*metaField
+	columnFields             map[string]*metaField
+	modelType                reflect.Type
+	insertFunc               entityInsertFunc
+	updateFunc               entityUpdateFunc
+	updateExcludeColumnsFunc entityUpdateExcludeColumnsFunc
+	updateColumnsFunc        entityUpdateColumnFunc
+	entityQueryFunc          entityQueryFunc
+	entityQueryColumnFunc    entityQueryColumnFunc
+	clumnsQueryFunc          queryColumnsFunc
+	getFunc                  entityGetFunc
+	delFunc                  entityDeleteFunc
+	delEFunc                 entityDeleteByIDFunc
+	insertOrUpdateFunc       entityInsertOrUpdateFunc
 }
 
 // Name implements Meta.Name
@@ -213,6 +214,7 @@ func parseMeta(model Entity) (*meta, error) {
 	mInfo.fields = fields
 	mInfo.insertFunc = createInsertFunc(mInfo)
 	mInfo.updateFunc = createUpdateFunc(mInfo)
+	mInfo.updateExcludeColumnsFunc = createUpdateExcludeColmnsFunc(mInfo)
 	mInfo.updateColumnsFunc = createUpdateColumnsFunc(mInfo)
 	mInfo.entityQueryFunc = createQueryFunc(mInfo)
 	mInfo.entityQueryColumnFunc = createQueryColumnFunc(mInfo)

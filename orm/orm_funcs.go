@@ -13,6 +13,7 @@ import (
 
 type entityInsertFunc func(executor interface{}, entity Entity) error
 type entityUpdateFunc func(executor interface{}, entity Entity) (bool, error)
+type entityUpdateExcludeColumnsFunc func(executor interface{}, entity Entity, columns ...string) (bool, error)
 type entityUpdateColumnFunc func(executor interface{}, entity Entity, columns string, contition string, params []interface{}) (int64, error)
 type entityQueryFunc func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error)
 type entityQueryColumnFunc func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error)
@@ -130,12 +131,69 @@ func createInsertFunc(modelInfo *meta) entityInsertFunc {
 
 //构建实体模型的更新函数
 func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
-	updateFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*metaField)
+	updateFields := fun.Filter(noIDPred, modelInfo.fields).([]*metaField)
 	columns := strings.Join(fun.Map(func(field *metaField) string {
 		return field.column + "=?"
 	}, updateFields).([]string), ",")
 
 	return func(executor interface{}, entity Entity) (bool, error) {
+		ind := checkEntity(modelInfo, entity, executor)
+		id := ind.FieldByIndex(modelInfo.pkField.index).Interface()
+		paramValues := buildParamValues(ind, updateFields)
+		paramValues = append(paramValues, id)
+
+		tname, err := tblName(entity)
+		if err != nil {
+			return false, err
+		}
+
+		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", tname, columns, modelInfo.pkField.column, "?")
+		c.Debugf("updateSql:%s", updateSQL)
+		rs, err := exec(executor, updateSQL, paramValues)
+		if err != nil {
+			return false, err
+		}
+		//检查更新的记录数
+		rows, err := rs.RowsAffected()
+		if err == nil {
+			if rows != 1 {
+				return false, nil
+			}
+			return true, nil
+		}
+		return false, err
+	}
+}
+
+func createUpdateExcludeColmnsFunc(modelInfo *meta) entityUpdateExcludeColumnsFunc {
+	fields := fun.Filter(noIDPred, modelInfo.fields).([]*metaField)
+
+	return func(executor interface{}, entity Entity, excludeColumns ...string) (bool, error) {
+		updateFields := fields
+		if len(excludeColumns) > 0 {
+			var excludeColumnsMap = map[string]struct{}{}
+			for _, column := range excludeColumns {
+				excludeColumnsMap[column] = struct{}{}
+			}
+
+			leftFieldCount := len(updateFields) - len(excludeColumns)
+			if leftFieldCount <= 0 {
+				return false, errors.New("no column to update")
+			}
+
+			updateFields = make([]*metaField, 0, leftFieldCount)
+			for _, f := range fields {
+				if _, ok := excludeColumnsMap[f.column]; ok {
+					continue
+				}
+				updateFields = append(updateFields, f)
+			}
+		}
+
+		columns := strings.Join(fun.Map(func(field *metaField) string {
+			return field.column + "=?"
+		}, updateFields).([]string), ",")
+
 		ind := checkEntity(modelInfo, entity, executor)
 		id := ind.FieldByIndex(modelInfo.pkField.index).Interface()
 		paramValues := buildParamValues(ind, updateFields)

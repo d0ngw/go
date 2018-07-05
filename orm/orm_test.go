@@ -117,6 +117,20 @@ func TestUpdate(t *testing.T) {
 	})
 	checkError(err, true, t, "Update")
 
+	oldName2 := tm.Name2.String
+	tm.Name = sql.NullString{Valid: true, String: "newname"}
+	tm.Name2 = sql.NullString{Valid: true, String: "notchange"}
+
+	updated, err := UpdateExcludeColumns(dboper, &tm, "name2")
+	assert.NoError(t, err)
+	assert.True(t, updated)
+
+	reget, err := Get(dboper, &tm, tm.ID)
+	assert.NoError(t, err)
+	tm3 := reget.(*tmodel)
+	assert.Equal(t, "newname", tm3.Name.String)
+	assert.Equal(t, oldName2, tm3.Name2.String)
+
 	rt, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")
 	if !rt {

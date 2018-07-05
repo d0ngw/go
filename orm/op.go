@@ -204,6 +204,19 @@ func Update(op *Op, entity Entity) (bool, error) {
 	return modelMeta.updateFunc(op.DB(), entity)
 }
 
+// UpdateExcludeColumns 更新除columns之外的字段
+func UpdateExcludeColumns(op *Op, entity Entity, columns ...string) (bool, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		bvalue, err := modelMeta.updateExcludeColumnsFunc(op.tx, entity, columns...)
+		if err != nil {
+			return false, err
+		}
+		return reflect.ValueOf(bvalue).Bool(), nil
+	}
+	return modelMeta.updateExcludeColumnsFunc(op.DB(), entity, columns...)
+}
+
 // UpdateColumns 更新列
 func UpdateColumns(op *Op, entity Entity, columns string, condition string, params ...interface{}) (int64, error) {
 	modelMeta := findEntityMeta(entity)
