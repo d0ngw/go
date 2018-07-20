@@ -148,10 +148,14 @@ func (p *BoolValidator) Validate(param string) bool {
 // RegExValidator 正则表达式验证
 type RegExValidator struct {
 	pattern *regexp.Regexp //正则表达式
+	empty   bool           //是否允许为空
 }
 
 // Validate 正则表达式验证
 func (p *RegExValidator) Validate(param string) bool {
+	if param == "" && p.empty {
+		return true
+	}
 	return p.pattern.MatchString(param)
 }
 
@@ -288,10 +292,11 @@ func NewFloat64Validator(conf map[string]string) StrValidator {
 // NewRegexValidator 创建正则表达式验证,conf["pattern"] 正则表达式
 func NewRegexValidator(conf map[string]string) StrValidator {
 	pattern := conf["pattern"]
+	allowEmpty := "true" == strings.ToLower(conf["empty"])
 	if len(pattern) == 0 {
 		panic(fmt.Errorf("Invalid pattern %s", pattern))
 	}
-	return &RegExValidator{regexp.MustCompile(pattern)}
+	return &RegExValidator{pattern: regexp.MustCompile(pattern), empty: allowEmpty}
 }
 
 //默认的构建器的名称
