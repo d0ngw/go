@@ -75,3 +75,42 @@ func testFloat64(t *testing.T, v interface{}, av float64) {
 	assert.Nil(t, err)
 	assert.EqualValues(t, i, av)
 }
+
+type TestStruct struct {
+	ID int64
+}
+
+func TestStructCopier(t *testing.T) {
+	var from = &struct {
+		ID      int64
+		Name    string
+		Age     int32
+		Address []string
+		T       *TestStruct
+	}{
+		ID:      1,
+		Name:    "ok",
+		Age:     32,
+		Address: []string{"a", "b", "c"},
+		T:       &TestStruct{ID: 100},
+	}
+
+	var to = &struct {
+		Name string
+		TestStruct
+		Age     int32
+		Address []string
+		T       *TestStruct
+	}{}
+
+	copier, err := NewStructCopier(from, to)
+	assert.NoError(t, err)
+	err = copier(from, to)
+	assert.NoError(t, err)
+	assert.Equal(t, from.ID, to.ID)
+	assert.Equal(t, from.Name, to.Name)
+	assert.Equal(t, from.Age, to.Age)
+	assert.Equal(t, from.Address, to.Address)
+	assert.Equal(t, from.T.ID, to.T.ID)
+	t.Log(to.Address)
+}

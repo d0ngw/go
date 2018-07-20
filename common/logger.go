@@ -96,13 +96,24 @@ func Criticalf(format string, params ...interface{}) {
 }
 
 var (
-	logger     Logger = &SeeLogLogger{nil}
-	configFile string
+	logger Logger = &SeeLogLogger{nil}
 )
 
 //默认的配置
 const defaultConfig = `
     <seelog minlevel="info" type="sync">
+        <outputs formatid="common">
+			 <console/>
+        </outputs>
+        <formats>
+		<format id="common" format="%Date/%Time [%LEV] %RelFile:%Line %Msg%n" />
+        </formats>
+    </seelog>
+	`
+
+// DefaultDebugLoggConfig 默认的debug
+const DefaultDebugLoggConfig = `
+    <seelog minlevel="debug" type="sync">
         <outputs formatid="common">
 			 <console/>
         </outputs>
@@ -129,9 +140,19 @@ func init() {
 var m sync.Mutex
 var loggerInitd bool
 
-// InitLogger 初始化logger
+// InitLogger 从配置文件configFile初始化logger
 func InitLogger(configFile string) {
 	fmt.Fprintln(os.Stderr, "Use "+configFile+" init Logger")
+	initLogger(configFile, seelog.LoggerFromConfigAsFile)
+}
+
+// InitLoggerFromString 从config配置初始化logger
+func InitLoggerFromString(config string) {
+	initLogger(config, seelog.LoggerFromConfigAsString)
+}
+
+// initLogger 初始化logger
+func initLogger(config string, loader func(conf string) (seelog.LoggerInterface, error)) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -140,7 +161,7 @@ func InitLogger(configFile string) {
 		return
 	}
 
-	seelogger, err := seelog.LoggerFromConfigAsFile(configFile)
+	seelogger, err := loader(config)
 
 	if err != nil {
 		log.Panicf("Can't init Logger,error:%s", err)
