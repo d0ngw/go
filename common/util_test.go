@@ -104,12 +104,12 @@ func TestByteSlice2String(t *testing.T) {
 	t.Logf("str2:%p,bs1:%v,%p,cap:%d", &str2, bs1, &bs1, cap(bs1))
 }
 
-type CopyBase struct {
+type copyBase struct {
 	BaseName string
 }
 
 type CopyBase2 struct {
-	CopyBase
+	copyBase
 	BaseName2 string
 }
 

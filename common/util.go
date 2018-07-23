@@ -538,17 +538,16 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		fieldCount := typ.NumField()
 		for i := 0; i < fieldCount; i++ {
 			field := typ.Field(i)
-			if field.PkgPath != "" {
-				continue
-			}
-			name := field.Name
 			if field.Anonymous {
 				err = parseFields(field.Type, append(baseFieldIndex, field.Index...))
 				if err != nil {
 					return
 				}
 				continue
+			} else if field.PkgPath != "" {
+				continue
 			}
+			name := field.Name
 			toField, found := toTyp.FieldByName(name)
 			if !found {
 				Debugf("not found filed name %s", name)
