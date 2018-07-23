@@ -104,6 +104,15 @@ func TestByteSlice2String(t *testing.T) {
 	t.Logf("str2:%p,bs1:%v,%p,cap:%d", &str2, bs1, &bs1, cap(bs1))
 }
 
+type CopyBase struct {
+	BaseName string
+}
+
+type CopyBase2 struct {
+	CopyBase
+	BaseName2 string
+}
+
 func TestStructCopier(t *testing.T) {
 	var from = &struct {
 		ID      int64
@@ -111,6 +120,7 @@ func TestStructCopier(t *testing.T) {
 		Age     int32
 		Address []string
 		T       *TestStruct
+		CopyBase2
 	}{
 		ID:      1,
 		Name:    "ok",
@@ -118,13 +128,17 @@ func TestStructCopier(t *testing.T) {
 		Address: []string{"a", "b", "c"},
 		T:       &TestStruct{ID: 100},
 	}
+	from.BaseName = "b1"
+	from.BaseName2 = "b2"
 
 	var to = &struct {
 		Name string
 		TestStruct
-		Age     int32
-		Address []string
-		T       *TestStruct
+		Age       int32
+		Address   []string
+		T         *TestStruct
+		BaseName  string
+		BaseName2 string
 	}{}
 
 	copier, err := NewStructCopier(from, to)
@@ -136,6 +150,8 @@ func TestStructCopier(t *testing.T) {
 	assert.Equal(t, from.Age, to.Age)
 	assert.Equal(t, from.Address, to.Address)
 	assert.Equal(t, from.T.ID, to.T.ID)
+	assert.Equal(t, from.BaseName, to.BaseName)
+	assert.Equal(t, from.BaseName2, to.BaseName2)
 	t.Log(to.Address)
 }
 

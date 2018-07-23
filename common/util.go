@@ -532,34 +532,45 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 	}
 
 	var fromIndexes, toIndexes [][]int
-	fieldCount := fromInd.NumField()
-	for i := 0; i < fieldCount; i++ {
-		field := fromTyp.Field(i)
-		if field.PkgPath != "" {
-			continue
-		}
-		name := field.Name
-		if field.Anonymous {
-			err = fmt.Errorf("unsupport embed struct for from field %s", name)
-		}
-		toField, found := toTyp.FieldByName(name)
-		if !found {
-			Debugf("not found filed name %s", name)
-			continue
-		}
 
-		fromIndex := field.Index
-		toIndex := toField.Index
+	var parseFields func(typ reflect.Type, baseFieldIndex []int) (err error)
+	parseFields = func(typ reflect.Type, baseFieldIndex []int) (err error) {
+		fieldCount := typ.NumField()
+		for i := 0; i < fieldCount; i++ {
+			field := typ.Field(i)
+			if field.PkgPath != "" {
+				continue
+			}
+			name := field.Name
+			if field.Anonymous {
+				err = parseFields(field.Type, append(baseFieldIndex, field.Index...))
+				if err != nil {
+					return
+				}
+				continue
+			}
+			toField, found := toTyp.FieldByName(name)
+			if !found {
+				Debugf("not found filed name %s", name)
+				continue
+			}
 
-		Debugf("found field name %s,from index %v,to index %v", name, fromIndex, toIndex)
+			fromIndex := append(baseFieldIndex, field.Index...)
+			toIndex := toField.Index
 
-		if !field.Type.AssignableTo(toField.Type) {
-			err = fmt.Errorf("name %s can't assign %s to %s", name, field.Type, toField.Type)
-			return
+			Debugf("found field name %s,from index %v,to index %v", name, fromIndex, toIndex)
+
+			if !field.Type.AssignableTo(toField.Type) {
+				err = fmt.Errorf("name %s can't assign %s to %s", name, field.Type, toField.Type)
+				return
+			}
+			fromIndexes = append(fromIndexes, fromIndex)
+			toIndexes = append(toIndexes, toIndex)
 		}
-		fromIndexes = append(fromIndexes, fromIndex)
-		toIndexes = append(toIndexes, toIndex)
+		return
 	}
+
+	parseFields(fromTyp, nil)
 
 	copier = func(f, t interface{}) error {
 		if f == nil || t == nil {
