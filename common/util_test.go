@@ -138,3 +138,50 @@ func TestStructCopier(t *testing.T) {
 	assert.Equal(t, from.T.ID, to.T.ID)
 	t.Log(to.Address)
 }
+
+func TestIsValNil(t *testing.T) {
+	var i int
+	assert.False(t, IsValNil(i))
+
+	var ip *int
+	assert.True(t, IsValNil(ip))
+
+	var j float32
+	assert.False(t, IsValNil(j))
+
+	var bs []byte
+	var bsi interface{} = bs
+	assert.True(t, bs == nil)
+	assert.False(t, bsi == nil)
+	assert.True(t, IsValNil(bs))
+
+	var m map[string]string
+	assert.True(t, IsValNil(m))
+	assert.True(t, m == nil)
+
+	m = map[string]string{"a": "b"}
+	assert.False(t, m == nil)
+	assert.False(t, IsValNil(m))
+
+	var s string
+	assert.False(t, IsValNil(s))
+
+	assert.True(t, IsValNil(nil))
+	assert.False(t, IsValNil(struct{}{}))
+
+	var f func()
+	assert.True(t, IsValNil(f))
+
+	f = func() {}
+	assert.False(t, IsValNil(f))
+
+	var c chan int
+	assert.True(t, IsValNil(c))
+	c = make(chan int)
+	assert.False(t, IsValNil(c))
+
+	var ii interface{}
+	assert.True(t, IsValNil(ii))
+	ii = ""
+	assert.False(t, IsValNil(ii))
+}

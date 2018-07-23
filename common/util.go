@@ -576,3 +576,35 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 	}
 	return
 }
+
+type emptyInterface struct {
+	typ  *struct{}
+	word *struct{}
+}
+
+type emptySliceInterface struct {
+	typ  *struct{}
+	word *reflect.SliceHeader
+}
+
+// IsValNil 检查v的值是不是nil
+func IsValNil(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	typ := reflect.TypeOf(v)
+	kind := typ.Kind()
+	if kind == reflect.Ptr {
+		ei := (*emptyInterface)(unsafe.Pointer(&v))
+		return ei.word == nil
+	} else if kind == reflect.Slice {
+		ei := (*emptySliceInterface)(unsafe.Pointer(&v))
+		return ei.word.Data == 0
+	} else {
+		switch kind {
+		case reflect.Chan, reflect.Func, reflect.Map, reflect.Interface:
+			return reflect.ValueOf(v).IsNil()
+		}
+	}
+	return false
+}
