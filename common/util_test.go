@@ -80,6 +80,30 @@ type TestStruct struct {
 	ID int64
 }
 
+func TestByteSlice2String(t *testing.T) {
+	var bs []byte
+	t.Logf("bs:%v", bs)
+
+	str0 := ByteSlice2String(bs)
+	str1 := string(bs)
+	assert.Equal(t, str0, str1)
+	t.Logf("str0:`%s`,str1:`%s`,%p", str0, str1, &str1)
+
+	var bss = []byte("abcdefgh")
+	str1 = string(bss)
+	str2 := "1"
+	bs0 := String2ByteSlice(str1)
+	bs0[0] = 'A'
+
+	fmt.Printf("str1:%p,%s\n", &str1, str1)
+	assert.EqualValues(t, len(str1), len(bs0))
+	t.Logf("%s,%s,%d,%p", str1, string(bs0), bs0[0], &bs0)
+	bs0[0] = 1
+
+	bs1 := String2ByteSlice(str2)
+	t.Logf("str2:%p,bs1:%v,%p,cap:%d", &str2, bs1, &bs1, cap(bs1))
+}
+
 func TestStructCopier(t *testing.T) {
 	var from = &struct {
 		ID      int64

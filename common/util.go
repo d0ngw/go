@@ -478,14 +478,17 @@ func ToSlice(num int, fillFunc func(index int, dest []interface{})) []interface{
 
 // ByteSlice2String convert []byte to string
 func ByteSlice2String(bs []byte) (str string) {
-	sliceHdr := (*reflect.SliceHeader)(unsafe.Pointer(&bs))
-	strHdr := (*reflect.StringHeader)(unsafe.Pointer(&str))
-	strHdr.Data = sliceHdr.Data
-	strHdr.Len = sliceHdr.Len
-	// This KeepAlive line is essential to make the
-	// ByteSlice2String function be always valid
-	// when it is provided in custom package.
-	runtime.KeepAlive(&bs)
+	return *(*string)(unsafe.Pointer(&bs))
+}
+
+// String2ByteSlice convert string to []byte
+func String2ByteSlice(str string) (bs []byte) {
+	var bh reflect.SliceHeader
+	sh := (*reflect.StringHeader)(unsafe.Pointer(&str))
+	bh.Data, bh.Len, bh.Cap = sh.Data, sh.Len, sh.Len
+
+	bs = *(*[]byte)(unsafe.Pointer(&bh))
+	runtime.KeepAlive(&str)
 	return
 }
 
