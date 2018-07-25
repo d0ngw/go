@@ -91,5 +91,5 @@ func (p *PageResult) CalTotalPage() {
 //Query 基本的查询参数
 type Query struct {
 	PageParam
-	ID int64
+	ID int64 `json:"id"`
 }
