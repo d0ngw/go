@@ -13,6 +13,11 @@ type ValidatePair struct {
 	Value string
 }
 
+// NewValidatePair create ValidatePair
+func NewValidatePair(name, value string) *ValidatePair {
+	return &ValidatePair{Name: name, Value: value}
+}
+
 // ValidateService 验证服务
 type ValidateService interface {
 	Service
