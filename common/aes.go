@@ -34,6 +34,25 @@ func PKCS5UnPadding(origData []byte) ([]byte, error) {
 
 // AesEncrypt 对data用key加密,使用PKCS5 Padding
 func AesEncrypt(data, key []byte) (result []byte, err error) {
+	return aesEncrypt(data, key, nil)
+}
+
+// AesEncryptWithIV 对data用key加密,使用PKCS5 Padding
+func AesEncryptWithIV(data, key, iv []byte) (result []byte, err error) {
+	return aesEncrypt(data, key, iv)
+}
+
+// AesDecrypt 对data用key解密,使用PKCS5 Padding
+func AesDecrypt(data, key []byte) (result []byte, err error) {
+	return aesDecrypt(data, key, nil)
+}
+
+// AesDecryptWithIV 对data用key和iv解密加密,使用PKCS5 Padding
+func AesDecryptWithIV(data, key, iv []byte) (result []byte, err error) {
+	return aesDecrypt(data, key, iv)
+}
+
+func aesEncrypt(data, key, iv []byte) (result []byte, err error) {
 	defer func() {
 		if reErr := recover(); reErr != nil {
 			Errorf("AES Encrypt err:%s ", reErr)
@@ -49,14 +68,20 @@ func AesEncrypt(data, key []byte) (result []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	blockMode := cipher.NewCBCEncrypter(block, key[:blockSize])
+	if len(iv) == 0 {
+		iv = key[:blockSize]
+	}
+	if len(iv) != block.BlockSize() {
+		err = fmt.Errorf("invalid iv length %d", len(iv))
+		return
+	}
+	blockMode := cipher.NewCBCEncrypter(block, iv)
 	crypted := make([]byte, len(data))
 	blockMode.CryptBlocks(crypted, data)
 	return crypted, nil
 }
 
-// AesDecrypt 对data用key加密,使用PKCS5 Padding
-func AesDecrypt(data, key []byte) (result []byte, err error) {
+func aesDecrypt(data, key, iv []byte) (result []byte, err error) {
 	defer func() {
 		if reErr := recover(); reErr != nil {
 			Errorf("AES Decrypt err:%s", reErr)
@@ -69,7 +94,14 @@ func AesDecrypt(data, key []byte) (result []byte, err error) {
 		return nil, err
 	}
 	blockSize := block.BlockSize()
-	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
+	if len(iv) == 0 {
+		iv = key[:blockSize]
+	}
+	if len(iv) != block.BlockSize() {
+		err = fmt.Errorf("invalid iv length %d", len(iv))
+		return
+	}
+	blockMode := cipher.NewCBCDecrypter(block, iv)
 	origData := make([]byte, len(data))
 	blockMode.CryptBlocks(origData, data)
 	return PKCS5UnPadding(origData)
