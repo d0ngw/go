@@ -118,6 +118,7 @@ func (p *Op) BeginTx() (err error) {
 	}
 	if tx, err := p.DB().Begin(); err == nil {
 		p.tx = tx
+		p.txDone = false
 		return nil
 	}
 	return err
