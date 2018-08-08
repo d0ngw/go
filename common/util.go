@@ -569,7 +569,10 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		return
 	}
 
-	parseFields(fromTyp, nil)
+	err = parseFields(fromTyp, nil)
+	if err != nil {
+		return
+	}
 
 	copier = func(f, t interface{}) error {
 		if f == nil || t == nil {
