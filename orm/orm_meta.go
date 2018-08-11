@@ -108,6 +108,10 @@ func (p *meta) FieldValue(entity Entity, name string) (val interface{}, err erro
 	return ind.FieldByIndex(f.index).Interface(), nil
 }
 
+func (p *meta) String() string {
+	return fmt.Sprintf("name:%s,fields:%s,pkfield:%s,type:%s", p.name, p.fields, p.pkField, p.modelType)
+}
+
 type metaField struct {
 	name        string              //struct中的字段名称
 	column      string              //表列名
@@ -118,7 +122,7 @@ type metaField struct {
 }
 
 func (f *metaField) String() string {
-	return fmt.Sprintf("{name:%v,conlumn:%v,pk:%v,pkAuto:%v}", f.name, f.column, f.pk, f.pkAuto)
+	return fmt.Sprintf("{name:%v,conlumn:%v,pk:%v,pkAuto:%v,index:%v}", f.name, f.column, f.pk, f.pkAuto, f.index)
 }
 
 func (reg *metaReg) clean() {

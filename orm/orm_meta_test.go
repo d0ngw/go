@@ -56,7 +56,7 @@ func TestPaseMeta(t *testing.T) {
 		"name11": []int{8},
 	}
 	for _, field := range meta.fields {
-		t.Logf("field:%v,%v,%v", field, field.index, expectIndexs[field.column])
+		t.Logf("field:%v,%v", field, expectIndexs[field.column])
 		assert.EqualValues(t, field.index, expectIndexs[field.column])
 	}
 }
