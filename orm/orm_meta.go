@@ -201,12 +201,18 @@ func parseMeta(model Entity) (*meta, error) {
 	} else {
 		mInfo.pkField = pkField
 	}
+	dupName := map[string]struct{}{}
 	dupColumn := map[string]struct{}{}
 	for _, field := range fields {
-		if _, ok := dupColumn[field.name]; ok {
+		if _, ok := dupName[field.name]; ok {
 			panic(fmt.Errorf("Duplicate field name %s", field.name))
 		} else {
-			dupColumn[field.name] = struct{}{}
+			dupName[field.name] = struct{}{}
+		}
+		if _, ok := dupColumn[field.column]; ok {
+			panic(fmt.Errorf("Duplicate column name %s", field.column))
+		} else {
+			dupColumn[field.column] = struct{}{}
 		}
 	}
 	c.Debugf("Register Model:%s,fields:%s,pkFiled:%+v", fullName, fields, pkField)
@@ -265,7 +271,10 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 			if !field.Anonymous {
 				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", field.Name))
 			}
-			fields = parseFields(append(index, i), ind.Field(i), stFieldType, pkField, fields)
+
+			newIndex := make([]int, len(index))
+			copy(newIndex, index)
+			fields = parseFields(append(newIndex, i), ind.Field(i), stFieldType, pkField, fields)
 			continue
 		}
 
@@ -282,7 +291,9 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 		pk := strings.ToLower(tag.Get("pk"))
 		pkAuto := strings.ToLower(tag.Get("pkAuto"))
 
-		fieldIndex := append(index, i)
+		newIndex := make([]int, len(index))
+		copy(newIndex, index)
+		fieldIndex := append(newIndex, i)
 		mField := &metaField{
 			name:        field.Name,
 			column:      column,
