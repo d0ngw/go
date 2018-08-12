@@ -157,7 +157,10 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 	}
 
 	listKey := p.listCacheParam.NewParamKey(entity.GetOwnerID())
-	p.addToRedisList(listKey, 1, []*pairInt64{&pairInt64{entity.GetTargetID(), scoreID}})
+	_, err = p.addToRedisList(listKey, 1, []*pairInt64{&pairInt64{entity.GetTargetID(), scoreID}})
+	if err != nil {
+		return false, err
+	}
 	return true, nil
 }
 
@@ -178,9 +181,14 @@ func (p *Cache) Del(ownerID string, targetID int64) (bool, error) {
 		return false, nil
 	}
 
-	p.counterService.Incr(ownerID, counter.Fields{"v": -deleted})
+	if err := p.counterService.Incr(ownerID, counter.Fields{"v": -deleted}); err != nil {
+		return false, err
+	}
 	listKey := p.listCacheParam.NewParamKey(ownerID)
-	deleted, lastID, length, _ := p.delFromRedisList(listKey, targetID)
+	deleted, lastID, length, err := p.delFromRedisList(listKey, targetID)
+	if err != nil {
+		return false, err
+	}
 	if deleted > 0 {
 		if length < p.maxListCount && lastID > 0 {
 			preLoad, err := p.loadListFromDB(ownerID, 0, p.maxListCount-length, lastID)
@@ -210,9 +218,13 @@ func (p *Cache) GetIDForOwnerTarget(ownerID string, targetID int64) (id int64, o
 			return
 		}
 		if ok {
-			p.redisClient.Set(key, id)
+			if err = p.redisClient.Set(key, id); err != nil {
+				return
+			}
 		} else {
-			p.redisClient.Set(key, -1)
+			if err = p.redisClient.Set(key, -1); err != nil {
+				return
+			}
 		}
 	}
 	if id > 0 {
@@ -291,7 +303,7 @@ func (p *Cache) delFromRedisList(listKey cache.Param, targetID int64) (deleted, 
 	}
 	last := replySlice[1].([]interface{})
 	if len(last) > 0 {
-		lastTargetID, err = redis.Int64(last, nil)
+		lastTargetID, err = redis.Int64(last[0], nil)
 		if err != nil {
 			return
 		}
@@ -427,13 +439,26 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 	startInCacheList := curListCount > 0 && start < p.maxListCount && start < curListCount
 	if startInCacheList {
 		reply, err = p.redisClient.Do(listKey, func(conn redis.Conn) (interface{}, error) {
-			conn.Send(cache.ZRANGEWITHSCORES, listKey.Key(), start, end)
-			if listKey.Expire() > 0 {
-				conn.Send(cache.EXPIRE, listKey.Key(), listKey.Expire())
+			if err := conn.Send(cache.ZRANGEWITHSCORES, listKey.Key(), start, end); err != nil {
+				return nil, err
 			}
-			conn.Flush()
+			if listKey.Expire() > 0 {
+				if err := conn.Send(cache.EXPIRE, listKey.Key(), listKey.Expire()); err != nil {
+					return nil, err
+				}
+			}
+			if err := conn.Flush(); err != nil {
+				return nil, err
+			}
 			reply, err := conn.Receive()
-			conn.Receive()
+			if err != nil {
+				return nil, err
+			}
+			if listKey.Expire() > 0 {
+				if _, err := conn.Receive(); err != nil {
+					return nil, err
+				}
+			}
 			return reply, err
 		})
 		if err != nil {
@@ -461,7 +486,9 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 						return
 					}
 					targetAndScores = append(targetAndScores, loadedIDs...)
-					p.addToRedisList(listKey, 1, loadedIDs)
+					if _, err = p.addToRedisList(listKey, 1, loadedIDs); err != nil {
+						return
+					}
 				}
 			}
 			return

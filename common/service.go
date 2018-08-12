@@ -51,7 +51,7 @@ var validStateState = map[ServiceState][]ServiceState{
 
 // IsValidServiceState 检查ServiceState的状态转移是否有效
 func IsValidServiceState(oldState ServiceState, newState ServiceState) bool {
-	if targetStates, ok := validStateState[oldState]; ok == true {
+	if targetStates, ok := validStateState[oldState]; ok {
 		for _, targetState := range targetStates {
 			if targetState == newState {
 				return true

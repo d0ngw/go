@@ -16,8 +16,10 @@ func (fs NoDirFS) Open(name string) (http.File, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	stat, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
 	if stat.IsDir() {
 		index, err := fs.Fs.Open(name + "/index.html")
 		if err == nil {

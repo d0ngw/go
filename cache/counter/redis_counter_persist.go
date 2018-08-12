@@ -208,7 +208,11 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			c.Errorf("close conn err:%v", err)
+		}
+	}()
 
 	originLength, err := redis.Int64(conn.Do(cache.ZCARD, syncSetSlotKey))
 	if err != nil {

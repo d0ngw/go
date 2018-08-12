@@ -126,7 +126,12 @@ func (p *RedisClient) Get(param Param) (reply interface{}, ok bool, err error) {
 				return nil, err
 			}
 			r, err := conn.Receive()
-			conn.Receive() //ignore expire
+			if err != nil {
+				return nil, err
+			}
+			if _, err := conn.Receive(); err != nil {
+				return nil, err
+			}
 			return r, err
 		}
 		return conn.Do(GET, param.Key())
@@ -152,7 +157,12 @@ func (p *RedisClient) IncrBy(param Param, increment int64) (val int64, err error
 				return nil, err
 			}
 			r, err := conn.Receive()
-			conn.Receive() //ignore expire
+			if err != nil {
+				return nil, err
+			}
+			if _, err = conn.Receive(); err != nil {
+				return nil, err
+			}
 			return r, err
 		}
 		return conn.Do(INCRBY, param.Key(), increment)

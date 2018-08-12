@@ -246,10 +246,14 @@ func (p *NoPersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) err
 	}
 	defer pipeline.Close()
 	for k, v := range fieldAndDelta {
-		pipeline.Send(param, cache.HINCRBY, param.Key(), k, v)
+		if err := pipeline.Send(param, cache.HINCRBY, param.Key(), k, v); err != nil {
+			return err
+		}
 	}
 	if param.Expire() > 0 {
-		pipeline.Send(param, cache.EXPIRE, param.Key(), param.Expire())
+		if err := pipeline.Send(param, cache.EXPIRE, param.Key(), param.Expire()); err != nil {
+			return err
+		}
 	}
 	_, err = pipeline.Receive()
 	if err != nil {

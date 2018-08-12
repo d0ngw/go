@@ -90,10 +90,10 @@ func TestList(t *testing.T) {
 	for i := 1; i <= 100; i++ {
 		toAdd := &testListEntity{BaseEntity: BaseEntity{OwnerID: "d0ngw", TargetID: int64(i)}}
 		succ, err := listCache.Add(toAdd)
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, succ)
 		succ, err = listCache.Add(&testListEntity{BaseEntity: BaseEntity{OwnerID: "d0ngw", TargetID: int64(i)}})
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		assert.False(t, succ)
 	}
 
