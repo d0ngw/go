@@ -539,7 +539,9 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		for i := 0; i < fieldCount; i++ {
 			field := typ.Field(i)
 			if field.Anonymous {
-				err = parseFields(field.Type, append(baseFieldIndex, field.Index...))
+				newIndex := make([]int, len(baseFieldIndex))
+				copy(newIndex, baseFieldIndex)
+				err = parseFields(field.Type, append(newIndex, field.Index...))
 				if err != nil {
 					return
 				}
@@ -554,7 +556,9 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 				continue
 			}
 
-			fromIndex := append(baseFieldIndex, field.Index...)
+			newIndex := make([]int, len(baseFieldIndex))
+			copy(newIndex, baseFieldIndex)
+			fromIndex := append(newIndex, field.Index...)
 			toIndex := toField.Index
 
 			Debugf("found field name %s,from index %v,to index %v", name, fromIndex, toIndex)
