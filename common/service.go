@@ -105,10 +105,10 @@ func ServiceInit(service Service) bool {
 
 // ServiceStart 开始服务
 func ServiceStart(service Service) bool {
-	Infof("Start %T#%s,state:%s", service, service.Name(), service.State())
+	Infof("Starting %T#%s,state:%s", service, service.Name(), service.State())
 	service.setState(STARTING)
 	if service.Start() && service.setState(RUNNING) {
-		Debugf("Start %T#%s succ", service, service.Name())
+		Infof("%T#%s,state:%s", service, service.Name(), service.State())
 		return true
 	}
 	Infof("Start %T#%s fail", service, service.Name())
@@ -118,10 +118,10 @@ func ServiceStart(service Service) bool {
 
 // ServiceStop 停止服务
 func ServiceStop(service Service) bool {
-	Debugf("Stop %T#%s", service, service.Name())
+	Infof("Stop %T#%s", service, service.Name())
 	service.setState(STOPPING)
 	if service.Stop() && service.setState(TERMINATED) {
-		Debugf("Stop %T#%s succ", service, service.Name())
+		Infof("%T#%s,state:%s", service, service.Name(), service.State())
 		return true
 	}
 	Infof("Stop %T#%s fail", service, service.Name())
@@ -199,9 +199,8 @@ func NewServices(services []Service, start bool) *Services {
 	sort.Slice(sorted, func(i, j int) bool {
 		if start {
 			return sorted[i].GetStartOrder() < sorted[j].GetStartOrder()
-		} else {
-			return sorted[i].GetStopOrder() < sorted[j].GetStopOrder()
 		}
+		return sorted[i].GetStopOrder() < sorted[j].GetStopOrder()
 	})
 	return &Services{sorted: sorted}
 }
