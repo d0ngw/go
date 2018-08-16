@@ -1,7 +1,6 @@
 package common
 
 import (
-	"reflect"
 	"sort"
 	"sync"
 )
@@ -74,8 +73,12 @@ type Service interface {
 	Name() string
 	// Start 启动服务
 	Start() bool
+	// 启动的次序
+	GetStartOrder() int
 	// Stop 停止服务
 	Stop() bool
+	// 停止的次序
+	GetStopOrder() int
 	// State 服务的状态
 	State() ServiceState
 	// SetState 设置服务的状态
@@ -128,9 +131,11 @@ func ServiceStop(service Service) bool {
 
 // BaseService 提供基本的Service接口实现
 type BaseService struct {
-	SName     string       //服务的名称
+	SName     string //服务的名称
+	Order     int
 	state     ServiceState //服务的状态
 	stateLock sync.RWMutex //读写锁
+
 }
 
 // Name 服务名称
@@ -148,9 +153,19 @@ func (p *BaseService) Start() bool {
 	return true
 }
 
+// GetStartOrder 启动服务
+func (p *BaseService) GetStartOrder() int {
+	return p.Order
+}
+
 // Stop 停止服务
 func (p *BaseService) Stop() bool {
 	return true
+}
+
+// GetStopOrder 停止服务
+func (p *BaseService) GetStopOrder() int {
+	return -p.GetStartOrder()
 }
 
 // State 取得服务的状态
@@ -171,32 +186,24 @@ func (p *BaseService) setState(newState ServiceState) bool {
 	return false
 }
 
-// ServiceSorter Service的排序
-type ServiceSorter func(servies []Service) sort.Interface
-
 // Services 一组Service的集合
 type Services struct {
-	sorted []Service     //排序后的服务集合
-	sorter ServiceSorter //服务的排序
+	sorted []Service //排序后的服务集合
 }
 
 // NewServices 构建新的Service集合
-func NewServices(services []Service, serviceSorter ServiceSorter) *Services {
+func NewServices(services []Service, start bool) *Services {
 	//排序
-	var sorted []Service
-	if serviceSorter != nil {
-		t := serviceSorter(services)
-		sort.Sort(t)
-		tv := reflect.ValueOf(t)
-		a := make([]Service, 0, len(services))
-		for i := 0; i < len(services); i++ {
-			a = append(a, tv.Index(i).Interface().(Service))
+	var sorted = make([]Service, len(services))
+	copy(sorted, services)
+	sort.Slice(sorted, func(i, j int) bool {
+		if start {
+			return sorted[i].GetStartOrder() < sorted[j].GetStartOrder()
+		} else {
+			return sorted[i].GetStopOrder() < sorted[j].GetStopOrder()
 		}
-		sorted = a
-	} else {
-		sorted = services
-	}
-	return &Services{sorted: sorted, sorter: serviceSorter}
+	})
+	return &Services{sorted: sorted}
 }
 
 // Init 初始化服务集合

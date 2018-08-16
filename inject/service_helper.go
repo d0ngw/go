@@ -2,6 +2,7 @@ package inject
 
 import (
 	"fmt"
+
 	c "github.com/d0ngw/go/common"
 )
 
@@ -25,16 +26,16 @@ func (p *Injector) Init() error {
 }
 
 // Start 启动服务
-func (p *Injector) Start(sorter c.ServiceSorter) error {
-	return p.startOrStop(sorter, true)
+func (p *Injector) Start() error {
+	return p.startOrStop(true)
 }
 
 // Stop 停止服务
-func (p *Injector) Stop(sorter c.ServiceSorter) error {
-	return p.startOrStop(sorter, false)
+func (p *Injector) Stop() error {
+	return p.startOrStop(false)
 }
 
-func (p *Injector) startOrStop(sorter c.ServiceSorter, start bool) error {
+func (p *Injector) startOrStop(start bool) error {
 	var services []c.Service
 	for _, service := range p.GetInstancesByPrototype(struct{ s c.Service }{}) {
 		services = append(services, service.(c.Service))
@@ -44,7 +45,7 @@ func (p *Injector) startOrStop(sorter c.ServiceSorter, start bool) error {
 		return nil
 	}
 
-	sortedServices := c.NewServices(services, sorter)
+	sortedServices := c.NewServices(services, start)
 	if start {
 		if !sortedServices.Start() {
 			return fmt.Errorf("Start servcie fail")
