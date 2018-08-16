@@ -105,26 +105,26 @@ func ServiceInit(service Service) bool {
 
 // ServiceStart 开始服务
 func ServiceStart(service Service) bool {
-	Infof("Starting %T#%s,state:%s", service, service.Name(), service.State())
+	Infof("Starting %T %s,state:%s", service, service.Name(), service.State())
 	service.setState(STARTING)
 	if service.Start() && service.setState(RUNNING) {
-		Infof("%T#%s,state:%s", service, service.Name(), service.State())
+		Infof("%T %s,state:%s", service, service.Name(), service.State())
 		return true
 	}
-	Infof("Start %T#%s fail", service, service.Name())
+	Infof("Start %T %s fail", service, service.Name())
 	service.setState(FAILED)
 	return false
 }
 
 // ServiceStop 停止服务
 func ServiceStop(service Service) bool {
-	Infof("Stop %T#%s", service, service.Name())
+	Infof("Stop %T %s", service, service.Name())
 	service.setState(STOPPING)
 	if service.Stop() && service.setState(TERMINATED) {
-		Infof("%T#%s,state:%s", service, service.Name(), service.State())
+		Infof("%T %s,state:%s", service, service.Name(), service.State())
 		return true
 	}
-	Infof("Stop %T#%s fail", service, service.Name())
+	Infof("Stop %T %s fail", service, service.Name())
 	service.setState(FAILED)
 	return false
 }
@@ -230,8 +230,7 @@ func (p *Services) Start() bool {
 
 // Stop 停止服务
 func (p *Services) Stop() bool {
-	for i := len(p.sorted) - 1; i >= 0; i-- {
-		service := p.sorted[i]
+	for _, service := range p.sorted {
 		Infof("Stop service %T#%s", service, service.Name())
 		if !ServiceStop(service) {
 			Warnf("Stop service %T#%s fail", service, service.Name())
