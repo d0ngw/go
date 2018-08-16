@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"sort"
 	"sync"
 )
@@ -87,44 +88,43 @@ type Service interface {
 
 // ServiceInit 初始化服务
 func ServiceInit(service Service) bool {
-	Debugf("Init %T#%s", service, service.Name())
 	if service.State() == INITED {
-		Infof("%T#%s has been inited,skip", service, service.Name())
+		Infof("%s has been inited,skip", service)
 		return true
 	}
-	Infof("Init %T#%s", service, service.Name())
+	Infof("init %s", service)
 	err := service.Init()
 	if err == nil && service.setState(INITED) {
-		Debugf("Init %T#%s succ", service, service.Name())
+		Debugf("init %s succ", service)
 		return true
 	}
-	Infof("Init %T#%s fail,err:%s", service, service.Name(), err)
+	Infof("init %s fail,err:%s", service, err)
 	service.setState(FAILED)
 	return false
 }
 
 // ServiceStart 开始服务
 func ServiceStart(service Service) bool {
-	Infof("Starting %T %s,state:%s", service, service.Name(), service.State())
+	Infof("starting %s,state:%s", service, service.State())
 	service.setState(STARTING)
 	if service.Start() && service.setState(RUNNING) {
-		Infof("%T %s,state:%s", service, service.Name(), service.State())
+		Infof("%s,state:%s", service, service.State())
 		return true
 	}
-	Infof("Start %T %s fail", service, service.Name())
+	Infof("start %s fail", service)
 	service.setState(FAILED)
 	return false
 }
 
 // ServiceStop 停止服务
 func ServiceStop(service Service) bool {
-	Infof("Stop %T %s", service, service.Name())
+	Infof("stoping %s", service)
 	service.setState(STOPPING)
 	if service.Stop() && service.setState(TERMINATED) {
-		Infof("%T %s,state:%s", service, service.Name(), service.State())
+		Infof("%s,state:%s", service, service.State())
 		return true
 	}
-	Infof("Stop %T %s fail", service, service.Name())
+	Infof("stop %s fail", service)
 	service.setState(FAILED)
 	return false
 }
@@ -186,6 +186,14 @@ func (p *BaseService) setState(newState ServiceState) bool {
 	return false
 }
 
+func (p *BaseService) String() string {
+	name := fmt.Sprintf("%T", p)
+	if p.Name() != "" {
+		name += "#" + p.Name()
+	}
+	return name
+}
+
 // Services 一组Service的集合
 type Services struct {
 	sorted []Service //排序后的服务集合
@@ -209,7 +217,7 @@ func NewServices(services []Service, start bool) *Services {
 func (p *Services) Init() bool {
 	for _, service := range p.sorted {
 		if !ServiceInit(service) {
-			Warnf("Init service %T#%s fail", service, service.Name())
+			Warnf("init %s fail", service)
 			return false
 		}
 	}
@@ -218,10 +226,10 @@ func (p *Services) Init() bool {
 
 // Start 启动服务
 func (p *Services) Start() bool {
-	for _, service := range p.sorted {
-		Infof("Start service %T#%s", service, service.Name())
+	for i, service := range p.sorted {
+		Infof("start %s,order:%d", service, i)
 		if !ServiceStart(service) {
-			Warnf("Start service %T#%s fail", service, service.Name())
+			Warnf("start %s fail", service)
 			return false
 		}
 	}
@@ -230,10 +238,10 @@ func (p *Services) Start() bool {
 
 // Stop 停止服务
 func (p *Services) Stop() bool {
-	for _, service := range p.sorted {
-		Infof("Stop service %T#%s", service, service.Name())
+	for i, service := range p.sorted {
+		Infof("stop %s,order:%d", service, i)
 		if !ServiceStop(service) {
-			Warnf("Stop service %T#%s fail", service, service.Name())
+			Warnf("stop %s fail", service)
 		}
 	}
 	return true
