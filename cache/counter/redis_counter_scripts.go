@@ -1,6 +1,7 @@
 package counter
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 
@@ -9,16 +10,22 @@ import (
 
 // Scripts define persist counter lua scripts
 type Scripts struct {
-	Update  string `yaml:"update_lua"`
-	SetSync string `yaml:"sync_set_lua"`
-	Evict   string `yaml:"evict_lua"`
-	HgetAll string `yaml:"hgetall_lua"`
-	Del     string `yaml:"del_lua"`
-	update  *redis.Script
-	setSync *redis.Script
-	evict   *redis.Script
-	hgetAll *redis.Script
-	del     *redis.Script
+	Update         string `yaml:"update_lua"`
+	SetSync        string `yaml:"sync_set_lua"`
+	Evict          string `yaml:"evict_lua"`
+	HgetAll        string `yaml:"hgetall_lua"`
+	Del            string `yaml:"del_lua"`
+	loadFromString bool
+	update         *redis.Script
+	setSync        *redis.Script
+	evict          *redis.Script
+	hgetAll        *redis.Script
+	del            *redis.Script
+}
+
+//NewScripts new
+func NewScripts(loadFromString bool) *Scripts {
+	return &Scripts{loadFromString: loadFromString}
 }
 
 // Lua
@@ -41,8 +48,14 @@ func (p *Scripts) Init() (err error) {
 	}
 
 	for _, v := range scripts {
-		if err := p.loadScriptFromFile(v.path, v.dest); err != nil {
-			return err
+		if p.loadFromString {
+			if err := p.loadScriptFromString(v.path, v.dest); err != nil {
+				return err
+			}
+		} else {
+			if err := p.loadScriptFromFile(v.path, v.dest); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -57,6 +70,15 @@ func (p *Scripts) loadScriptFromFile(luaPath string, dest **redis.Script) error 
 		return fmt.Errorf("empty lua script in %s", luaPath)
 	}
 	script := redis.NewScript(1, string(data))
+	*dest = script
+	return nil
+}
+
+func (p *Scripts) loadScriptFromString(luaData string, dest **redis.Script) error {
+	if len(luaData) == 0 {
+		return errors.New("empty lua script in %s")
+	}
+	script := redis.NewScript(1, string(luaData))
 	*dest = script
 	return nil
 }
