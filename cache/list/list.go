@@ -79,8 +79,8 @@ type CounterEntity struct {
 	counter.BaseEntity
 }
 
-// Entity implements  EntityCounter.Entity
-func (p *CounterEntity) Entity(counterID string, fields counter.Fields) (orm.Entity, error) {
+// ToBaseEntity to base entity
+func (p *CounterEntity) ToBaseEntity(counterID string, fields counter.Fields) (*CounterEntity, error) {
 	e, err := p.BaseEntity.ToBaseEntity(counterID, fields)
 	if err != nil {
 		return nil, err

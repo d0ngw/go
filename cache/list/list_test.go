@@ -22,6 +22,16 @@ func (p *testCounterEntity) TableName() string {
 	return "v"
 }
 
+func (p *testCounterEntity) Entity(counterID string, fields counter.Fields) (orm.Entity, error) {
+	e, err := p.CounterEntity.ToBaseEntity(counterID, fields)
+	if err != nil {
+		return nil, err
+	}
+	return &testCounterEntity{
+		CounterEntity: *e,
+	}, nil
+}
+
 type testListEntity struct {
 	BaseEntity
 }
