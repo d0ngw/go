@@ -55,7 +55,7 @@ func (p *PersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) error
 	syncSetKey := p.syncSetKey(counterKey)
 	updateArgs := p.updateArgs(syncSetKey, LUAFALSE, fieldAndDelta)
 
-	param := p.cacheParam.NewParamKey(counterKey)
+	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
 
 	exist, updated, err := p.updateReply(p.redisClient().Eval(param, p.scripts.update, updateArgs...))
 	if err != nil {
@@ -89,7 +89,7 @@ func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
 	syncSetKey := p.syncSetKey(counterKey)
 
 	getArgs := []interface{}{syncSetKey, strconv.FormatInt(lastAccessTime, 10)}
-	param := p.cacheParam.NewParamKey(counterKey)
+	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
 
 	reply, err := redis.Strings(p.redisClient().Eval(param, p.scripts.hgetAll, getArgs...))
 	if err != nil {
@@ -132,7 +132,7 @@ func (p *PersistRedisCounter) Del(counterID string) (err error) {
 	}
 	counterKey := p.counterKey(counterID)
 	delArgs := []interface{}{p.syncSetKey(counterKey)}
-	_, err = p.redisClient().Eval(p.cacheParam.NewParamKey(counterKey), p.scripts.del, delArgs...)
+	_, err = p.redisClient().Eval(p.cacheParam.NewParamKeyWithoutPrefix(counterKey), p.scripts.del, delArgs...)
 	return
 }
 

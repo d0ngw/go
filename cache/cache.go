@@ -64,6 +64,14 @@ func (p *ParamConf) NewParamKey(key string) *ParamKey {
 	}
 }
 
+// NewParamKeyWithoutPrefix create new ParamKey without p.keyPrefix
+func (p *ParamConf) NewParamKeyWithoutPrefix(key string) *ParamKey {
+	return &ParamKey{
+		ParamConf: p,
+		key:       key,
+	}
+}
+
 // ParamKey is the cache param with key
 type ParamKey struct {
 	*ParamConf
