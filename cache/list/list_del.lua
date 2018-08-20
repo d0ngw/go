@@ -15,7 +15,7 @@ end
 redis.call("PERSIST", list_key)
 local exist = redis.call("EXISTS", list_key)
 local deleted = 0
-local last_member = ""
+local last_member = {}
 local length = 0
 
 if exist == 1 then
