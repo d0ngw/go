@@ -6,6 +6,8 @@ type Fields map[string]int64
 
 // Counter service
 type Counter interface {
+	// GetName counter name
+	GetName() string
 	// Incr increase the counterID with fieldAndDelta
 	Incr(counterID string, fieldAndDelta Fields) error
 

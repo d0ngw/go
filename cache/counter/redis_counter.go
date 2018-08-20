@@ -35,6 +35,11 @@ func NewPersistRedisCounter(name string, redisClientFunc func() *cache.RedisClie
 	}
 }
 
+// GetName implements Counter.GetName
+func (p *PersistRedisCounter) GetName() string {
+	return p.Name
+}
+
 // Init implements Servcie.Init
 func (p *PersistRedisCounter) Init() error {
 	if c.HasNil(p.redisClient, p.scripts, p.persist, p.cacheParam) {
@@ -231,6 +236,11 @@ func (p *NoPersistRedisCounter) Init() error {
 		return fmt.Errorf("RedisClient,cacheParam must not be nil")
 	}
 	return nil
+}
+
+// GetName implements Counter.GetName
+func (p *NoPersistRedisCounter) GetName() string {
+	return p.Name
 }
 
 // Incr implements Counter.Incr
