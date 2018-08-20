@@ -12,7 +12,7 @@ import (
 )
 
 var r *cache.RedisClient
-var dbService orm.DBService
+var dbService orm.ShardDBService
 
 type testCounterEntity struct {
 	CounterEntity
@@ -32,18 +32,23 @@ func (p *testListEntity) TableName() string {
 
 func init() {
 	var err error
-	config := &orm.DBConfig{
-		User:    "root",
-		Pass:    "123456",
-		URL:     "127.0.0.1:3306",
-		Schema:  "test",
-		MaxConn: 100,
-		MaxIdle: 10}
+	config := &orm.DBShardConfig{
+		Shards: map[string]*orm.DBConfig{
+			"test": &orm.DBConfig{
+				User:    "root",
+				Pass:    "123456",
+				URL:     "127.0.0.1:3306",
+				Schema:  "test",
+				MaxConn: 100,
+				MaxIdle: 10},
+		},
+		Default: "test",
+	}
 
-	simpleDBService := orm.NewSimpleDBService(orm.NewMySQLDBPool)
-	simpleDBService.Config = config
+	shardDBService := orm.NewSimpleShardDBService(orm.NewMySQLDBPool)
+	shardDBService.DBShardConfig = config
 
-	dbService = simpleDBService
+	dbService = shardDBService
 	dbService.Init()
 
 	redisServer := &cache.RedisServer{
@@ -79,12 +84,13 @@ func TestList(t *testing.T) {
 	err = scripts.Init()
 	assert.Nil(t, err)
 
-	persist, err := counter.NewDBPersist(func() orm.DBService { return dbService }, &testCounterEntity{})
+	persist, err := counter.NewDBPersist(func() orm.ShardDBService { return dbService }, &testCounterEntity{})
 	assert.Nil(t, err)
 	counter := counter.NewPersistRedisCounter("test", func() *cache.RedisClient { return r }, scripts, persist, counterCacheParam, 10)
 	err = counter.Init()
 	assert.Nil(t, err)
-	listCache, err := NewCache(&testListEntity{}, func() orm.DBService { return dbService }, func() *cache.RedisClient { return r }, listCacheParm, 500, false, counter)
+
+	listCache, err := NewCache(&testListEntity{}, func() orm.ShardDBService { return dbService }, func() *cache.RedisClient { return r }, listCacheParm, 500, false, counter)
 	assert.Nil(t, err)
 
 	for i := 1; i <= 100; i++ {

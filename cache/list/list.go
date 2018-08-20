@@ -84,7 +84,7 @@ func (p *CounterEntity) ZeroFields() counter.Fields {
 // Cache define the list cache
 type Cache struct {
 	entityPrototype     Entity
-	dbService           func() orm.DBService
+	dbService           func() orm.ShardDBService
 	redisClient         func() *cache.RedisClient
 	listCacheParam      *cache.ParamConf
 	listOwnerCacheParam *cache.ParamConf
@@ -94,7 +94,7 @@ type Cache struct {
 }
 
 // NewCache create new Cache
-func NewCache(entityProtoType Entity, dbService func() orm.DBService, redisClient func() *cache.RedisClient, listCacheParam *cache.ParamConf, maxListCount int64, targetIDAsScore bool, counter counter.Counter) (*Cache, error) {
+func NewCache(entityProtoType Entity, dbService func() orm.ShardDBService, redisClient func() *cache.RedisClient, listCacheParam *cache.ParamConf, maxListCount int64, targetIDAsScore bool, counter counter.Counter) (*Cache, error) {
 	if c.HasNil(entityProtoType, dbService, redisClient, listCacheParam, counter) || maxListCount <= 0 {
 		return nil, errors.New("dbService,redisClient,listCacheParam and counter must not be nil,and maxtListCount must be >0")
 	}
@@ -133,7 +133,7 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 	defer cache.UnLock(lockKey, p.listOwnerCacheParam, p.redisClient())
 	defer p.redisClient().Del(p.listOwnerCacheParam.NewParamKey(ownerKey))
 
-	dbOper, err := p.dbService().NewOp()
+	dbOper, err := p.dbService().NewOpByEntity(entity, "")
 	if err != nil {
 		return false, err
 	}
@@ -166,7 +166,7 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 
 // Del delete the ownerID, targetID from list cache
 func (p *Cache) Del(ownerID string, targetID int64) (bool, error) {
-	dbOper, err := p.dbService().NewOp()
+	dbOper, err := p.dbService().NewOpByEntity(p.entityPrototype, "")
 	if err != nil {
 		return false, err
 	}
@@ -340,7 +340,7 @@ func (p *Cache) loadByPage(ownerID string, page, pageSize int64) (targetAndScore
 }
 
 func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScores []*pairInt64, err error) {
-	dbOper, err := p.dbService().NewOp()
+	dbOper, err := p.dbService().NewOpByEntity(p.entityPrototype, "")
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +368,7 @@ func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScore
 }
 
 func (p *Cache) getIDByOwnerAndTarget(ownerID string, targetID int64) (id int64, ok bool, err error) {
-	dbOper, err := p.dbService().NewOp()
+	dbOper, err := p.dbService().NewOpByEntity(p.entityPrototype, "")
 	if err != nil {
 		return
 	}

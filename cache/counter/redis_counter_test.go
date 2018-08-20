@@ -38,21 +38,26 @@ func (p *V) ZeroFields() Fields {
 }
 
 var r *cache.RedisClient
-var dbService orm.DBService
+var dbService orm.ShardDBService
 
 func init() {
 	var err error
-	config := &orm.DBConfig{
-		User:    "root",
-		Pass:    "123456",
-		URL:     "127.0.0.1:3306",
-		Schema:  "test",
-		MaxConn: 100,
-		MaxIdle: 10}
+	config := &orm.DBShardConfig{
+		Shards: map[string]*orm.DBConfig{
+			"test": &orm.DBConfig{
+				User:    "root",
+				Pass:    "123456",
+				URL:     "127.0.0.1:3306",
+				Schema:  "test",
+				MaxConn: 100,
+				MaxIdle: 10},
+		},
+		Default: "test",
+	}
 
-	simpleDBServcie := orm.NewSimpleDBService(orm.NewMySQLDBPool)
-	simpleDBServcie.Config = config
-	dbService = simpleDBServcie
+	shardDBServcie := orm.NewSimpleShardDBService(orm.NewMySQLDBPool)
+	shardDBServcie.DBShardConfig = config
+	dbService = shardDBServcie
 
 	dbService.Init()
 
@@ -116,7 +121,7 @@ func TestPersistCounter(t *testing.T) {
 
 	testCounter(t, counter)
 
-	counter.persist, err = NewDBPersist(func() orm.DBService { return dbService }, &V{})
+	counter.persist, err = NewDBPersist(func() orm.ShardDBService { return dbService }, &V{})
 	assert.Nil(t, err)
 	testCounter(t, counter)
 

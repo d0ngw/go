@@ -72,12 +72,12 @@ func (p *BaseEntity) ToBaseEntity(counterID string, fields Fields) (*BaseEntity,
 
 // DBPersist implements Persist which persist counter to db
 type DBPersist struct {
-	dbService  func() orm.DBService
+	dbService  func() orm.ShardDBService
 	entityType EntityCounter
 }
 
 // NewDBPersist create DBPersist
-func NewDBPersist(dbService func() orm.DBService, entityType EntityCounter) (*DBPersist, error) {
+func NewDBPersist(dbService func() orm.ShardDBService, entityType EntityCounter) (*DBPersist, error) {
 	if c.HasNil(dbService, entityType) {
 		return nil, errors.New("dbpool and entityType must not be nil")
 	}
@@ -89,7 +89,7 @@ func NewDBPersist(dbService func() orm.DBService, entityType EntityCounter) (*DB
 
 // Load  implements Persist.Load
 func (p *DBPersist) Load(counterID string) (fields Fields, err error) {
-	oper, err := p.dbService().NewOp()
+	oper, err := p.dbService().NewOpByEntity(p.entityType, "")
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (p *DBPersist) Load(counterID string) (fields Fields, err error) {
 
 // Del implements Persist.Del
 func (p *DBPersist) Del(counterID string) (deleted bool, err error) {
-	oper, err := p.dbService().NewOp()
+	oper, err := p.dbService().NewOpByEntity(p.entityType, "")
 	if err != nil {
 		return false, err
 	}
@@ -121,7 +121,7 @@ func (p *DBPersist) Del(counterID string) (deleted bool, err error) {
 
 // Store implements Persist.Store
 func (p *DBPersist) Store(counterID string, fields Fields) (err error) {
-	oper, err := p.dbService().NewOp()
+	oper, err := p.dbService().NewOpByEntity(p.entityType, "")
 	if err != nil {
 		return err
 	}
