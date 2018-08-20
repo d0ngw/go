@@ -84,8 +84,8 @@ func (p *CounterEntity) ZeroFields() counter.Fields {
 // Cache define the list cache
 type Cache struct {
 	entityPrototype     Entity
-	dbService           orm.DBService
-	redisClient         *cache.RedisClient
+	dbService           func() orm.DBService
+	redisClient         func() *cache.RedisClient
 	listCacheParam      *cache.ParamConf
 	listOwnerCacheParam *cache.ParamConf
 	maxListCount        int64
@@ -94,7 +94,7 @@ type Cache struct {
 }
 
 // NewCache create new Cache
-func NewCache(entityProtoType Entity, dbService orm.DBService, redisClient *cache.RedisClient, listCacheParam *cache.ParamConf, maxListCount int64, targetIDAsScore bool, counter counter.Counter) (*Cache, error) {
+func NewCache(entityProtoType Entity, dbService func() orm.DBService, redisClient func() *cache.RedisClient, listCacheParam *cache.ParamConf, maxListCount int64, targetIDAsScore bool, counter counter.Counter) (*Cache, error) {
 	if c.HasNil(entityProtoType, dbService, redisClient, listCacheParam, counter) || maxListCount <= 0 {
 		return nil, errors.New("dbService,redisClient,listCacheParam and counter must not be nil,and maxtListCount must be >0")
 	}
@@ -122,7 +122,7 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 	}
 	ownerKey := p.ownerAndTargetKey(entity.GetOwnerID(), entity.GetTargetID())
 	lockKey := ":lock_" + ownerKey
-	locked, err := cache.TryLock(lockKey, 6, p.listOwnerCacheParam, p.redisClient)
+	locked, err := cache.TryLock(lockKey, 6, p.listOwnerCacheParam, p.redisClient())
 	if err != nil {
 		return false, err
 	}
@@ -130,10 +130,10 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 		c.Warnf("can't lock %s,skip add", lockKey)
 		return false, nil
 	}
-	defer cache.UnLock(lockKey, p.listOwnerCacheParam, p.redisClient)
-	defer p.redisClient.Del(p.listOwnerCacheParam.NewParamKey(ownerKey))
+	defer cache.UnLock(lockKey, p.listOwnerCacheParam, p.redisClient())
+	defer p.redisClient().Del(p.listOwnerCacheParam.NewParamKey(ownerKey))
 
-	dbOper, err := p.dbService.NewOp()
+	dbOper, err := p.dbService().NewOp()
 	if err != nil {
 		return false, err
 	}
@@ -166,11 +166,11 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 
 // Del delete the ownerID, targetID from list cache
 func (p *Cache) Del(ownerID string, targetID int64) (bool, error) {
-	dbOper, err := p.dbService.NewOp()
+	dbOper, err := p.dbService().NewOp()
 	if err != nil {
 		return false, err
 	}
-	defer p.redisClient.Del(p.listOwnerCacheParam.NewParamKey(p.ownerAndTargetKey(ownerID, targetID)))
+	defer p.redisClient().Del(p.listOwnerCacheParam.NewParamKey(p.ownerAndTargetKey(ownerID, targetID)))
 
 	deleted, err := orm.DelByCondition(dbOper, p.entityPrototype, " WHERE o_id = ? AND t_id = ?", ownerID, targetID)
 	if err != nil {
@@ -208,7 +208,7 @@ func (p *Cache) Del(ownerID string, targetID int64) (bool, error) {
 // GetIDForOwnerTarget query the Entity.ID with ownerID and targetID
 func (p *Cache) GetIDForOwnerTarget(ownerID string, targetID int64) (id int64, ok bool, err error) {
 	key := p.listOwnerCacheParam.NewParamKey(p.ownerAndTargetKey(ownerID, targetID))
-	id, ok, err = p.redisClient.GetInt64(key)
+	id, ok, err = p.redisClient().GetInt64(key)
 	if err != nil {
 		return
 	}
@@ -218,11 +218,11 @@ func (p *Cache) GetIDForOwnerTarget(ownerID string, targetID int64) (id int64, o
 			return
 		}
 		if ok {
-			if err = p.redisClient.Set(key, id); err != nil {
+			if err = p.redisClient().Set(key, id); err != nil {
 				return
 			}
 		} else {
-			if err = p.redisClient.Set(key, -1); err != nil {
+			if err = p.redisClient().Set(key, -1); err != nil {
 				return
 			}
 		}
@@ -265,7 +265,7 @@ func (p *Cache) addToRedisList(listKey cache.Param, keyMustExist int, targetAndS
 		return false, nil
 	}
 
-	conn, err := p.redisClient.GetConn(listKey)
+	conn, err := p.redisClient().GetConn(listKey)
 	if err != nil {
 		return false, err
 	}
@@ -285,7 +285,7 @@ func (p *Cache) addToRedisList(listKey cache.Param, keyMustExist int, targetAndS
 }
 
 func (p *Cache) delFromRedisList(listKey cache.Param, targetID int64) (deleted, lastTargetID, length int64, err error) {
-	conn, err := p.redisClient.GetConn(listKey)
+	conn, err := p.redisClient().GetConn(listKey)
 	if err != nil {
 		return
 	}
@@ -340,7 +340,7 @@ func (p *Cache) loadByPage(ownerID string, page, pageSize int64) (targetAndScore
 }
 
 func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScores []*pairInt64, err error) {
-	dbOper, err := p.dbService.NewOp()
+	dbOper, err := p.dbService().NewOp()
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +368,7 @@ func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScore
 }
 
 func (p *Cache) getIDByOwnerAndTarget(ownerID string, targetID int64) (id int64, ok bool, err error) {
-	dbOper, err := p.dbService.NewOp()
+	dbOper, err := p.dbService().NewOp()
 	if err != nil {
 		return
 	}
@@ -401,7 +401,7 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 	}
 
 	listKey := p.listCacheParam.NewParamKey(ownerID)
-	exist, err := p.redisClient.Exists(listKey)
+	exist, err := p.redisClient().Exists(listKey)
 	if err != nil {
 		return
 	}
@@ -425,7 +425,7 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 		curListCount int64
 		reply        interface{}
 	)
-	reply, err = p.redisClient.Do(listKey, func(conn redis.Conn) (interface{}, error) {
+	reply, err = p.redisClient().Do(listKey, func(conn redis.Conn) (interface{}, error) {
 		return conn.Do(cache.ZCARD, listKey.Key())
 	})
 	if err != nil {
@@ -438,7 +438,7 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 	targetAndScores = make([]*pairInt64, 0, pageSize)
 	startInCacheList := curListCount > 0 && start < p.maxListCount && start < curListCount
 	if startInCacheList {
-		reply, err = p.redisClient.Do(listKey, func(conn redis.Conn) (interface{}, error) {
+		reply, err = p.redisClient().Do(listKey, func(conn redis.Conn) (interface{}, error) {
 			if err := conn.Send(cache.ZRANGEWITHSCORES, listKey.Key(), start, end); err != nil {
 				return nil, err
 			}

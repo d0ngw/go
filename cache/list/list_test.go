@@ -79,12 +79,12 @@ func TestList(t *testing.T) {
 	err = scripts.Init()
 	assert.Nil(t, err)
 
-	persist, err := counter.NewDBPersist(dbService, &testCounterEntity{})
+	persist, err := counter.NewDBPersist(func() orm.DBService { return dbService }, &testCounterEntity{})
 	assert.Nil(t, err)
-	counter := counter.NewPersistRedisCounter("test", r, scripts, persist, counterCacheParam, 10)
+	counter := counter.NewPersistRedisCounter("test", func() *cache.RedisClient { return r }, scripts, persist, counterCacheParam, 10)
 	err = counter.Init()
 	assert.Nil(t, err)
-	listCache, err := NewCache(&testListEntity{}, dbService, r, listCacheParm, 500, false, counter)
+	listCache, err := NewCache(&testListEntity{}, func() orm.DBService { return dbService }, func() *cache.RedisClient { return r }, listCacheParm, 500, false, counter)
 	assert.Nil(t, err)
 
 	for i := 1; i <= 100; i++ {
