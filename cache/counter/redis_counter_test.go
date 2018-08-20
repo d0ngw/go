@@ -106,7 +106,7 @@ func TestPersistCounter(t *testing.T) {
 
 	persist := &persistMock{}
 
-	counter := NewPersistRedisCounter("test", r, scripts, persist, cacheConf, 10)
+	counter := NewPersistRedisCounter("test", func() *cache.RedisClient { return r }, scripts, persist, cacheConf, 10)
 
 	err = counter.scripts.Init()
 	assert.Nil(t, err)
@@ -116,7 +116,7 @@ func TestPersistCounter(t *testing.T) {
 
 	testCounter(t, counter)
 
-	counter.persist, err = NewDBPersist(dbService, &V{})
+	counter.persist, err = NewDBPersist(func() orm.DBService { return dbService }, &V{})
 	assert.Nil(t, err)
 	testCounter(t, counter)
 

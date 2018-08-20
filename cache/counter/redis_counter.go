@@ -16,7 +16,7 @@ import (
 type PersistRedisCounter struct {
 	c.Initable
 	Name        string
-	redisClient *cache.RedisClient
+	redisClient func() *cache.RedisClient
 	scripts     *Scripts
 	persist     Persist
 	cacheParam  *cache.ParamConf
@@ -24,10 +24,10 @@ type PersistRedisCounter struct {
 }
 
 // NewPersistRedisCounter create RedisCounter service
-func NewPersistRedisCounter(name string, redisClient *cache.RedisClient, scripts *Scripts, persist Persist, cacheParam *cache.ParamConf, slotsCount int) *PersistRedisCounter {
+func NewPersistRedisCounter(name string, redisClientFunc func() *cache.RedisClient, scripts *Scripts, persist Persist, cacheParam *cache.ParamConf, slotsCount int) *PersistRedisCounter {
 	return &PersistRedisCounter{
 		Name:        name,
-		redisClient: redisClient,
+		redisClient: redisClientFunc,
 		scripts:     scripts,
 		persist:     persist,
 		cacheParam:  cacheParam,
@@ -57,7 +57,7 @@ func (p *PersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) error
 
 	param := p.cacheParam.NewParamKey(counterKey)
 
-	exist, updated, err := p.updateReply(p.redisClient.Eval(param, p.scripts.update, updateArgs...))
+	exist, updated, err := p.updateReply(p.redisClient().Eval(param, p.scripts.update, updateArgs...))
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (p *PersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) error
 			return err
 		}
 		updateArgs = p.updateArgs(syncSetKey, LUATRUE, p.buildInitFields(fields), fieldAndDelta)
-		exist, updated, err = p.updateReply(p.redisClient.Eval(param, p.scripts.update, updateArgs...))
+		exist, updated, err = p.updateReply(p.redisClient().Eval(param, p.scripts.update, updateArgs...))
 		if err != nil {
 			return err
 		}
@@ -91,7 +91,7 @@ func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
 	getArgs := []interface{}{syncSetKey, strconv.FormatInt(lastAccessTime, 10)}
 	param := p.cacheParam.NewParamKey(counterKey)
 
-	reply, err := redis.Strings(p.redisClient.Eval(param, p.scripts.hgetAll, getArgs...))
+	reply, err := redis.Strings(p.redisClient().Eval(param, p.scripts.hgetAll, getArgs...))
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
 		if origin == nil {
 			return nil, fmt.Errorf("Load counterID %s nil", counterID)
 		}
-		_, err = p.redisClient.Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUATRUE, origin)...)
+		_, err = p.redisClient().Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUATRUE, origin)...)
 		if err != nil {
 			c.Errorf("init counterID %s fail,err:%s", counterID, err)
 		}
@@ -132,7 +132,7 @@ func (p *PersistRedisCounter) Del(counterID string) (err error) {
 	}
 	counterKey := p.counterKey(counterID)
 	delArgs := []interface{}{p.syncSetKey(counterKey)}
-	_, err = p.redisClient.Eval(p.cacheParam.NewParamKey(counterKey), p.scripts.del, delArgs...)
+	_, err = p.redisClient().Eval(p.cacheParam.NewParamKey(counterKey), p.scripts.del, delArgs...)
 	return
 }
 
