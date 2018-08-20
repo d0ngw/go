@@ -338,13 +338,20 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 				if err != nil {
 					return err
 				}
-				synced = p.dbPersist.Store(counterID, counterFields) == nil
+				err = p.dbPersist.Store(counterID, counterFields)
+				synced = err == nil
+				if err != nil {
+					c.Errorf("sync counter key:%s,success:%v,last sync:%d fail,err:%v", counterKey, synced, writeVersion, err)
+				}
 				if synced {
 					_, err = p.persistRedisCounter.scripts.setSync.Do(conn, counterKey, writeVersion, now)
 					if err != nil {
 						return err
 					}
 					syncedCount++
+				}
+				if err != nil {
+
 				}
 				c.Debugf("sync counter key:%s,success:%d,last sync:%d", counterKey, synced, writeVersion)
 			}
