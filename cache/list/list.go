@@ -30,6 +30,10 @@ type Entity interface {
 	GetOwnerID() string
 	// GetTargetID return the target id
 	GetTargetID() int64
+	// GetCreateTime return create time
+	GetCreateTime() int64
+	// SetCreateTime set create time
+	SetCreateTime(ct int64)
 }
 
 // BaseEntity define the base list entity
@@ -58,6 +62,16 @@ func (p *BaseEntity) GetOwnerID() string {
 // GetTargetID implement Entity.GetTargetID()
 func (p *BaseEntity) GetTargetID() int64 {
 	return p.TargetID
+}
+
+// GetCreateTime impls Entity.GetCreateTime
+func (p *BaseEntity) GetCreateTime() int64 {
+	return p.CreateTime
+}
+
+// SetCreateTime impls Entity.SetCreateTime
+func (p *BaseEntity) SetCreateTime(ct int64) {
+	p.CreateTime = ct
 }
 
 // CounterEntity is the list counter
