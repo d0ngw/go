@@ -43,6 +43,11 @@ func (l *ZapLogger) Criticalf(format string, params ...interface{}) {
 	l.logger.Errorf(format, params...)
 }
 
+// Sync impls Logger.Sync
+func (l *ZapLogger) Sync() {
+	l.logger.Sync()
+}
+
 // NewZapLogger new zap logger
 func NewZapLogger(logConfig *LogConfig) *ZapLogger {
 	var encoder zapcore.Encoder

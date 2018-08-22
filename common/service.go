@@ -138,7 +138,6 @@ type BaseService struct {
 	Order     int
 	state     ServiceState //服务的状态
 	stateLock sync.RWMutex //读写锁
-
 }
 
 // Name 服务名称

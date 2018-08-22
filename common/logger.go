@@ -23,6 +23,9 @@ type Logger interface {
 
 	// Errorf critical级别记录日志
 	Criticalf(format string, params ...interface{})
+
+	// Sync
+	Sync()
 }
 
 // Tracef trace级别记录日志
@@ -53,6 +56,11 @@ func Errorf(format string, params ...interface{}) {
 // Criticalf critical级别记录日志
 func Criticalf(format string, params ...interface{}) {
 	logger.Criticalf(format, params...)
+}
+
+// LoggerSync sync log
+func LoggerSync() {
+	logger.Sync()
 }
 
 var (

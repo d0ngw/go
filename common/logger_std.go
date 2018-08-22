@@ -37,3 +37,8 @@ func (l *StdLogger) Errorf(format string, params ...interface{}) {
 func (l *StdLogger) Criticalf(format string, params ...interface{}) {
 	log.Printf(format, params...)
 }
+
+// Sync sync
+func (l *StdLogger) Sync() {
+
+}

@@ -116,6 +116,9 @@ func (p *Shutdownhook) WaitShutdown() {
 		f()
 	}
 	Infof("finished run hooks")
+	if logger != nil {
+		logger.Sync()
+	}
 }
 
 // Stop the shutdownhook
