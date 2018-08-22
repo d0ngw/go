@@ -1,5 +1,5 @@
 package common
 
 func init() {
-	InitLoggerFromString(DefaultDebugLoggConfig)
+	initLogger(&LogConfig{})
 }

@@ -40,15 +40,16 @@ type Configurer interface {
 
 // LogConfig 日志配置
 type LogConfig struct {
-	Conf string //日志的配置文件
+	Env        string `yaml:"env"`
+	FileName   string `yaml:"file_name"`
+	MaxSize    int    `yaml:"max_size"`
+	MaxBackups int    `yaml:"max_backups"`
+	MaxAge     int    `yaml:"max_age"`
 }
 
 // Parse 解析日志配置
 func (p *LogConfig) Parse() error {
-	if len(p.Conf) > 0 {
-		InitLogger(p.Conf)
-	}
-	return nil
+	return initLogger(p)
 }
 
 // RuntimeConfig 运行期配置
