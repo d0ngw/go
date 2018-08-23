@@ -64,7 +64,7 @@ func LoggerSync() {
 }
 
 var (
-	logger Logger = &StdLogger{}
+	logger Logger = NewStdLogger()
 )
 
 var m sync.Mutex
