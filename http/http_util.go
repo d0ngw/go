@@ -5,7 +5,6 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,6 +18,11 @@ import (
 	"text/template"
 
 	c "github.com/d0ngw/go/common"
+	jsoniter "github.com/json-iterator/go"
+)
+
+var (
+	jsoniterJSON = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
 // RequestError is the http request response error
@@ -208,7 +212,7 @@ func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interf
 // RenderJSON 渲染JSON
 func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	encoder := json.NewEncoder(w)
+	encoder := jsoniterJSON.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
 	err := encoder.Encode(jsonData)
 	if err != nil {
