@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // ValidatePair 定义验证规则名称其需要验证的值
@@ -49,7 +50,7 @@ type StringLenValidator struct {
 
 // Validate 验证字符串的长度
 func (p *StringLenValidator) Validate(param string) bool {
-	strLen := len(param)
+	strLen := utf8.RuneCountInString(param)
 	return p.min <= strLen && strLen <= p.max
 }
 
