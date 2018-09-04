@@ -351,9 +351,10 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 					syncedCount++
 				}
 				if err != nil {
-
+					c.Errorf("sync counter key:%s,success:%v,last sync:%d fail,err:%v", counterKey, synced, writeVersion, err)
+				} else {
+					c.Debugf("sync counter key:%s,success:%v,last sync:%d", counterKey, synced, writeVersion)
 				}
-				c.Debugf("sync counter key:%s,success:%d,last sync:%d", counterKey, synced, writeVersion)
 			}
 
 			if needEvict {
