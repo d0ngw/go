@@ -125,6 +125,15 @@ func TestList(t *testing.T) {
 		assert.EqualValues(t, 100-i, v)
 	}
 
+	total, targetScores, err := listCache.LoadListWithScore("d0ngw", 1, 10, 0)
+	assert.Nil(t, err)
+	assert.EqualValues(t, 100, total)
+	assert.EqualValues(t, 10, len(targetScores))
+	for i, v := range targetScores {
+		assert.EqualValues(t, 100-i, v[0])
+		t.Logf("tareget id:%d score id:%d", v[0], v[1])
+	}
+
 	for i := 1; i <= 100; i++ {
 		succ, err := listCache.Del("d0ngw", int64(i))
 		assert.Nil(t, err)

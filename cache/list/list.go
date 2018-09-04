@@ -19,7 +19,8 @@ const (
 	MaxLoadBatch = 100
 )
 
-type pairInt64 [2]int64
+// IDScore [0]target id,[1]score id
+type IDScore [2]int64
 
 // Entity define the list entity interface
 type Entity interface {
@@ -171,7 +172,7 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 	}
 
 	listKey := p.listCacheParam.NewParamKey(entity.GetOwnerID())
-	_, err = p.addToRedisList(listKey, 1, []*pairInt64{&pairInt64{entity.GetTargetID(), scoreID}})
+	_, err = p.addToRedisList(listKey, 1, []*IDScore{&IDScore{entity.GetTargetID(), scoreID}})
 	if err != nil {
 		return false, err
 	}
@@ -274,7 +275,13 @@ func (p *Cache) LoadList(ownerID string, page, pageSize, cursor int64) (total in
 	return
 }
 
-func (p *Cache) addToRedisList(listKey cache.Param, keyMustExist int, targetAndScores []*pairInt64) (bool, error) {
+// LoadListWithScore load targetId and score from list cache
+func (p *Cache) LoadListWithScore(ownerID string, page, pageSize, cursor int64) (total int64, targetAndScores []*IDScore, err error) {
+	total, targetAndScores, err = p.loadListWithScoreID(ownerID, page, pageSize, cursor)
+	return
+}
+
+func (p *Cache) addToRedisList(listKey cache.Param, keyMustExist int, targetAndScores []*IDScore) (bool, error) {
 	if len(targetAndScores) == 0 {
 		return false, nil
 	}
@@ -329,7 +336,7 @@ func (p *Cache) delFromRedisList(listKey cache.Param, targetID int64) (deleted, 
 	return
 }
 
-func (p *Cache) loadListFromDB(ownerID string, page int64, pageSize int64, cursor int64) (targetAndScores []*pairInt64, err error) {
+func (p *Cache) loadListFromDB(ownerID string, page int64, pageSize int64, cursor int64) (targetAndScores []*IDScore, err error) {
 	if cursor > 0 {
 		return p.loadByCursor(ownerID, pageSize, cursor)
 	} else if page > 0 {
@@ -338,14 +345,14 @@ func (p *Cache) loadListFromDB(ownerID string, page int64, pageSize int64, curso
 	return nil, errors.New("the cursor and page must not both <=0")
 }
 
-func (p *Cache) loadByCursor(ownerID string, pageSize int64, cursor int64) (targetAndScores []*pairInt64, err error) {
+func (p *Cache) loadByCursor(ownerID string, pageSize int64, cursor int64) (targetAndScores []*IDScore, err error) {
 	if p.targetIDAsScore {
 		return p.loadIDs("WHERE o_id= ? AND  t_id < ? ORDER BY t_id DESC LIMIT ?", ownerID, cursor, pageSize)
 	}
 	return p.loadIDs("WHERE o_id= ? AND  id < ? ORDER BY id DESC LIMIT ?", ownerID, cursor, pageSize)
 }
 
-func (p *Cache) loadByPage(ownerID string, page, pageSize int64) (targetAndScores []*pairInt64, err error) {
+func (p *Cache) loadByPage(ownerID string, page, pageSize int64) (targetAndScores []*IDScore, err error) {
 	from := (page - 1) * pageSize
 	if p.targetIDAsScore {
 		return p.loadIDs("WHERE o_id = ? ORDER BY t_id DESC LIMIT ?, ?", ownerID, from, pageSize)
@@ -353,7 +360,7 @@ func (p *Cache) loadByPage(ownerID string, page, pageSize int64) (targetAndScore
 	return p.loadIDs("WHERE o_id= ? ORDER BY id DESC LIMIT ?,?", ownerID, from, pageSize)
 }
 
-func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScores []*pairInt64, err error) {
+func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScores []*IDScore, err error) {
 	dbOper, err := p.dbService().NewOpByEntity(p.entityPrototype, "")
 	if err != nil {
 		return nil, err
@@ -368,7 +375,7 @@ func (p *Cache) loadIDs(contition string, params ...interface{}) (targetAndScore
 
 	for _, val := range vals {
 		v := val.(Entity)
-		targetAndScore := pairInt64{}
+		targetAndScore := IDScore{}
 		if p.targetIDAsScore {
 			targetAndScore[0] = v.GetTargetID()
 			targetAndScore[1] = v.GetTargetID()
@@ -398,7 +405,7 @@ func (p *Cache) getIDByOwnerAndTarget(ownerID string, targetID int64) (id int64,
 	return
 }
 
-func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64) (total int64, targetAndScores []*pairInt64, err error) {
+func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64) (total int64, targetAndScores []*IDScore, err error) {
 	total, err = p.GetCount(ownerID)
 	if err != nil {
 		return
@@ -419,7 +426,7 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 	if err != nil {
 		return
 	}
-	var loadedIDs []*pairInt64
+	var loadedIDs []*IDScore
 	if !exist {
 		var batch = p.maxListCount
 		if batch > 100 {
@@ -449,7 +456,7 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 		curListCount, _ = redis.Int64(curListCount, err)
 	}
 
-	targetAndScores = make([]*pairInt64, 0, pageSize)
+	targetAndScores = make([]*IDScore, 0, pageSize)
 	startInCacheList := curListCount > 0 && start < p.maxListCount && start < curListCount
 	if startInCacheList {
 		reply, err = p.redisClient().Do(listKey, func(conn redis.Conn) (interface{}, error) {
@@ -483,7 +490,7 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 			for i := 0; i < len(ids); i += 2 {
 				tid, _ := strconv.ParseInt(ids[i], 10, 64)
 				score, _ := strconv.ParseInt(ids[i+1], 10, 64)
-				pair := &pairInt64{tid, -score}
+				pair := &IDScore{tid, -score}
 				targetAndScores = append(targetAndScores, pair)
 			}
 		}
