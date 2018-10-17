@@ -413,6 +413,9 @@ func ParseParams(r url.Values, dest interface{}) error {
 
 	for i := 0; i < ind.NumField(); i++ {
 		field := typ.Field(i)
+		if field.PkgPath != "" {
+			continue
+		}
 		tag := field.Tag
 		paramName := tag.Get("pname")
 		if paramName == "" {
