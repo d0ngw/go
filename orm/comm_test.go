@@ -35,7 +35,7 @@ type Conf struct {
 // Value impls  driver.Valuer for Range
 func (p *Conf) Value() (driver.Value, error) {
 	if p == nil {
-		return "", nil
+		return nil, nil
 	}
 	v, err := json.Marshal(p)
 	if err != nil {

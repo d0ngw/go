@@ -59,6 +59,13 @@ func TestAdd(t *testing.T) {
 	}
 	t.Logf("Add id:%d", tm.ID)
 
+	get, err := Get(dboper, &tm, tm.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, get)
+	getTm := get.(*tmodel)
+	assert.Nil(t, getTm.Conf)
+	assert.NotNil(t, getTm.Conf2)
+
 	r, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")
 	if !r {
