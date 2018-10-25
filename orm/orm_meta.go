@@ -271,7 +271,8 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter", field.Name))
 		}
 		stFieldType := field.Type
-		if stFieldType.Kind() == reflect.Struct && !(reflect.PtrTo(stFieldType).Implements(scannerType) && stFieldType.Implements(valuerType)) {
+		ptrStFieldType := reflect.PtrTo(stFieldType)
+		if stFieldType.Kind() == reflect.Struct && !(ptrStFieldType.Implements(scannerType) && (ptrStFieldType.Implements(valuerType) || stFieldType.Implements(valuerType))) {
 			if !field.Anonymous {
 				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", field.Name))
 			}
