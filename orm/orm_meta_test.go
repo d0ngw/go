@@ -32,13 +32,14 @@ type FourthID struct {
 	Name9  string `column:"name9"`
 	Name10 string `column:"name10"`
 	Name11 string `column:"name11"`
+	Conf   *Conf  `column:"conf"`
 }
 
 func TestPaseMeta(t *testing.T) {
 	meta, err := parseMeta(&FourthID{})
 	assert.NoError(t, err)
 	assert.NotNil(t, meta)
-	assert.EqualValues(t, 14, len(meta.fields))
+	assert.EqualValues(t, 15, len(meta.fields))
 	expectIndexs := map[string][]int{
 		"id4":    []int{0},
 		"id3":    []int{1, 0},
@@ -54,6 +55,7 @@ func TestPaseMeta(t *testing.T) {
 		"name9":  []int{6},
 		"name10": []int{7},
 		"name11": []int{8},
+		"conf":   []int{9},
 	}
 	for _, field := range meta.fields {
 		t.Logf("field:%v,%v", field, expectIndexs[field.column])

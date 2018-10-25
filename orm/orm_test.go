@@ -120,6 +120,7 @@ func TestUpdate(t *testing.T) {
 	oldName2 := tm.Name2.String
 	tm.Name = sql.NullString{Valid: true, String: "newname"}
 	tm.Name2 = sql.NullString{Valid: true, String: "notchange"}
+	tm.Conf = &Conf{IDs: []int64{1, 2, 3}}
 
 	updated, err := UpdateExcludeColumns(dboper, &tm, "name2")
 	assert.NoError(t, err)
@@ -130,6 +131,7 @@ func TestUpdate(t *testing.T) {
 	tm3 := reget.(*tmodel)
 	assert.Equal(t, "newname", tm3.Name.String)
 	assert.Equal(t, oldName2, tm3.Name2.String)
+	assert.EqualValues(t, []int64{1, 2, 3}, tm3.Conf.IDs)
 
 	rt, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")

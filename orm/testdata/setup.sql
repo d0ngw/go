@@ -4,6 +4,8 @@ CREATE TABLE IF NOT EXISTS `tt` (
     `name2` varchar(64)  DEFAULT "",
     `create_time` bigint(20) DEFAULT NULL,
     `f64` double DEFAULT NULL,
+    `conf` varchar(64) DEFAULT "",
+    `conf2` varchar(64) DEFAULT "",
     PRIMARY KEY (`id`)) 
     ENGINE=InnoDB DEFAULT CHARSET=utf8;
 --
@@ -13,6 +15,8 @@ CREATE TABLE IF NOT EXISTS `tt_2` (
     `name2` varchar(64)  DEFAULT "",
     `create_time` bigint(20) DEFAULT NULL,
     `f64` double DEFAULT NULL,
+    `conf` varchar(64) DEFAULT "",
+    `conf2` varchar(64) DEFAULT "",
     PRIMARY KEY (`id`)) 
     ENGINE=InnoDB DEFAULT CHARSET=utf8;
 --

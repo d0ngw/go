@@ -267,12 +267,15 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 			c.Debugf("skip unexported field %s", typ, field.Name)
 			continue
 		}
-		if field.Type.Kind() == reflect.Ptr {
-			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter", field.Name))
-		}
+
 		stFieldType := field.Type
 		ptrStFieldType := reflect.PtrTo(stFieldType)
-		if stFieldType.Kind() == reflect.Struct && !(ptrStFieldType.Implements(scannerType) && (ptrStFieldType.Implements(valuerType) || stFieldType.Implements(valuerType))) {
+		isScannerAndValuer := (ptrStFieldType.Implements(scannerType) || stFieldType.Implements(scannerType)) && (ptrStFieldType.Implements(valuerType) || stFieldType.Implements(valuerType))
+
+		if field.Type.Kind() == reflect.Ptr && !isScannerAndValuer {
+			panic(NewDBErrorf(nil, "unsupported field type,%s is poniter,only scanner and valuer can be pointer", field.Name))
+		}
+		if stFieldType.Kind() == reflect.Struct && !isScannerAndValuer {
 			if !field.Anonymous {
 				panic(NewDBErrorf(nil, "field %s is struct it must be anonymous", field.Name))
 			}

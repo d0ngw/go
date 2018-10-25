@@ -2,6 +2,8 @@ package orm
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,6 +27,87 @@ var (
 	teardownSQL, _ = ioutil.ReadFile(path.Join("testdata", "teardown.sql"))
 )
 
+// Conf 配置
+type Conf struct {
+	IDs []int64 `json:"ids"`
+}
+
+// Value impls  driver.Valuer for Range
+func (p *Conf) Value() (driver.Value, error) {
+	if p == nil {
+		return "", nil
+	}
+	v, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return string(v), nil
+}
+
+// Scan impls sql.Scanner for Range,src只支持string
+func (p *Conf) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	var source []byte
+	switch val := src.(type) {
+	case string:
+		source = []byte(val)
+	case []byte:
+		source = val
+	default:
+		return fmt.Errorf("Incompatible range %T,value:%v", val, val)
+	}
+	if len(source) > 0 {
+		pv := &Conf{}
+		err := json.Unmarshal(source, pv)
+		if err != nil {
+			return err
+		}
+		*p = *pv
+	}
+	return nil
+}
+
+// Conf2 配置
+type Conf2 struct {
+	IDs []int64 `json:"ids"`
+}
+
+// Value impls  driver.Valuer for Range
+func (p Conf2) Value() (driver.Value, error) {
+	v, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return string(v), nil
+}
+
+// Scan impls sql.Scanner for Range,src只支持string
+func (p *Conf2) Scan(src interface{}) error {
+	if src == nil {
+		return nil
+	}
+	var source []byte
+	switch val := src.(type) {
+	case string:
+		source = []byte(val)
+	case []byte:
+		source = val
+	default:
+		return fmt.Errorf("Incompatible range %T,value:%v", val, val)
+	}
+	if len(source) > 0 {
+		pv := &Conf2{}
+		err := json.Unmarshal(source, pv)
+		if err != nil {
+			return err
+		}
+		*p = *pv
+	}
+	return nil
+}
+
 type AutoID struct {
 	ID    int64          `column:"id" pk:"Y"`
 	Name2 sql.NullString `column:"name2"`
@@ -33,9 +116,11 @@ type AutoID struct {
 type tmodel struct {
 	AutoID
 	BaseShardEntity
-	Name sql.NullString  `column:"name"`
-	Time sql.NullInt64   `column:"create_time"`
-	F64  sql.NullFloat64 `column:"f64"`
+	Name  sql.NullString  `column:"name"`
+	Time  sql.NullInt64   `column:"create_time"`
+	F64   sql.NullFloat64 `column:"f64"`
+	Conf  *Conf           `column:"conf"`
+	Conf2 Conf2           `column:"conf2"`
 }
 
 func (tm *tmodel) TableName() string {
