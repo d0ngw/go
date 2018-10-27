@@ -470,18 +470,26 @@ func ParseParams(r url.Values, dest interface{}) error {
 			case reflect.Int32:
 				if intSlice, err := strSlice.ToInt32(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
 				}
 			case reflect.Int64:
 				if intSlice, err := strSlice.ToInt64(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
 				}
 			case reflect.Float32:
 				if intSlice, err := strSlice.ToFloat32(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
 				}
 			case reflect.Float64:
 				if intSlice, err := strSlice.ToFloat64(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err == nil {
+					return err
 				}
 			default:
 				return fmt.Errorf("Unsupported type %s", elem.Kind())

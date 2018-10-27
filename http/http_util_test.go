@@ -37,7 +37,7 @@ func TestParseParams(t *testing.T) {
 	form.Set("ok", "true")
 	form.Set("ages", "1,2,3")
 	form["friends_names"] = []string{"tom", "jerry"}
-	form.Set("friends_books", "a,bc")
+	form.Set("friends_books", "1,2")
 	form.Set("friends_weights", "0.1,0,-0.3")
 	form.Set("page", "1")
 	form.Set("page_size", "5")
