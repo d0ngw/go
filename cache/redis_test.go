@@ -21,7 +21,7 @@ var (
 )
 
 func init() {
-	err := redisServer.initPoolWithDefault()
+	err := redisServer.initPool(defaultPool)
 	if err != nil {
 		panic(err)
 	}
