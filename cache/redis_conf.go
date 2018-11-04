@@ -150,6 +150,7 @@ func (p *RedisConf) Parse() error {
 		if poolConf == nil {
 			poolConf = defaultPool
 		}
+		c.Debugf("group %s use pool config %#v", groupID, poolConf)
 
 		//对redis实例进行排序
 		sort.Sort(sort.StringSlice(groupServers))
