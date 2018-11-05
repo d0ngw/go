@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -65,6 +66,13 @@ type ValidateConfigurer interface {
 	GetValidateRuleConfig() *ValidateRuleConfig
 }
 
+// ValidateService 验证服务
+type ValidateService interface {
+	Service
+	//Validate 使用name指定验证规则,对value进行验证,验证通过返回nil,否则返回错误原因
+	Validate(name string, value string) error
+}
+
 // RuleValidateService  根据规则进行的验证服务
 type RuleValidateService struct {
 	BaseService
@@ -92,7 +100,37 @@ func (p *RuleValidateService) Validate(ruleName string, s string) error {
 
 	for _, v := range rule.validators {
 		if !v.Validate(s) {
-			return fmt.Errorf("%s", rule.desc)
+			return errors.New(rule.desc)
+		}
+	}
+	return nil
+}
+
+// ValidatePair 定义验证规则名称其需要验证的值
+type ValidatePair struct {
+	Name  string
+	Value string
+	Msg   string
+}
+
+// NewValidatePair create ValidatePair
+func NewValidatePair(name, value string) *ValidatePair {
+	return &ValidatePair{Name: name, Value: value}
+}
+
+// NewValidatePairMsg create ValidatePair with msg
+func NewValidatePairMsg(name, value, msg string) *ValidatePair {
+	return &ValidatePair{Name: name, Value: value, Msg: msg}
+}
+
+// ValidateAll 验证所有的规则
+func ValidateAll(validateService ValidateService, nameAndValues ...*ValidatePair) error {
+	for _, nv := range nameAndValues {
+		if err := validateService.Validate(nv.Name, nv.Value); err != nil {
+			if nv.Msg != "" {
+				return errors.New(nv.Msg)
+			}
+			return err
 		}
 	}
 	return nil
