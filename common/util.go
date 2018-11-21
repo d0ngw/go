@@ -566,7 +566,13 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 
 			Debugf("found field name %s,from index %v,to index %v", name, fromIndex, toIndex)
 
-			if !field.Type.AssignableTo(toField.Type) {
+			var typeMatch bool
+			if field.Type.AssignableTo(toField.Type) {
+				typeMatch = true
+			} else if field.Type.Kind() == toField.Type.Kind() && field.Type.ConvertibleTo(toField.Type) {
+				typeMatch = true
+			}
+			if !typeMatch {
 				err = fmt.Errorf("name %s can't assign %s to %s", name, field.Type, toField.Type)
 				return
 			}
@@ -590,7 +596,11 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		for i := 0; i < len(fromIndexes); i++ {
 			fromVal := fval.FieldByIndex(fromIndexes[i])
 			toVal := tval.FieldByIndex(toIndexes[i])
-			toVal.Set(fromVal)
+			if fromVal.Type() != toVal.Type() {
+				toVal.Set(fromVal.Convert(toVal.Type()))
+			} else {
+				toVal.Set(fromVal)
+			}
 		}
 		return nil
 	}

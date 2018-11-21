@@ -1,7 +1,6 @@
 package http
 
 import (
-	"fmt"
 	"net/url"
 	"testing"
 
@@ -13,6 +12,8 @@ type PageParam struct {
 	Page     int
 	PageSize int
 }
+
+type Int int32
 
 type params struct {
 	PageParam
@@ -26,6 +27,7 @@ type params struct {
 	FriendsNames   []string
 	FriendsBooks   []int64   `psep:","`
 	FriendsWeights []float32 `psep:","`
+	Years          Int
 }
 
 func TestParseParams(t *testing.T) {
@@ -41,11 +43,12 @@ func TestParseParams(t *testing.T) {
 	form.Set("friends_weights", "0.1,0,-0.3")
 	form.Set("page", "1")
 	form.Set("page_size", "5")
+	form.Set("years", "10")
 
 	p := &params{}
 	err := ParseParams(form, p)
 	assert.Nil(t, err)
-	fmt.Printf("%#v\n", p)
+	t.Logf("%#v\n", p)
 	assert.EqualValues(t, 10, p.ID)
 	assert.EqualValues(t, "golang", p.Name)
 	assert.EqualValues(t, 1.23, p.Weight)
@@ -55,4 +58,6 @@ func TestParseParams(t *testing.T) {
 	assert.EqualValues(t, []float32{0.1, 0.0, -0.3}, p.FriendsWeights)
 	assert.EqualValues(t, 1, p.Page)
 	assert.EqualValues(t, 5, p.PageSize)
+	assert.EqualValues(t, 10, p.Years)
+	t.Logf("years %d", p.Years)
 }

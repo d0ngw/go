@@ -120,6 +120,8 @@ type CopyBase2 struct {
 	BaseName2 string
 }
 
+type Int int32
+
 func TestStructCopier(t *testing.T) {
 	var from = &struct {
 		ID      int64
@@ -138,9 +140,10 @@ func TestStructCopier(t *testing.T) {
 	from.BaseName = "b1"
 	from.BaseName2 = "b2"
 	from.BaseCountry = 10
+	from.ID2 = 33
 
 	var to = &struct {
-		ID2  int32
+		ID2  Int
 		Name string
 		TestStruct
 		Age         int32
@@ -164,6 +167,7 @@ func TestStructCopier(t *testing.T) {
 	assert.Equal(t, from.BaseName, to.BaseName)
 	assert.Equal(t, from.BaseName2, to.BaseName2)
 	assert.Equal(t, from.BaseCountry, to.BaseCountry)
+	assert.Equal(t, from.ID2, to.ID2)
 	t.Log(to.Address)
 }
 
