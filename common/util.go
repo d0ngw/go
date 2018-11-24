@@ -534,6 +534,15 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		return
 	}
 
+	var noCopy = func(field reflect.StructField) bool {
+		tag := field.Tag
+		_, exist := tag.Lookup("nocopy")
+		if exist {
+			return true
+		}
+		return false
+	}
+
 	var fromIndexes, toIndexes [][]int
 
 	var parseFields func(typ reflect.Type, baseFieldIndex []int) (err error)
@@ -552,10 +561,16 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 			} else if field.PkgPath != "" {
 				continue
 			}
+			if noCopy(field) {
+				continue
+			}
 			name := field.Name
 			toField, found := toTyp.FieldByName(name)
 			if !found {
 				Warnf("not found filed name %s.%s in %s", typ, name, toTyp)
+				continue
+			}
+			if noCopy(toField) {
 				continue
 			}
 
