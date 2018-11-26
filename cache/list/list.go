@@ -399,9 +399,9 @@ func (p *Cache) getIDByOwnerAndTarget(ownerID string, targetID int64) (id int64,
 	}
 	if len(vals) > 0 {
 		ok = true
+		v := vals[0].(Entity)
+		id = v.GetID()
 	}
-	v := vals[0].(Entity)
-	id = v.GetID()
 	return
 }
 
