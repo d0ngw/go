@@ -543,7 +543,9 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		return false
 	}
 
-	var fromIndexes, toIndexes [][]int
+	var (
+		fromIndexes, toIndexes [][]int
+	)
 
 	var parseFields func(typ reflect.Type, baseFieldIndex []int) (err error)
 	parseFields = func(typ reflect.Type, baseFieldIndex []int) (err error) {
@@ -606,11 +608,19 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		if f == nil || t == nil {
 			return errors.New("from and to must not be nil")
 		}
-		fval := reflect.Indirect(reflect.ValueOf(f))
-		tval := reflect.Indirect(reflect.ValueOf(t))
+
+		fval, find, ftype := ExtractRefTuple(f)
+		tval, tind, ttype := ExtractRefTuple(t)
+		if ftype != fromTyp || fval.Kind() != fromVal.Kind() {
+			return fmt.Errorf("expect the type of from is %s,but is %s", fval.Type(), ftype)
+		}
+		if ttype != toTyp || tval.Kind() != toVal.Kind() {
+			return fmt.Errorf("expect the type of to is %s,but is %s", toVal.Type(), ttype)
+		}
+
 		for i := 0; i < len(fromIndexes); i++ {
-			fromVal := fval.FieldByIndex(fromIndexes[i])
-			toVal := tval.FieldByIndex(toIndexes[i])
+			fromVal := find.FieldByIndex(fromIndexes[i])
+			toVal := tind.FieldByIndex(toIndexes[i])
 			if fromVal.Type() != toVal.Type() {
 				toVal.Set(fromVal.Convert(toVal.Type()))
 			} else {

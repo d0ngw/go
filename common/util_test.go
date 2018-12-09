@@ -169,6 +169,15 @@ func TestStructCopier(t *testing.T) {
 	assert.Equal(t, from.BaseCountry, to.BaseCountry)
 	assert.Equal(t, from.ID2, to.ID2)
 	t.Log(to.Address)
+
+	var to2 int32
+	err = copier(from, to2)
+	assert.Error(t, err)
+	t.Logf("err:%v", err)
+	var to3 = *to
+	err = copier(from, to3)
+	assert.Error(t, err)
+	t.Logf("err:%v", err)
 }
 
 func TestIsValNil(t *testing.T) {
