@@ -618,10 +618,10 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 		fval, find, ftype := ExtractRefTuple(f)
 		tval, tind, ttype := ExtractRefTuple(t)
 		if ftype != fromTyp || fval.Kind() != fromValKind {
-			return fmt.Errorf("expect the type of from is %s,but is %s", fromValType, ftype)
+			return fmt.Errorf("expect the type of from is %s,but is %s", fromValType, fval.Type())
 		}
 		if ttype != toTyp || tval.Kind() != toValKind {
-			return fmt.Errorf("expect the type of to is %s,but is %s", toValType, ttype)
+			return fmt.Errorf("expect the type of to is %s,but is %s", toValType, tval.Type())
 		}
 
 		for i := 0; i < len(fromIndexes); i++ {
