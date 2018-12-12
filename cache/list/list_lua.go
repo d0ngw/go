@@ -4,10 +4,11 @@ import "github.com/gomodule/redigo/redis"
 
 var addLua = `
 local list_key = KEYS[1]
-local must_exist_key = tonumber(ARGV[1])
-local expire_seconds = tonumber(ARGV[2])
+local max_count = tonumber(ARGV[1])
+local must_exist_key = tonumber(ARGV[2])
+local expire_seconds = tonumber(ARGV[3])
 
-if #ARGV < 4 or (#ARGV - 4) % 2 ~= 0 then
+if #ARGV < 5 or (#ARGV - 5) % 2 ~= 0 then
     return redis.error_reply("Wrong score and member args numbers")
 end
 
@@ -28,11 +29,12 @@ end
 
 if need_update then
     local score_members = {}
-    for i = 3, #ARGV, 2 do
+    for i = 4, #ARGV, 2 do
         score_members[#score_members + 1] = ARGV[i]
         score_members[#score_members + 1] = ARGV[i + 1]
     end
     redis.call("ZADD", list_key, unpack(score_members))
+    redis.call("ZREMRANGEBYRANK", list_key,max_count,-1 )
     updated = 1
     exist = 1
 end

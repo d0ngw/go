@@ -292,9 +292,11 @@ func (p *Cache) addToRedisList(listKey cache.Param, keyMustExist int, targetAndS
 	}
 	defer conn.Close()
 
-	keyAndParams := []interface{}{listKey.Key(), keyMustExist, listKey.Expire()}
+	keyAndParams := []interface{}{listKey.Key(), p.maxListCount, keyMustExist, listKey.Expire()}
 	for _, v := range targetAndScores {
-		keyAndParams = append(keyAndParams, v[1], v[0])
+		score := -v[1]
+		id := v[0]
+		keyAndParams = append(keyAndParams, score, id)
 	}
 
 	reply, err := redis.Ints(addScript.Do(conn, keyAndParams...))
@@ -453,14 +455,17 @@ func (p *Cache) loadListWithScoreID(ownerID string, page, pageSize, cursor int64
 		return
 	}
 	if reply != nil {
-		curListCount, _ = redis.Int64(curListCount, err)
+		curListCount, err = redis.Int64(reply, err)
+		if err != nil {
+			return
+		}
 	}
 
 	targetAndScores = make([]*IDScore, 0, pageSize)
 	startInCacheList := curListCount > 0 && start < p.maxListCount && start < curListCount
 	if startInCacheList {
 		reply, err = p.redisClient().Do(listKey, func(conn redis.Conn) (interface{}, error) {
-			if err := conn.Send(cache.ZRANGEWITHSCORES, listKey.Key(), start, end); err != nil {
+			if err := conn.Send(cache.ZRANGE, listKey.Key(), start, end, "WITHSCORES"); err != nil {
 				return nil, err
 			}
 			if listKey.Expire() > 0 {

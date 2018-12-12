@@ -100,6 +100,7 @@ func TestList(t *testing.T) {
 	err = counter.Init()
 	assert.Nil(t, err)
 
+	// id as score
 	listCache, err := NewCache(&testListEntity{}, func() orm.ShardDBService { return dbService }, func() *cache.RedisClient { return r }, listCacheParm, 500, false, counter)
 	assert.Nil(t, err)
 
@@ -141,6 +142,51 @@ func TestList(t *testing.T) {
 	}
 
 	total, err = listCache.GetCount("d0ngw")
+	assert.Nil(t, err)
+	assert.EqualValues(t, 0, total)
+
+	// target id as score
+	listCache, err = NewCache(&testListEntity{}, func() orm.ShardDBService { return dbService }, func() *cache.RedisClient { return r }, listCacheParm, 5, true, counter)
+	assert.Nil(t, err)
+
+	for i := 1; i <= 100; i++ {
+		toAdd := &testListEntity{BaseEntity: BaseEntity{OwnerID: "d0ngw-t", TargetID: int64(i)}}
+		succ, err := listCache.Add(toAdd)
+		assert.NoError(t, err)
+		assert.True(t, succ)
+		succ, err = listCache.Add(&testListEntity{BaseEntity: BaseEntity{OwnerID: "d0ngw-t", TargetID: int64(i)}})
+		assert.Error(t, err)
+		assert.False(t, succ)
+	}
+
+	total, err = listCache.GetCount("d0ngw-t")
+	assert.Nil(t, err)
+	assert.EqualValues(t, 100, total)
+
+	total, ids, err = listCache.LoadList("d0ngw-t", 1, 10, 0)
+	assert.Nil(t, err)
+	assert.EqualValues(t, 100, total)
+	assert.EqualValues(t, 10, len(ids))
+	for i, v := range ids {
+		assert.EqualValues(t, 100-i, v)
+	}
+
+	total, targetScores, err = listCache.LoadListWithScore("d0ngw-t", 1, 100, 0)
+	assert.Nil(t, err)
+	assert.EqualValues(t, 100, total)
+	assert.EqualValues(t, 100, len(targetScores))
+	for i, v := range targetScores {
+		assert.EqualValues(t, 100-i, v[0])
+		t.Logf("tareget id:%d score id:%d", v[0], v[1])
+	}
+
+	for i := 1; i <= 100; i++ {
+		succ, err := listCache.Del("d0ngw-t", int64(i))
+		assert.Nil(t, err)
+		assert.True(t, succ)
+	}
+
+	total, err = listCache.GetCount("d0ngw-t")
 	assert.Nil(t, err)
 	assert.EqualValues(t, 0, total)
 }
