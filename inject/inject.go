@@ -33,33 +33,16 @@ func (p *Injector) String() string {
 	return fmt.Sprintf("Injector,unnamed binds:%v,named binds:%v", len(p.ununamed), len(p.named))
 }
 
-// parseInjectTag 解析inject tag,inject tag的格式
-func parseInjectTag(tag string) (found bool, name string, optional bool) {
-	tag = strings.TrimSpace(tag)
-	if len(tag) == 0 {
-		return
-	}
-
-	vals := strings.Split(tag, ",")
-	if len(vals) > 0 {
-		found = true
-		name = strings.TrimSpace(vals[0])
-	}
-
-	others := vals[1:]
-	for _, o := range others {
-		o = strings.ToLower(strings.TrimSpace(o))
-		if o == "optional" {
-			optional = true
-		}
-	}
-	return
-}
-
 // NewInjector 创建一个Injector
 func NewInjector(modules []*Module) *Injector {
+	injector := &Injector{}
+	injectorModule := NewModule()
+	injectorModule.Bind(injector)
+	modules = append(modules, injectorModule)
 	unnamed, named, all := mergeBinds(modules)
-	injector := &Injector{unnamed, named, all}
+	injector.ununamed = unnamed
+	injector.named = named
+	injector.all = all
 	injector.injectModules()
 	return injector
 }
@@ -240,11 +223,25 @@ func getFieldType(structObj interface{}, fieldIndex int) reflect.Type {
 	return val.Field(fieldIndex).Type()
 }
 
-// Merge 合并Module
-func Merge(modules ...[]*Module) []*Module {
-	var merged []*Module
-	for _, v := range modules {
-		merged = append(merged, v...)
+// parseInjectTag 解析inject tag,inject tag的格式
+func parseInjectTag(tag string) (found bool, name string, optional bool) {
+	tag = strings.TrimSpace(tag)
+	if len(tag) == 0 {
+		return
 	}
-	return merged
+
+	vals := strings.Split(tag, ",")
+	if len(vals) > 0 {
+		found = true
+		name = strings.TrimSpace(vals[0])
+	}
+
+	others := vals[1:]
+	for _, o := range others {
+		o = strings.ToLower(strings.TrimSpace(o))
+		if o == "optional" {
+			optional = true
+		}
+	}
+	return
 }

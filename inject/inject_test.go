@@ -16,6 +16,7 @@ type userRegService struct {
 	LdapImpl accountService `inject:"ldap"`
 	DbImpl   accountService `inject:"db"`
 	ID       string
+	Injector *Injector `inject:"_"`
 }
 
 type ldapAccount struct {
@@ -52,6 +53,8 @@ func TestInject(t *testing.T) {
 	injector.RequireInject(regService)
 	assert.Equal(t, "a@ldap", regService.LdapImpl.Name())
 	assert.Equal(t, "b@db", regService.DbImpl.Name())
+	assert.NotNil(t, regService.Injector)
+	assert.True(t, injector == regService.Injector)
 
 	injector.RequireInjectWithOverrideTags(regService, map[string]string{"DbImpl": "ldap", "LdapImpl": "db"})
 	assert.Equal(t, "b@db", regService.LdapImpl.Name())

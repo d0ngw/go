@@ -143,3 +143,12 @@ func mergeBinds(modules []*Module) (unnamed []*internalBind, named map[string][]
 	}
 	return
 }
+
+// Merge 合并Module
+func Merge(modules ...[]*Module) []*Module {
+	var merged []*Module
+	for _, v := range modules {
+		merged = append(merged, v...)
+	}
+	return merged
+}
