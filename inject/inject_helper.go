@@ -72,3 +72,22 @@ func SetupInjector(config c.Configurer, addonConfig string, env string, modules 
 	injectorEnv[env] = injector
 	return injector, nil
 }
+
+// Injected 判断是否已经完成注入
+type Injected interface {
+	// 是否已经完成注入
+	IsInjected() bool
+}
+
+// IsInjected 判断i是否实现了Injected接口
+// 当i实现了Injected接口时,ok为true,这时injected表示接口i是否已经完成了注入
+func IsInjected(i interface{}) (ok bool, injected bool) {
+	if i == nil {
+		return
+	}
+	injectedi, ok := i.(Injected)
+	if ok {
+		injected = injectedi.IsInjected()
+	}
+	return
+}

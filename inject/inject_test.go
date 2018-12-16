@@ -11,6 +11,14 @@ type accountService interface {
 	Name() string
 }
 
+type injectedService struct {
+	Injector *Injector `inject:"_"`
+}
+
+func (p *injectedService) IsInjected() bool {
+	return p.Injector != nil
+}
+
 type userRegService struct {
 	N        int
 	LdapImpl accountService `inject:"ldap"`
@@ -73,6 +81,10 @@ func TestInject(t *testing.T) {
 	ldapImplGet, ok := injector.GetInstanceByPrototype("", struct{ s accountService }{}).(accountService)
 	assert.False(t, ok)
 	assert.Nil(t, ldapImplGet)
+
+	injectedSvc := &injectedService{}
+	injector.RequireInject(injectedSvc)
+	injector.RequireInject(injectedSvc)
 }
 
 func TestInjectInModule(t *testing.T) {
@@ -159,6 +171,7 @@ func TestInjectInModuleWithProvider(t *testing.T) {
 
 	assert.Equal(t, "a@ldap", regService.LdapImpl.Name())
 	assert.Equal(t, "a@ldap", regService.DbImpl.Name())
+
 }
 
 func TestGetInstancesByPrototype(t *testing.T) {

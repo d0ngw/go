@@ -187,6 +187,13 @@ func (p *Injector) injectInstance(target interface{}) {
 
 // injectInstanceWithOverrideTAgs 向target注入实例,injectTags用于覆盖target struct中定义的inject tag定义
 func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags map[string]string) {
+	if len(injectTags) == 0 {
+		if ok, injected := IsInjected(target); ok && injected {
+			//已经完成注入,直接返回
+			c.Debugf("%s has been injected,skip", target)
+			return
+		}
+	}
 	val := reflect.ValueOf(target)
 	ind := reflect.Indirect(val)
 	typ := ind.Type()
