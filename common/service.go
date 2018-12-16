@@ -93,13 +93,13 @@ func ServiceInit(service Service) bool {
 		return true
 	}
 	name := ServiceName(service)
-	Infof("init %s", name)
+	Debugf("init %s", name)
 	err := service.Init()
 	if err == nil && service.setState(INITED) {
 		Debugf("init %s succ", name)
 		return true
 	}
-	Infof("init %s fail,err:%s", name, err)
+	Errorf("init %s fail,err:%s", name, err)
 	service.setState(FAILED)
 	return false
 }
@@ -107,13 +107,13 @@ func ServiceInit(service Service) bool {
 // ServiceStart 开始服务
 func ServiceStart(service Service) bool {
 	name := ServiceName(service)
-	Infof("starting %s,state:%s", name, service.State())
+	Debugf("starting %s,state:%s", name, service.State())
 	service.setState(STARTING)
 	if service.Start() && service.setState(RUNNING) {
-		Infof("%s,state:%s", name, service.State())
+		Debugf("%s,state:%s", name, service.State())
 		return true
 	}
-	Infof("start %s fail", name)
+	Errorf("start %s fail", name)
 	service.setState(FAILED)
 	return false
 }
@@ -121,13 +121,13 @@ func ServiceStart(service Service) bool {
 // ServiceStop 停止服务
 func ServiceStop(service Service) bool {
 	name := ServiceName(service)
-	Infof("stoping %s", name)
+	Debugf("stoping %s", name)
 	service.setState(STOPPING)
 	if service.Stop() && service.setState(TERMINATED) {
-		Infof("%s,state:%s", name, service.State())
+		Debugf("%s,state:%s", name, service.State())
 		return true
 	}
-	Infof("stop %s fail", name)
+	Errorf("stop %s fail", name)
 	service.setState(FAILED)
 	return false
 }
