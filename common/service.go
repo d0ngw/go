@@ -231,7 +231,7 @@ func (p *Services) Init() bool {
 func (p *Services) Start() bool {
 	for i, service := range p.sorted {
 		name := ServiceName(service)
-		Infof("start %s,order:%d", name, i)
+		Debugf("start %s,order:%d", name, i)
 		if !ServiceStart(service) {
 			Warnf("start %s fail", name)
 			return false
@@ -244,7 +244,7 @@ func (p *Services) Start() bool {
 func (p *Services) Stop() bool {
 	for i, service := range p.sorted {
 		name := ServiceName(service)
-		Infof("stop %s,order:%d", name, i)
+		Debugf("stop %s,order:%d", name, i)
 		if !ServiceStop(service) {
 			Warnf("stop %s fail", name)
 		}
