@@ -190,7 +190,7 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 	if len(injectTags) == 0 {
 		if ok, injected := IsInjected(target); ok && injected {
 			//已经完成注入,直接返回
-			c.Debugf("%s has been injected,skip", target)
+			c.Debugf("%T has been injected,skip", target)
 			return
 		}
 	}
