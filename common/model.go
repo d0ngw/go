@@ -4,7 +4,9 @@ import "reflect"
 
 //PageParam 分页参数
 type PageParam struct {
-	Page     int `json:"page"`
+	//页数,从1开始
+	Page int `json:"page"`
+	//每页的条数,>0
 	PageSize int `json:"page_size"`
 }
 
@@ -91,5 +93,6 @@ func (p *PageResult) CalTotalPage() {
 //Query 基本的查询参数
 type Query struct {
 	PageParam
+	//ID
 	ID int64 `json:"id"`
 }
