@@ -19,7 +19,7 @@ type conf struct {
 	A string
 	B struct {
 		C int
-		D []int ",flow"
+		D []int
 	}
 }
 

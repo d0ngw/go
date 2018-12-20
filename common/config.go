@@ -2,35 +2,34 @@ package common
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
-	"path"
 	"reflect"
 	"runtime"
-
-	"gopkg.in/yaml.v2"
 )
 
 var (
 	errInvalidConf = errors.New("invalid conf")
 )
 
-// LoadYAMLFromPath 将YAML文件中的配置加载到到结构体target中
-func LoadYAMLFromPath(filename string, target interface{}) error {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return err
-	}
-	return LoadYAMl(data, target)
+// ConfigLoader 配置内容加载器
+type ConfigLoader interface {
+	Load(configPath string) (content []byte, err error)
 }
 
-// LoadYAMl 将data中的YAML配置加载到到结构体target中
-func LoadYAMl(data []byte, target interface{}) error {
-	if len(data) == 0 {
-		return fmt.Errorf("Can't load yaml config fomr emtpyt data")
-	}
-	return yaml.Unmarshal([]byte(data), target)
+// ConfigFileLoader 从本地文件中加载配置
+type ConfigFileLoader struct {
 }
+
+// Load 从文件中加载配置文件的内容
+func (p *ConfigFileLoader) Load(configPath string) (content []byte, err error) {
+	content, err = ioutil.ReadFile(configPath)
+	return
+}
+
+var (
+	//默认加载
+	fileLoader ConfigLoader = (*ConfigFileLoader)(nil)
+)
 
 // Configurer 配置器
 type Configurer interface {
@@ -101,36 +100,4 @@ func Parse(conf interface{}) error {
 		}
 	}
 	return nil
-}
-
-// LoadConfig 从configDir目录下的多个path指定的配置文件中加载配置
-func LoadConfig(config Configurer, addonConfig string, configDir string, pathes ...string) (err error) {
-	if len(pathes) == 0 && addonConfig == "" {
-		return errInvalidConf
-	}
-
-	var content []byte
-	if addonConfig != "" {
-		content = append(content, addonConfig...)
-		content = append(content, []byte("\n")...)
-	}
-	for _, p := range pathes {
-		p = path.Join(configDir, p)
-		Infof("load conf from:%s", p)
-		cnt, err := ioutil.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		if len(cnt) == 0 {
-			Warnf("empty content in %s", p)
-			continue
-		}
-		content = append(content, cnt...)
-		content = append(content, []byte("\n")...)
-	}
-	err = LoadYAMl(content, config)
-	if err != nil {
-		return err
-	}
-	return
 }
