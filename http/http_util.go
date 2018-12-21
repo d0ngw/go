@@ -22,7 +22,11 @@ import (
 )
 
 var (
-	jsoniterJSON = jsoniter.ConfigCompatibleWithStandardLibrary
+	jsoniterJSON = jsoniter.Config{
+		EscapeHTML:             false,
+		SortMapKeys:            true,
+		ValidateJsonRawMessage: true,
+	}.Froze()
 )
 
 // RequestError is the http request response error
@@ -202,22 +206,26 @@ func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interf
 	if err != nil {
 		log.Printf("Parse template err:%s\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	if err := t.Execute(w, data); err != nil {
+	var buff = bytes.Buffer{}
+	if err := t.Execute(&buff, data); err != nil {
 		log.Printf("Execute template err:%s\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		w.Write(buff.Bytes())
 	}
 }
 
 // RenderJSON 渲染JSON
 func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	encoder := jsoniterJSON.NewEncoder(w)
-	encoder.SetEscapeHTML(false)
-	err := encoder.Encode(jsonData)
+	data, err := jsoniterJSON.Marshal(jsonData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		c.Errorf("marshal %T fail,err:%v", jsonData, err)
+	} else {
+		w.Write(data)
 	}
 }
 
