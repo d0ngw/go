@@ -28,7 +28,7 @@ func LoadYAMl(data []byte, target interface{}) error {
 
 // LoadConfig 从configDir目录下的多个path指定的YAML配置文件中加载配置
 func LoadConfig(config Configurer, addonConfig string, configDir string, pathes ...string) (err error) {
-	return LoadConfigWithLoader(fileLoader, config, addonConfig, configDir, pathes...)
+	return LoadConfigWithLoader(FileLoader, config, addonConfig, configDir, pathes...)
 }
 
 // LoadConfigWithLoader 使用指定的加载器加载配置

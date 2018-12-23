@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"runtime"
 )
@@ -22,13 +23,17 @@ type ConfigFileLoader struct {
 
 // Load 从文件中加载配置文件的内容
 func (p *ConfigFileLoader) Load(configPath string) (content []byte, err error) {
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		Warnf("config %s does not exist,skip", configPath)
+		return nil, nil
+	}
 	content, err = ioutil.ReadFile(configPath)
 	return
 }
 
 var (
-	//默认加载
-	fileLoader ConfigLoader = (*ConfigFileLoader)(nil)
+	//FileLoader 默认加载
+	FileLoader ConfigLoader = &ConfigFileLoader{}
 )
 
 // Configurer 配置器
