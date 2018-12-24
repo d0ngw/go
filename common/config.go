@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"runtime"
 )
@@ -14,15 +15,30 @@ var (
 // ConfigLoader 配置内容加载器
 type ConfigLoader interface {
 	Load(configPath string) (content []byte, err error)
+
+	Exist(configPath string) (exist bool, err error)
 }
 
 // ConfigFileLoader 从本地文件中加载配置
 type ConfigFileLoader struct {
 }
 
-// Load 从文件中加载配置文件的内容
+// Load impls ConfigLoader.Load
 func (p *ConfigFileLoader) Load(configPath string) (content []byte, err error) {
 	content, err = ioutil.ReadFile(configPath)
+	return
+}
+
+// Exist impls ConfigLoader.Exist
+func (p *ConfigFileLoader) Exist(configPath string) (exist bool, err error) {
+	info, err := os.Stat(configPath)
+	if os.IsNotExist(err) {
+		err = nil
+		return
+	}
+	if info != nil {
+		exist = !info.IsDir()
+	}
 	return
 }
 

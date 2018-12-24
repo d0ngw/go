@@ -91,3 +91,14 @@ func TestAppConfig(t *testing.T) {
 	fmt.Printf("s1 type:%T,size:%d\n", s1, unsafe.Sizeof(s1))
 	fmt.Printf("s2 type:%T,size:%d\n", s2, unsafe.Sizeof(s2))
 }
+
+func TestConfigLoader(t *testing.T) {
+	fileLoader := &ConfigFileLoader{}
+	exist, err := fileLoader.Exist("")
+	assert.False(t, exist)
+	assert.NoError(t, err)
+
+	exist, err = fileLoader.Exist("config_test.go")
+	assert.True(t, exist)
+	assert.NoError(t, err)
+}

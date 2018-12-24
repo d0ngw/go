@@ -39,13 +39,27 @@ func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonCo
 			return nil, err
 		}
 	}
-
 	c.Infof("work dir:%s", workfDir)
-	mainConf := "conf_" + env + ".yaml"
-	allConfs := []string{mainConf}
-	allConfs = append(allConfs, confs...)
 
-	err := c.LoadConfigWithLoader(loader, config, addonConfig, path.Join("conf"), allConfs...)
+	confDir := "conf"
+	envConf := path.Join(confDir, "conf_"+env+".yaml")
+	if exist, err := loader.Exist(envConf); err != nil {
+		c.Errorf("check env conf file %s fail,err:%v", envConf, err)
+		return nil, err
+	} else if !exist {
+		c.Errorf("env conf file %s doesn't exist,skip", envConf)
+	} else {
+		if content, err := loader.Load(envConf); err != nil {
+			c.Errorf("load env conf %s fail,err:%v", envConf, err)
+			return nil, err
+		} else if len(content) > 0 {
+			addonConfig += "\n" + string(content) + "\n"
+		}
+	}
+
+	var allConfs []string
+	allConfs = append(allConfs, confs...)
+	err := c.LoadConfigWithLoader(loader, config, addonConfig, confDir, allConfs...)
 	if err != nil {
 		return nil, err
 	}
