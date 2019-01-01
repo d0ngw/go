@@ -1,7 +1,6 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
@@ -100,7 +99,7 @@ func (p *RuleValidateService) Validate(ruleName string, s string) error {
 
 	for _, v := range rule.validators {
 		if !v.Validate(s) {
-			return errors.New(rule.desc)
+			return NewValidateError(rule.desc)
 		}
 	}
 	return nil
@@ -128,10 +127,35 @@ func ValidateAll(validateService ValidateService, nameAndValues ...*ValidatePair
 	for _, nv := range nameAndValues {
 		if err := validateService.Validate(nv.Name, nv.Value); err != nil {
 			if nv.Msg != "" {
-				return errors.New(nv.Msg)
+				return NewValidateError(nv.Msg)
 			}
 			return err
 		}
 	}
 	return nil
+}
+
+// ValidateError error
+type ValidateError struct {
+	msg string //错误消息
+}
+
+// NewValidateError new
+func NewValidateError(msg string) *ValidateError {
+	return &ValidateError{msg: msg}
+}
+
+func (p *ValidateError) Error() string {
+	if p == nil {
+		return ""
+	}
+	return p.msg
+}
+
+// Human impls HumanError.Human
+func (p *ValidateError) Human() bool {
+	if p == nil {
+		return false
+	}
+	return true
 }
