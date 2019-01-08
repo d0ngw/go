@@ -85,8 +85,12 @@ type RuleValidateService struct {
 
 // Init implements Initable
 func (p *RuleValidateService) Init() error {
-	if p.Config == nil || p.Config.GetValidateRuleConfig() == nil {
-		return fmt.Errorf("no validate config")
+	if p.Config == nil {
+		Warnf("no validate config")
+		return nil
+	}
+	if p.Config.GetValidateRuleConfig() == nil {
+		return fmt.Errorf("no validate config rule")
 	}
 	config := p.Config.GetValidateRuleConfig()
 	p.SName = config.SName
