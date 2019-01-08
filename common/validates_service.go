@@ -90,7 +90,8 @@ func (p *RuleValidateService) Init() error {
 		return nil
 	}
 	if p.Config.GetValidateRuleConfig() == nil {
-		return fmt.Errorf("no validate config rule")
+		Warnf("no validate config rule")
+		return nil
 	}
 	config := p.Config.GetValidateRuleConfig()
 	p.SName = config.SName
