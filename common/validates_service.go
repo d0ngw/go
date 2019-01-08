@@ -21,6 +21,10 @@ type ValidateRuleConfig struct {
 
 // Parse 解析验证的配置
 func (p *ValidateRuleConfig) Parse() error {
+	if p == nil {
+		Warnf("no validate conf")
+		return nil
+	}
 	rules := make(validateRuleMap)
 	for _, ruleConfig := range p.Rules {
 		ruleName := strings.TrimSpace(ruleConfig.Name)
