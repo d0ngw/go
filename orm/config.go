@@ -60,8 +60,12 @@ type DBShardConfig struct {
 
 // Parse implements Configurer.Parse
 func (p *DBShardConfig) Parse() error {
-	c.Infof("db shards count:%d", len(p.Shards))
+	if p == nil {
+		c.Warnf("no db config")
+		return nil
+	}
 
+	c.Infof("db shards count:%d", len(p.Shards))
 	for k, v := range p.Shards {
 		if v == nil {
 			return fmt.Errorf("no db config for %s", k)
