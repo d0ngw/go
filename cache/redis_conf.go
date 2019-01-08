@@ -100,6 +100,10 @@ type RedisConf struct {
 
 // Parse implements Configurer interface
 func (p *RedisConf) Parse() error {
+	if p == nil {
+		c.Warnf("no redis conf")
+		return nil
+	}
 	groups := map[string][]*RedisServer{}
 	servers := map[string]*RedisServer{}
 
