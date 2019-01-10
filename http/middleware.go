@@ -8,11 +8,6 @@ import (
 	"github.com/d0ngw/go/common/perm"
 )
 
-const (
-	//TokenHeader token in header
-	TokenHeader = "X-TOKEN"
-)
-
 // MiddlewareFunc middleware函数
 type MiddlewareFunc func(http.ResponseWriter, *http.Request)
 
@@ -81,15 +76,19 @@ func NewPermBindMiddleware(perms ...*perm.Perm) *PermBindMiddleware {
 
 // TokenMiddleware 用于从cookie中解析token,从中取得请求的principal
 type TokenMiddleware struct {
-	TokenName   string      //Token的名称
-	AuthService AuthService `inject:"_"` //认证服务
+	//认证服务
+	AuthService AuthService `inject:"_"`
+	//Cookie中的Token的名称
+	TokenName string
+	//Header中的Token名称
+	TokenHeaderName string
 }
 
 // Handle 解析token
 func (p *TokenMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var token string
-		token = r.Header.Get(TokenHeader)
+		token = r.Header.Get(p.TokenHeaderName)
 		if token == "" {
 			tokenCookie, err := r.Cookie(p.TokenName)
 			if err != nil {
