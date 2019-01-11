@@ -103,7 +103,9 @@ func (p *RuleValidateService) Init() error {
 func (p *RuleValidateService) Validate(ruleName string, s string) error {
 	rule := p.rules[ruleName]
 	if rule == nil {
-		return fmt.Errorf("can't find validate rule %s", ruleName)
+		err := NewValidateError(fmt.Sprintf("can't find validate rule %s", ruleName))
+		err.notFoundRule = true
+		return err
 	}
 
 	for _, v := range rule.validators {
@@ -135,6 +137,9 @@ func NewValidatePairMsg(name, value, msg string) *ValidatePair {
 func ValidateAll(validateService ValidateService, nameAndValues ...*ValidatePair) error {
 	for _, nv := range nameAndValues {
 		if err := validateService.Validate(nv.Name, nv.Value); err != nil {
+			if verr, ok := err.(*ValidateError); ok && verr.notFoundRule {
+				return err
+			}
 			if nv.Msg != "" {
 				return NewValidateError(nv.Msg)
 			}
@@ -146,7 +151,10 @@ func ValidateAll(validateService ValidateService, nameAndValues ...*ValidatePair
 
 // ValidateError error
 type ValidateError struct {
-	msg string //错误消息
+	//错误消息
+	msg string
+	//是否未找到规则
+	notFoundRule bool
 }
 
 // NewValidateError new
