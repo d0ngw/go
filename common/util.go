@@ -569,7 +569,7 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 			name := field.Name
 			toField, found := toTyp.FieldByName(name)
 			if !found {
-				Warnf("not found filed name %s.%s in %s", typ, name, toTyp)
+				Debugf("not found filed name %s.%s in %s", typ, name, toTyp)
 				continue
 			}
 			if noCopy(toField) {
