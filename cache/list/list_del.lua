@@ -15,7 +15,7 @@ end
 redis.call("PERSIST", list_key)
 local exist = redis.call("EXISTS", list_key)
 local deleted = 0
-local last_member = {}
+local last_member = 0
 local length = 0
 
 if exist == 1 then
@@ -24,7 +24,10 @@ if exist == 1 then
         members[#members + 1] = ARGV[i]
     end
     deleted=redis.call("ZREM", list_key, unpack(members))
-    last_member = redis.call("ZRANGE",list_key,-1,-1)
+    local lastm = redis.call("ZRANGE",list_key,-1,-1)
+    if #lastm > 0 then
+        last_member = lastm[1]
+    end
     length = redis.call("ZCARD",list_key)
 end
 

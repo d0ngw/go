@@ -315,7 +315,7 @@ func (p *Cache) delFromRedisList(listKey cache.Param, targetID int64) (deleted, 
 	defer conn.Close()
 	reply, err := delScript.Do(conn, listKey.Key(), listKey.Expire(), targetID)
 	if err != nil {
-		c.Errorf("del listKey:%s ,targetID:%d fail,err:%s", listKey.Key(), targetID, err)
+		c.Errorf("del listKey:%s ,targetID:%d fail,reply:%v,err:%s", listKey.Key(), targetID, reply, err)
 		return
 	}
 
@@ -324,12 +324,9 @@ func (p *Cache) delFromRedisList(listKey cache.Param, targetID int64) (deleted, 
 	if err != nil {
 		return
 	}
-	last := replySlice[1].([]interface{})
-	if len(last) > 0 {
-		lastTargetID, err = redis.Int64(last[0], nil)
-		if err != nil {
-			return
-		}
+	lastTargetID, err = redis.Int64(replySlice[1], nil)
+	if err != nil {
+		return
 	}
 	length, err = redis.Int64(replySlice[2], nil)
 	if err != nil {
