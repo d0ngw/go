@@ -199,8 +199,26 @@ func GetFloat32Parameter(r url.Values, name string) (val float32, err error) {
 	return 0, err
 }
 
+// http header
+const (
+	CacheControl  = "Cache-Control"
+	XCacheControl = "X-" + CacheControl
+)
+
+func setupHeader(w http.ResponseWriter) {
+	if w == nil {
+		return
+	}
+	if xCacheControl := w.Header().Get(XCacheControl); xCacheControl != "" {
+		w.Header().Set(CacheControl, xCacheControl)
+	} else {
+		w.Header().Set(CacheControl, "no-cache")
+	}
+}
+
 // RenderTemplate 渲染模板
 func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interface{}) {
+	setupHeader(w)
 	templatePath := path.Join(templateDir, tmpl+".html")
 	t, err := template.ParseFiles(templatePath)
 	if err != nil {
@@ -219,6 +237,7 @@ func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interf
 
 // RenderJSON 渲染JSON
 func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
+	setupHeader(w)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	data, err := jsoniterJSON.Marshal(jsonData)
 	if err != nil {
@@ -231,6 +250,7 @@ func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
 
 // RenderText 渲染Text
 func RenderText(w http.ResponseWriter, text string) {
+	setupHeader(w)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(text))
 }
