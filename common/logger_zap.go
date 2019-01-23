@@ -69,6 +69,7 @@ func NewZapLogger(logConfig *LogConfig) *ZapLogger {
 			MaxSize:    logConfig.MaxSize,
 			MaxBackups: logConfig.MaxBackups,
 			MaxAge:     logConfig.MaxAge,
+			LocalTime:  true,
 		})
 	} else {
 		writerSync = zapcore.AddSync(os.Stdout)
