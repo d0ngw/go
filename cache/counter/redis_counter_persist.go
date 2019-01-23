@@ -139,7 +139,6 @@ type RedisCounterSync struct {
 	redisServers          []*cache.RedisServer
 	persistRedisCounter   *PersistRedisCounter
 	dbPersist             Persist
-	syncSetCacheParam     *cache.ParamConf
 	slotMaxItems          int64
 	minSyncVersionChanges int64
 	minSyncIntervalSecond int64
@@ -156,7 +155,8 @@ func NewRedisCounterSync(persistRedisCounter *PersistRedisCounter, slotMaxItems,
 		return nil, errors.New("slotMaxItems and xxxSecond must be >0")
 	}
 
-	servers, err := persistRedisCounter.redisClient().GetGroupServers(persistRedisCounter.cacheParam.Group())
+	syncGroup := persistRedisCounter.cacheParam.Group() + ".sync"
+	servers, err := persistRedisCounter.redisClient().GetGroupServers(syncGroup)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,6 @@ func NewRedisCounterSync(persistRedisCounter *PersistRedisCounter, slotMaxItems,
 		redisServers:          servers,
 		persistRedisCounter:   persistRedisCounter,
 		dbPersist:             persistRedisCounter.persist,
-		syncSetCacheParam:     persistRedisCounter.cacheParam,
 		slotMaxItems:          slotMaxItems,
 		minSyncVersionChanges: minSyncVersionChanges,
 		minSyncIntervalSecond: minSyncIntervalSecond,

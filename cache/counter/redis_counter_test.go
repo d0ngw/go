@@ -68,7 +68,7 @@ func init() {
 	}
 	var redisConf = cache.RedisConf{
 		Servers: []*cache.RedisServer{redisServer},
-		Groups:  map[string][]string{"test": []string{"test"}},
+		Groups:  map[string][]string{"test": []string{"test"}, "test.sync": []string{"test"}},
 	}
 
 	err = redisConf.Parse()
