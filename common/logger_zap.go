@@ -53,8 +53,10 @@ func NewZapLogger(logConfig *LogConfig) *ZapLogger {
 	var encoder zapcore.Encoder
 	var writerSync zapcore.WriteSyncer
 	var logEnable zapcore.LevelEnabler
+
 	if logConfig.Env == EnvProduction {
 		config := zap.NewProductionEncoderConfig()
+		config.EncodeTime = zapcore.ISO8601TimeEncoder
 		encoder = zapcore.NewConsoleEncoder(config)
 		logEnable = zap.InfoLevel
 	} else {
