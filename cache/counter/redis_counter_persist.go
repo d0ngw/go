@@ -129,6 +129,12 @@ func (p *DBPersist) Store(counterID string, fields Fields) (err error) {
 	if err != nil {
 		return err
 	}
+	_, _, expect := c.ExtractRefTuple(p.entityType)
+	_, _, rel := c.ExtractRefTuple(entity)
+	if expect != rel {
+		err = fmt.Errorf("expect %v,but is %v", expect, rel)
+		return
+	}
 	_, err = orm.AddOrUpdate(oper, entity)
 	return
 }
