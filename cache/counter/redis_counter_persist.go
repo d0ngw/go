@@ -229,7 +229,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 		needEvictItemCount = overItems
 	}
 
-	c.Infof("begin scan slotKey:%s,slotIndex length:%d,needEvictItemCount:%d", syncSetSlotKey, originLength, needEvictItemCount)
+	c.Debugf("begin scan slotKey:%s,slotIndex length:%d,needEvictItemCount:%d", syncSetSlotKey, originLength, needEvictItemCount)
 	if originLength <= 0 {
 		return nil
 	}
@@ -379,7 +379,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 			}
 		}
 	}
-	c.Infof("finish scan slotKey:%s in %d ms,slot length:%d,evicted:%d,synced:%d", syncSetSlotKey, c.UnixMills(time.Now())-st, originLength, evictedCount, syncedCount)
+	c.Debugf("after scan slotKey:%s in %d ms,slot length:%d,evicted:%d,synced:%d", syncSetSlotKey, c.UnixMills(time.Now())-st, originLength, evictedCount, syncedCount)
 	return nil
 }
 
