@@ -379,7 +379,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 			}
 		}
 	}
-	c.Debugf("after scan slotKey:%s in %d ms,slot length:%d,evicted:%d,synced:%d", syncSetSlotKey, c.UnixMills(time.Now())-st, originLength, evictedCount, syncedCount)
+	c.Infof("after scan slotKey:%s in %d ms,slot length:%d,evicted:%d,synced:%d", syncSetSlotKey, c.UnixMills(time.Now())-st, originLength, evictedCount, syncedCount)
 	return nil
 }
 
