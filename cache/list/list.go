@@ -221,9 +221,9 @@ func (p *Cache) Del(ownerID string, targetID int64) (bool, error) {
 }
 
 // GetIDForOwnerTarget query the Entity.ID with ownerID and targetID
-func (p *Cache) GetIDForOwnerTarget(ownerID string, targetID int64) (id int64, ok bool, err error) {
+func (p *Cache) GetIDForOwnerTarget(ownerID string, targetID int64) (id int64, err error) {
 	key := p.listOwnerCacheParam.NewParamKey(p.ownerAndTargetKey(ownerID, targetID))
-	id, ok, err = p.redisClient().GetInt64(key)
+	id, ok, err := p.redisClient().GetInt64(key)
 	if err != nil {
 		return
 	}
@@ -242,7 +242,6 @@ func (p *Cache) GetIDForOwnerTarget(ownerID string, targetID int64) (id int64, o
 			}
 		}
 	}
-	ok = id > 0
 	return
 }
 
