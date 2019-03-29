@@ -242,9 +242,7 @@ func (p *Cache) GetIDForOwnerTarget(ownerID string, targetID int64) (id int64, o
 			}
 		}
 	}
-	if id > 0 {
-		ok = true
-	}
+	ok = id > 0
 	return
 }
 
