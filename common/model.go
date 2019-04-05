@@ -44,6 +44,7 @@ type ResultSet interface {
 	SetTotal(total int64)
 	SetData(data interface{}, itemsSetter PageResultItemsSetter)
 	GetItemsSetter() PageResultItemsSetter
+	CalTotalPage()
 }
 
 //PageResult 分页结果
