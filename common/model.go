@@ -8,6 +8,8 @@ type PageParam struct {
 	Page int `json:"page"`
 	//每页的条数,>0
 	PageSize int `json:"page_size"`
+	//游标
+	Cursor int64 `json:"cursor"`
 }
 
 //Limit 根据maxPage和maxPageSize限制Page和PageSize
