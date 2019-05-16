@@ -60,6 +60,7 @@ type LogConfig struct {
 	MaxSize    int    `yaml:"max_size"`
 	MaxBackups int    `yaml:"max_backups"`
 	MaxAge     int    `yaml:"max_age"`
+	NoCaller   bool   `yaml:"no_caller"`
 }
 
 // LogConfiger the log configer

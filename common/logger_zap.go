@@ -79,7 +79,9 @@ func NewZapLogger(logConfig *LogConfig) *ZapLogger {
 
 	core := zapcore.NewCore(encoder, writerSync, logEnable)
 	logger := zap.New(core)
-	logger = logger.WithOptions(zap.AddCaller(), zap.AddCallerSkip(2))
+	if !logConfig.NoCaller {
+		logger = logger.WithOptions(zap.AddCaller(), zap.AddCallerSkip(2))
+	}
 	sugarLogger := logger.Sugar()
 	return &ZapLogger{logger: sugarLogger}
 }
