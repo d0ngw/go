@@ -62,6 +62,11 @@ type LogConfig struct {
 	MaxAge     int    `yaml:"max_age"`
 }
 
+// LogConfiger the log configer
+type LogConfiger interface {
+	GetLogConfig() *LogConfig
+}
+
 // Parse 解析日志配置
 func (p *LogConfig) Parse() error {
 	return initLogger(p)
@@ -96,6 +101,11 @@ func (p *AppConfig) Parse() error {
 // GetValidateRuleConfig implements ValidateConfiguer
 func (p *AppConfig) GetValidateRuleConfig() *ValidateRuleConfig {
 	return p.ValidateRuleConfig
+}
+
+// GetLogConfig impls LogConfiger
+func (p *AppConfig) GetLogConfig() *LogConfig {
+	return p.LogConfig
 }
 
 // Parse 解析配置
