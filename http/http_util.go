@@ -129,7 +129,7 @@ func (p *ResponseHandler) Run() {
 		return
 	}
 	if !p.Success {
-		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg, Code: p.Code})
+		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg, Code: p.Code, Data: p.Data})
 	} else {
 		RenderJSON(p.w, &Resp{Success: true, Msg: p.Msg, Data: p.Data, Code: p.Code})
 	}
