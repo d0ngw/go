@@ -88,7 +88,6 @@ func (p *Module) BindWithProviderFunc(name string, providerFunc ProviderFunc) {
 	panic(err)
 }
 
-// mustNotInterface 确保typ的类型不是interface{}
 func checkIsInterface(typ reflect.Type) bool {
 	isInterface := false
 	if typ.Kind() == reflect.Ptr {
@@ -106,10 +105,13 @@ func injectType(instance interface{}) reflect.Type {
 	val := reflect.ValueOf(instance)
 	typ := val.Type()
 
+	//确保typ的类型不是interface{}
 	if checkIsInterface(typ) {
 		panic(fmt.Errorf("The type of instance `%#v` is interface,can't find it's exact type", val.Interface()))
 	}
-
+	if typ.Kind() != reflect.Ptr && reflect.Indirect(val).Kind() == reflect.Struct {
+		c.Errorf("struct %T is not pointer but it's will be injected, please make sure it's expected.", instance)
+	}
 	return typ
 }
 

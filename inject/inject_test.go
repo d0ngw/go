@@ -19,12 +19,22 @@ func (p *injectedService) IsInjected() bool {
 	return p.Injector != nil
 }
 
-type userRegService struct {
-	N        int
-	LdapImpl accountService `inject:"ldap"`
-	DbImpl   accountService `inject:"db"`
-	ID       string
+type AreaService struct {
 	Injector *Injector `inject:"_"`
+}
+
+type AgeService struct {
+	LdapAccountServicePtr *ldapAccount `inject:"ldap"`
+}
+
+type userRegService struct {
+	AreaService
+	*AgeService
+	LdapImpl              accountService `inject:"ldap"`
+	DbImpl                accountService `inject:"db"`
+	ID                    string
+	Injector              *Injector    `inject:"_"`
+	LdapAccountServicePtr *ldapAccount `inject:"ldap"`
 }
 
 type ldapAccount struct {
@@ -57,12 +67,15 @@ func TestInject(t *testing.T) {
 
 	injector := NewInjector([]*Module{mod})
 
-	regService := &userRegService{}
+	regService := &userRegService{AgeService: &AgeService{}}
 	injector.RequireInject(regService)
 	assert.Equal(t, "a@ldap", regService.LdapImpl.Name())
 	assert.Equal(t, "b@db", regService.DbImpl.Name())
 	assert.NotNil(t, regService.Injector)
 	assert.True(t, injector == regService.Injector)
+	assert.NotNil(t, regService.AreaService.Injector)
+	assert.NotNil(t, regService.AgeService.LdapAccountServicePtr)
+	assert.EqualValues(t, regService.AgeService.LdapAccountServicePtr.Name(), regService.LdapImpl.Name())
 
 	injector.RequireInjectWithOverrideTags(regService, map[string]string{"DbImpl": "ldap", "LdapImpl": "db"})
 	assert.Equal(t, "b@db", regService.LdapImpl.Name())
@@ -197,4 +210,27 @@ func TestGetInstancesByPrototype(t *testing.T) {
 	for _, v := range allAccountServices {
 		_ = v.(accountService)
 	}
+}
+
+type userRegServiceBad struct {
+	LdapAccountService    ldapAccount  `inject:"_"`
+	LdapAccountServicePtr *ldapAccount `inject:"_"`
+}
+
+func TestInjectNoEmbed(t *testing.T) {
+	ldapImplA := ldapAccount{n: "a"}
+	ldapImplPtr := ldapAccount{n: "ptr"}
+
+	mod := NewModule()
+	mod.Bind(ldapImplA)
+	mod.Bind(&ldapImplPtr)
+
+	injector := NewInjector([]*Module{mod})
+
+	regServiceBad := &userRegServiceBad{}
+	injector.RequireInject(regServiceBad)
+	assert.Equal(t, "a@ldap", regServiceBad.LdapAccountService.Name())
+	assert.Equal(t, "ptr@ldap", regServiceBad.LdapAccountServicePtr.Name())
+	t.Logf("LdapAccountService %s", regServiceBad.LdapAccountService.Name())
+	t.Logf("LdapAccountServicePtr %s", regServiceBad.LdapAccountServicePtr.Name())
 }

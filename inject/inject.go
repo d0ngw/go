@@ -213,7 +213,8 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 			continue
 		}
 
-		if reflect.Indirect(fieldVal).Kind() == reflect.Struct {
+		//注入匿名结构体字段结
+		if reflect.Indirect(fieldVal).Kind() == reflect.Struct && field.Anonymous {
 			if fieldVal.Kind() == reflect.Ptr {
 				p.injectInstanceWithOverrideTags(fieldVal.Interface(), injectTags)
 			} else if fieldVal.CanAddr() && fieldVal.CanInterface() {
@@ -221,6 +222,7 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 			}
 			continue
 		}
+
 		structField := typ.Field(i)
 		sfTag := structField.Tag
 
