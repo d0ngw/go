@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 
 	c "github.com/d0ngw/go/common"
@@ -235,11 +236,34 @@ func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interf
 	}
 }
 
+// JSONMarshaler json marshaler
+type JSONMarshaler interface {
+	Marshal(interface{}) ([]byte, error)
+}
+
+var jsonMarshaler JSONMarshaler
+var regOnce sync.Once
+
+// RegJSONMarshaler 注册JSON Marshaler
+func RegJSONMarshaler(marshaler JSONMarshaler) {
+	regOnce.Do(func() {
+		jsonMarshaler = marshaler
+	})
+}
+
 // RenderJSON 渲染JSON
 func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
 	setupHeader(w)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	data, err := jsoniterJSON.Marshal(jsonData)
+	var (
+		data []byte
+		err  error
+	)
+	if jsonMarshaler != nil {
+		data, err = jsonMarshaler.Marshal(jsonData)
+	} else {
+		data, err = jsoniterJSON.Marshal(jsonData)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		c.Errorf("marshal %T fail,err:%v", jsonData, err)
