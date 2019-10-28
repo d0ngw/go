@@ -26,14 +26,15 @@ type EntityShardConfigurer interface {
 
 //DBConfig 数据库配置
 type DBConfig struct {
-	User          string `yaml:"user"`
-	Pass          string `yaml:"pass"`
-	URL           string `yaml:"url"`
-	Schema        string `yaml:"schema"`
-	MaxConn       int    `yaml:"maxConn"`
-	MaxIdle       int    `yaml:"maxIdle"`
-	MaxTimeSecond int    `yaml:"maxTimeSecond"`
-	Charset       string `yaml:"charset"`
+	User          string            `yaml:"user"`
+	Pass          string            `yaml:"pass"`
+	URL           string            `yaml:"url"`
+	Schema        string            `yaml:"schema"`
+	MaxConn       int               `yaml:"maxConn"`
+	MaxIdle       int               `yaml:"maxIdle"`
+	MaxTimeSecond int               `yaml:"maxTimeSecond"`
+	Charset       string            `yaml:"charset"`
+	Ext           map[string]string `yaml:"ext"`
 }
 
 // Parse implements DBConfigurer
