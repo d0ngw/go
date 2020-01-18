@@ -290,7 +290,7 @@ func (p StringSlice) ToFloat64() ([]float64, error) {
 
 // ToInterface 转为interface slice
 func (p StringSlice) ToInterface() []interface{} {
-	if p == nil {
+	if len(p) == 0 {
 		return nil
 	}
 	val := make([]interface{}, 0, len(p))
@@ -668,4 +668,49 @@ func IsValNil(v interface{}) bool {
 		}
 	}
 	return false
+}
+
+// IntSlice int slice
+type IntSlice []int
+
+// ToInterface 转为interface slice
+func (p IntSlice) ToInterface() []interface{} {
+	if len(p) == 0 {
+		return nil
+	}
+	val := make([]interface{}, 0, len(p))
+	for _, item := range p {
+		val = append(val, item)
+	}
+	return val
+}
+
+// Int64Slice int64 slice
+type Int64Slice []int64
+
+// ToInterface 转为interface slice
+func (p Int64Slice) ToInterface() []interface{} {
+	if len(p) == 0 {
+		return nil
+	}
+	val := make([]interface{}, 0, len(p))
+	for _, item := range p {
+		val = append(val, item)
+	}
+	return val
+}
+
+// Int32Slice int64 slice
+type Int32Slice []int64
+
+// ToInterface 转为interface slice
+func (p Int32Slice) ToInterface() []interface{} {
+	if len(p) == 0 {
+		return nil
+	}
+	val := make([]interface{}, 0, len(p))
+	for _, item := range p {
+		val = append(val, item)
+	}
+	return val
 }
