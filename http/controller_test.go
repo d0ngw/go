@@ -2,9 +2,10 @@ package http
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type DemoController struct {
@@ -79,6 +80,7 @@ func TestToUnderlineName(t *testing.T) {
 	assert.EqualValues(t, "in_dex", ToUnderlineName("InDEX"))
 	assert.EqualValues(t, "in_dex", ToUnderlineName("InDEx"))
 	assert.EqualValues(t, "in_de_x", ToUnderlineName("InDeX"))
-	assert.EqualValues(t, "in语言de_x", ToUnderlineName("In语言DeX"))
+	assert.EqualValues(t, "in语言_de_x", ToUnderlineName("In语言DeX"))
 	assert.EqualValues(t, "", ToUnderlineName(""))
+	assert.EqualValues(t, "h5_ware_path", ToUnderlineName("H5WarePath"))
 }

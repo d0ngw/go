@@ -93,7 +93,7 @@ func ToUnderlineName(camelName string) string {
 	normalizeName := make([]rune, 0, len(nameRune))
 
 	for ni := 0; ni < len(nameRune); ni++ {
-		if ni != 0 && unicode.IsUpper(nameRune[ni]) && unicode.IsLower(nameRune[ni-1]) {
+		if ni != 0 && unicode.IsUpper(nameRune[ni]) && !unicode.IsUpper(nameRune[ni-1]) {
 			normalizeName = append(normalizeName, '_')
 		}
 
