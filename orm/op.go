@@ -77,12 +77,10 @@ func (p *Op) checkTransStatus() error {
 
 func (p *Op) incrTransDepth() {
 	p.transDepth = p.transDepth + 1
-	c.Debugf("p.tranDepth:%v", p.transDepth)
 }
 
 func (p *Op) decrTransDepth() error {
 	p.transDepth = p.transDepth - 1
-	c.Debugf("p.tranDepth:%v", p.transDepth)
 	if p.transDepth < 0 {
 		return NewDBError(nil, "Too many invoke commit or rollback")
 	}
@@ -103,10 +101,8 @@ func (p *Op) finishTrans() error {
 	defer p.close()
 	p.txDone = true
 	if p.rollbackOnly {
-		c.Debugf("Rollback")
 		return p.tx.Rollback()
 	}
-	c.Debugf("Commit")
 	return p.tx.Commit()
 }
 

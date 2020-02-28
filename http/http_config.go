@@ -102,7 +102,6 @@ func (p *Config) RegStaticFunc(patternAndPath map[string]string) error {
 		fs := http.FileServer(NoDirFS{Fs: httpDir})
 		c.Infof("add static %s to %s", pattern, httpDir)
 		err := p.RegHandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-			c.Debugf("handle pattern:%s, url:%s", pattern, r.URL.String())
 			fs.ServeHTTP(w, r)
 		})
 		if err != nil {

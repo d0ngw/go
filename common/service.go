@@ -93,10 +93,8 @@ func ServiceInit(service Service) bool {
 		return true
 	}
 	name := ServiceName(service)
-	Debugf("init %s", name)
 	err := service.Init()
 	if err == nil && service.setState(INITED) {
-		Debugf("init %s succ", name)
 		return true
 	}
 	Errorf("init %s fail,err:%s", name, err)
@@ -107,10 +105,8 @@ func ServiceInit(service Service) bool {
 // ServiceStart 开始服务
 func ServiceStart(service Service) bool {
 	name := ServiceName(service)
-	Debugf("starting %s,state:%s", name, service.State())
 	service.setState(STARTING)
 	if service.Start() && service.setState(RUNNING) {
-		Debugf("%s,state:%s", name, service.State())
 		return true
 	}
 	Errorf("start %s fail", name)
@@ -121,10 +117,8 @@ func ServiceStart(service Service) bool {
 // ServiceStop 停止服务
 func ServiceStop(service Service) bool {
 	name := ServiceName(service)
-	Debugf("stoping %s", name)
 	service.setState(STOPPING)
 	if service.Stop() && service.setState(TERMINATED) {
-		Debugf("%s,state:%s", name, service.State())
 		return true
 	}
 	Errorf("stop %s fail", name)
@@ -229,9 +223,8 @@ func (p *Services) Init() bool {
 
 // Start 启动服务
 func (p *Services) Start() bool {
-	for i, service := range p.sorted {
+	for _, service := range p.sorted {
 		name := ServiceName(service)
-		Debugf("start %s,order:%d", name, i)
 		if !ServiceStart(service) {
 			Warnf("start %s fail", name)
 			return false
@@ -242,9 +235,8 @@ func (p *Services) Start() bool {
 
 // Stop 停止服务
 func (p *Services) Stop() bool {
-	for i, service := range p.sorted {
+	for _, service := range p.sorted {
 		name := ServiceName(service)
-		Debugf("stop %s,order:%d", name, i)
 		if !ServiceStop(service) {
 			Warnf("stop %s fail", name)
 		}

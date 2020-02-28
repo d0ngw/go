@@ -106,7 +106,6 @@ func (p *Service) handleWithMiddleware(handler *handlerWithMiddleware) http.Hand
 		m := middlewares[i]
 		h0 := h
 		h = func(w http.ResponseWriter, r *http.Request) {
-			c.Debugf("handle %s,invoke middleware %T", r.RequestURI, m)
 			m.Handle(h0)(w, r)
 		}
 	}

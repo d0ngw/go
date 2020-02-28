@@ -130,7 +130,6 @@ func mergeBinds(modules []*Module) (unnamed []*internalBind, named map[string][]
 				panic(fmt.Errorf("Duplicate bind %s", bindkey))
 			} else {
 				uniqBindMap[bindkey] = struct{}{}
-				c.Debugf("Add bind key:%s", bindkey)
 				if len(bind.name) == 0 {
 					unnamed = append(unnamed, bind)
 					all = append(all, bind)

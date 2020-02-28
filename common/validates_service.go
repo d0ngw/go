@@ -39,7 +39,6 @@ func (p *ValidateRuleConfig) Parse() error {
 			desc:       ruleConfig.Desc,
 			validators: validators}
 		rules[ruleName] = rule
-		Debugf("Add validate rule:%s", ruleName)
 	}
 	p.parsed = rules
 	return nil

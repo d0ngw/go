@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/ty/fun"
-	c "github.com/d0ngw/go/common"
 )
 
 type entityInsertFunc func(executor interface{}, entity Entity) error
@@ -63,7 +62,6 @@ func checkEntity(modelInfo *meta, entity Entity, tx interface{}) (ind reflect.Va
 }
 
 func exec(executor interface{}, execSQL string, args []interface{}) (rs sql.Result, err error) {
-	c.Debugf("Exec sql %s with %T", execSQL, executor)
 	if tx, ok := executor.(*sql.Tx); ok {
 		rs, err = tx.Exec(execSQL, args...)
 	} else if db, ok := executor.(*sql.DB); ok {
@@ -75,7 +73,6 @@ func exec(executor interface{}, execSQL string, args []interface{}) (rs sql.Resu
 }
 
 func query(executor interface{}, execSQL string, args []interface{}) (rows *sql.Rows, err error) {
-	c.Debugf("Exec sql %s with %T", execSQL, executor)
 	if tx, ok := executor.(*sql.Tx); ok {
 		rows, err = tx.Query(execSQL, args...)
 	} else if db, ok := executor.(*sql.DB); ok {
@@ -111,7 +108,6 @@ func createInsertFunc(modelInfo *meta) entityInsertFunc {
 			return err
 		}
 		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", tname, columns, params)
-		c.Debugf("insertSql:%s", insertSQL)
 
 		rs, err := exec(executor, insertSQL, paramValues)
 		if err != nil {
@@ -148,7 +144,6 @@ func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
 		}
 
 		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", tname, columns, modelInfo.pkField.column, "?")
-		c.Debugf("updateSql:%s", updateSQL)
 		rs, err := exec(executor, updateSQL, paramValues)
 		if err != nil {
 			return false, err
@@ -205,7 +200,6 @@ func createUpdateExcludeColmnsFunc(modelInfo *meta) entityUpdateExcludeColumnsFu
 		}
 
 		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", tname, columns, modelInfo.pkField.column, "?")
-		c.Debugf("updateSql:%s", updateSQL)
 		rs, err := exec(executor, updateSQL, paramValues)
 		if err != nil {
 			return false, err
@@ -239,7 +233,6 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 			updateSQL += condition
 
 		}
-		c.Debugf("updateColumnSql:%s", updateSQL)
 
 		rs, err := exec(executor, updateSQL, params)
 		if err != nil {
@@ -249,7 +242,6 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 		//检查更新的记录数
 		rows, err := rs.RowsAffected()
 		if err == nil {
-			c.Debugf("Updated rows:%v", rows)
 			return rows, nil
 		}
 		return 0, err
@@ -272,7 +264,6 @@ func createQueryFunc(modelInfo *meta) entityQueryFunc {
 		if len(condition) > 0 {
 			querySQL += condition
 		}
-		c.Debugf("querySql:%v", querySQL)
 
 		rows, err := query(executor, querySQL, params)
 		if err != nil {
@@ -320,7 +311,6 @@ func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
 		if len(condition) > 0 {
 			querySQL += condition
 		}
-		c.Debugf("querySql:%v", querySQL)
 
 		rows, err := query(executor, querySQL, params)
 		if err != nil {
@@ -384,7 +374,6 @@ func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
 		if len(condition) > 0 {
 			querySQL += condition
 		}
-		c.Debugf("querySql:%v", querySQL)
 
 		rows, err := query(executor, querySQL, params)
 		if err != nil {
@@ -424,7 +413,6 @@ func createDelFunc(modelInfo *meta) entityDeleteFunc {
 		if len(condition) > 0 {
 			delSQL += condition
 		}
-		c.Debugf("delSql:%v", delSQL)
 
 		rs, err := exec(executor, delSQL, params)
 		if err != nil {
@@ -462,7 +450,6 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 			return 0, err
 		}
 		insertSQL := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s) ON DUPLICATE KEY UPDATE %s", tname, columns, insertParams, updateColumns)
-		c.Debugf("insertSql:%s", insertSQL)
 
 		rs, err := exec(executor, insertSQL, allParamValues)
 		if err != nil {
@@ -472,7 +459,6 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 		//检查更新的记录数
 		rows, err := rs.RowsAffected()
 		if err == nil {
-			c.Debugf("Updated rows:%v", rows)
 			return rows, nil
 		}
 		return 0, err
@@ -484,7 +470,6 @@ func tblName(entity Entity) (string, error) {
 	if shardEntity, ok := entity.(ShardEntity); ok {
 		if shardEntity.TableShardFunc() != nil {
 			tblName, err := shardEntity.TableShardFunc()()
-			c.Debugf("use shard func for %v,tblName:%s", shardEntity, tblName)
 			return tblName, err
 		}
 	}

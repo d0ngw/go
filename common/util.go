@@ -30,7 +30,6 @@ func ExtractRefTuple(obj interface{}) (val reflect.Value, ind reflect.Value, typ
 
 func getFieldType(structObj interface{}, fieldIndex int) reflect.Type {
 	val := reflect.Indirect(reflect.ValueOf(structObj))
-	Debugf("val:%v", reflect.Indirect(val))
 	return val.Field(fieldIndex).Type()
 }
 
@@ -569,7 +568,6 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 			name := field.Name
 			toField, found := toTyp.FieldByName(name)
 			if !found {
-				Debugf("not found filed name %s.%s in %s", typ, name, toTyp)
 				continue
 			}
 			if noCopy(toField) {
@@ -580,8 +578,6 @@ func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err
 			copy(newIndex, baseFieldIndex)
 			fromIndex := append(newIndex, field.Index...)
 			toIndex := toField.Index
-
-			Debugf("found field name %s,from index %v,to index %v", name, fromIndex, toIndex)
 
 			var typeMatch bool
 			if field.Type.AssignableTo(toField.Type) {

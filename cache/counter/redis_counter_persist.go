@@ -229,7 +229,6 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 		needEvictItemCount = overItems
 	}
 
-	c.Debugf("begin scan slotKey:%s,slotIndex length:%d,needEvictItemCount:%d", syncSetSlotKey, originLength, needEvictItemCount)
 	if originLength <= 0 {
 		return nil
 	}
@@ -357,8 +356,6 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 				}
 				if err != nil {
 					c.Errorf("sync counter key:%s,success:%v,last sync:%d fail,err:%v", counterKey, synced, writeVersion, err)
-				} else {
-					c.Debugf("sync counter key:%s,success:%v,last sync:%d", counterKey, synced, writeVersion)
 				}
 			}
 
@@ -369,7 +366,6 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 						return err
 					}
 					evicted := evictResult[0]
-					c.Debugf("try evict counter key:%s,evicted:%d", counterKey, evicted)
 					if evicted == LUATRUE {
 						needEvictItemCount--
 						evictedCount++

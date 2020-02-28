@@ -219,7 +219,6 @@ func parseMeta(model Entity) (*meta, error) {
 			dupColumn[field.column] = struct{}{}
 		}
 	}
-	c.Debugf("Register Model:%s,fields:%s,pkFiled:%+v", fullName, fields, pkField)
 
 	mInfo.fields = fields
 	mInfo.insertFunc = createInsertFunc(mInfo)
@@ -264,7 +263,6 @@ func parseFields(index []int, ind reflect.Value, typ reflect.Type, pkField **met
 	for i := 0; i < ind.NumField(); i++ {
 		field := typ.Field(i)
 		if field.PkgPath != "" {
-			c.Debugf("skip unexported field %s", typ, field.Name)
 			continue
 		}
 
