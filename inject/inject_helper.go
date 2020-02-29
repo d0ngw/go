@@ -11,7 +11,6 @@ import (
 var (
 	// Module 声明了通用的服务
 	module      = NewModule()
-	confs       = []string{"common.yaml"}
 	injectMutex sync.Mutex
 	injectorEnv = map[string]*Injector{}
 )
@@ -42,24 +41,34 @@ func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonCo
 	c.Infof("work dir:%s", workfDir)
 
 	confDir := "conf"
-	envConf := path.Join(confDir, "conf_"+env+".yaml")
-	if exist, err := loader.Exist(envConf); err != nil {
-		c.Errorf("check env conf file %s fail,err:%v", envConf, err)
-		return nil, err
-	} else if !exist {
-		c.Errorf("env conf file %s doesn't exist,skip", envConf)
+	var (
+		confs = []string{"common.yaml"}
+	)
+
+	if env != "" {
+		confs = append(confs, "conf_"+env+".yaml")
 	} else {
-		if content, err := loader.Load(envConf); err != nil {
-			c.Errorf("load env conf %s fail,err:%v", envConf, err)
+		confs = append(confs, "conf.yaml")
+	}
+
+	for _, f := range confs {
+		conf := path.Join(confDir, f)
+		if exist, err := loader.Exist(conf); err != nil {
+			c.Errorf("check %s fail, err:%v", conf, err)
 			return nil, err
-		} else if len(content) > 0 {
-			addonConfig += "\n" + string(content) + "\n"
+		} else if !exist {
+			c.Warnf("%s doesn't exist, skip", conf)
+		} else {
+			if content, err := loader.Load(conf); err != nil {
+				c.Errorf("load %s fail,err:%v", conf, err)
+				return nil, err
+			} else if len(content) > 0 {
+				addonConfig += "\n" + string(content) + "\n"
+			}
 		}
 	}
 
-	var allConfs []string
-	allConfs = append(allConfs, confs...)
-	err := c.LoadConfigWithLoader(loader, config, addonConfig, confDir, allConfs...)
+	err := c.LoadConfigWithLoader(loader, config, addonConfig, confDir)
 	if err != nil {
 		return nil, err
 	}
