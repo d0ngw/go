@@ -21,7 +21,7 @@ func LoadYAMLFromPath(filename string, target interface{}) error {
 // LoadYAMl 将data中的YAML配置加载到到结构体target中
 func LoadYAMl(data []byte, target interface{}) error {
 	if len(data) == 0 {
-		return fmt.Errorf("Can't load yaml config fomr emtpyt data")
+		return fmt.Errorf("Can't load yaml config from empty data")
 	}
 	return yaml.Unmarshal([]byte(data), target)
 }
@@ -34,7 +34,7 @@ func LoadConfig(config Configurer, addonConfig string, configDir string, pathes 
 // LoadConfigWithLoader 使用指定的加载器加载配置
 func LoadConfigWithLoader(loader ConfigLoader, config Configurer, addonConfig string, configDir string, pathes ...string) (err error) {
 	if loader == nil {
-		err = errors.New("no laoder")
+		err = errors.New("no loader")
 		return
 	}
 	if len(pathes) == 0 && addonConfig == "" {

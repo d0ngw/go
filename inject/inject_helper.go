@@ -59,6 +59,7 @@ func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonCo
 		} else if !exist {
 			c.Warnf("%s doesn't exist, skip", conf)
 		} else {
+			c.Infof("load conf from %s ", conf)
 			if content, err := loader.Load(conf); err != nil {
 				c.Errorf("load %s fail,err:%v", conf, err)
 				return nil, err
