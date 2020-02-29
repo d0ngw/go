@@ -69,7 +69,6 @@ func (p *Config) RegController(controller Controller) error {
 		if err := p.regHandleFunc(patternPath, h); err != nil {
 			return err
 		}
-		c.Infof("Register controller %T#%s,path:%s", controller, controller.GetName(), patternPath)
 	}
 	return nil
 }
@@ -130,7 +129,6 @@ func (p *Config) InitWithInjector(injector *inject.Injector) error {
 	}
 
 	controllers := injector.GetInstancesByPrototype(struct{ s Controller }{})
-	c.Infof("controller count:%d", len(controllers))
 	for _, cer := range controllers {
 		controller := cer.(Controller)
 		if err := p.RegController(controller); err != nil {
