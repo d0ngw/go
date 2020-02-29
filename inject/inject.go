@@ -241,7 +241,6 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 			if !optional {
 				panic(fmt.Errorf("Can't find bind instance for %v.%s %s", typ, structField.Name, name))
 			} else {
-				c.Infof("skip optional %s %s ", name, structField.Type)
 				continue
 			}
 		}
