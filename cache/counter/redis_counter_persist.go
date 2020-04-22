@@ -344,7 +344,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 				if err != nil {
 					return err
 				}
-				c.Infof("sync counter key %s, val %v", counterKey, counterFields)
+				c.Infof("sync counter key %s, val %v, _w %d, _s %d, _st %d", counterKey, counterFields, writeVersion, syncVersion, syncEcpoch)
 				err = p.dbPersist.Store(counterID, counterFields)
 				synced = err == nil
 				if err != nil {
