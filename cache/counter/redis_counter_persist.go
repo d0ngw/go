@@ -329,7 +329,9 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 				needEvict = true
 			}
 			if needEvict {
-				needSync = true
+				if writeVersion > 0 {
+					needSync = true
+				}
 			}
 
 			var synced = false

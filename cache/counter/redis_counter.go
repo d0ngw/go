@@ -120,7 +120,7 @@ func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
 		if origin == nil {
 			return nil, fmt.Errorf("Load counterID %s nil", counterID)
 		}
-		_, err = p.redisClient().Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUATRUE, origin)...)
+		_, err = p.redisClient().Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUATRUE, p.buildInitFields(origin))...)
 		if err != nil {
 			c.Errorf("init counterID %s fail,err:%s", counterID, err)
 		}

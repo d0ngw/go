@@ -44,7 +44,7 @@ func init() {
 	var err error
 	config := &orm.DBShardConfig{
 		Shards: map[string]*orm.DBConfig{
-			"test": &orm.DBConfig{
+			"test": {
 				User:    "root",
 				Pass:    "123456",
 				URL:     "127.0.0.1:3306",
@@ -109,7 +109,9 @@ func TestPersistCounter(t *testing.T) {
 		Del:     path.Join(user.HomeDir, "temp", "lua", "counter_del.lua"),
 	}
 
-	persist := &persistMock{}
+	//persist := &persistMock{}
+	persist, err := NewDBPersist(func() orm.ShardDBService { return dbService }, &V{})
+	assert.Nil(t, err)
 
 	counter := NewPersistRedisCounter("test", func() *cache.RedisClient { return r }, scripts, persist, cacheConf, 10)
 
@@ -121,11 +123,11 @@ func TestPersistCounter(t *testing.T) {
 
 	testCounter(t, counter)
 
-	counter.persist, err = NewDBPersist(func() orm.ShardDBService { return dbService }, &V{})
-	assert.Nil(t, err)
+	//counter.persist, err =
+	//assert.Nil(t, err)
 	testCounter(t, counter)
 
-	redisCounterSync, err := NewRedisCounterSync(counter, 10, 1, 5, 10)
+	redisCounterSync, err := NewRedisCounterSync(counter, 10, 1, 1, 1)
 	assert.Nil(t, err)
 	err = redisCounterSync.ScanAll()
 	assert.Nil(t, err)
@@ -159,6 +161,16 @@ func testCounter(t *testing.T, counter *PersistRedisCounter) {
 
 	err = counter.persist.Store(id, fields)
 	assert.Nil(t, err)
+
+	fields, err = counter.Get(id)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, fields["a"])
+	assert.Equal(t, 2, fields["b"])
+
+	fields, err = counter.Get(id)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, fields["a"])
+	assert.Equal(t, 2, fields["b"])
 }
 
 func TestNoPersistCounter(t *testing.T) {
