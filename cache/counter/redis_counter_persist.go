@@ -147,8 +147,8 @@ type RedisCounterSync struct {
 	dbPersist             Persist
 	slotMaxItems          int64
 	minSyncVersionChanges int64
-	minSyncIntervalSecond int64
-	evictIntervalSecond   int64
+	minSyncIntervalMills  int64
+	evictIntervalMills    int64
 	stop                  int32
 }
 
@@ -173,8 +173,8 @@ func NewRedisCounterSync(persistRedisCounter *PersistRedisCounter, slotMaxItems,
 		dbPersist:             persistRedisCounter.persist,
 		slotMaxItems:          slotMaxItems,
 		minSyncVersionChanges: minSyncVersionChanges,
-		minSyncIntervalSecond: minSyncIntervalSecond,
-		evictIntervalSecond:   evictIntervalSecond,
+		minSyncIntervalMills:  minSyncIntervalSecond * 1000,
+		evictIntervalMills:    evictIntervalSecond * 1000,
 	}, nil
 
 }
@@ -315,13 +315,13 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 			if writeVersion > 0 {
 				if syncVersion < writeVersion {
 					lastSyncInterval := now - syncEcpoch
-					if lastSyncInterval >= p.minSyncIntervalSecond || writeVersion-syncVersion >= p.minSyncVersionChanges {
+					if lastSyncInterval >= p.minSyncIntervalMills || writeVersion-syncVersion >= p.minSyncVersionChanges {
 						needSync = true
 					}
 				}
 			}
 			if accessTime > 0 {
-				if now-accessTime >= p.evictIntervalSecond {
+				if now-accessTime >= p.evictIntervalMills {
 					needEvict = true
 				}
 			}
