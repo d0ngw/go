@@ -182,13 +182,13 @@ func NewRedisCounterSync(persistRedisCounter *PersistRedisCounter, slotMaxItems,
 // ScanAll scan all redis server counter sync set
 func (p *RedisCounterSync) ScanAll() error {
 	for _, redisServer := range p.redisServers {
-		c.Infof("begin scan redis %s:%d", redisServer.Host, redisServer.Port)
+		c.Debugf("begin scan redis %s:%d", redisServer.Host, redisServer.Port)
 		for i := 0; i < p.persistRedisCounter.slotsCount; i++ {
 			if err := p.scan(redisServer, i); err != nil {
 				c.Errorf("scan redis %s:%d slot:%d fail,err:%s", redisServer.Host, redisServer.Port, i, err)
 			}
 		}
-		c.Infof("finish scan redis %s:%d", redisServer.Host, redisServer.Port)
+		c.Debugf("finish scan redis %s:%d", redisServer.Host, redisServer.Port)
 	}
 	return nil
 }
@@ -342,6 +342,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 				if err != nil {
 					return err
 				}
+				c.Infof("sync counter key %s, val %v", counterKey, counterFields)
 				err = p.dbPersist.Store(counterID, counterFields)
 				synced = err == nil
 				if err != nil {
