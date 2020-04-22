@@ -376,8 +376,8 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 			}
 		}
 	}
-	if originLength > 0 || evictedCount > 0 || syncedCount > 0 {
-		c.Infof("after scan slotKey:%s in %d ms,slot length:%d,evicted:%d,synced:%d", syncSetSlotKey, c.UnixMills(time.Now())-st, originLength, evictedCount, syncedCount)
+	if evictedCount > 0 || syncedCount > 0 {
+		c.Infof("after scan slotKey:%s in %d ms,evicted:%d,synced:%d", syncSetSlotKey, c.UnixMills(time.Now())-st, evictedCount, syncedCount)
 	}
 	return nil
 }
@@ -423,11 +423,11 @@ func (p *RedisCounterSyncSchedule) Start() bool {
 		for {
 			if atomic.LoadInt32(&p.stop) == 0 {
 				for _, syncScan := range p.redisCounterSyncs {
-					c.Infof("begin scan %s", syncScan.Name)
+					c.Debugf("begin scan %s", syncScan.Name)
 					if err := syncScan.ScanAll(); err != nil {
 						c.Errorf("scan %s fail,err:%s", syncScan.Name, err)
 					}
-					c.Infof("finish scan %s", syncScan.Name)
+					c.Debugf("finish scan %s", syncScan.Name)
 				}
 
 				timer := time.NewTimer(time.Duration(p.scanIntervalSecond) * time.Second)
