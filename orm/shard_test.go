@@ -79,7 +79,7 @@ func TestShardConfig(t *testing.T) {
 
 	var hashTest = func(hRule *HashRule, namePrefix string) {
 		assert.NotNil(t, dbHashRule)
-		assert.Equal(t, 100, hRule.Count)
+		assert.EqualValues(t, 100, hRule.Count)
 		assert.Equal(t, namePrefix, hRule.NamePrefix)
 		assert.Equal(t, "id", hRule.FieldName)
 		name, err := hRule.Shard(0)
@@ -124,13 +124,13 @@ func TestShardConfig(t *testing.T) {
 		assert.NotNil(t, nrRule)
 		assert.Equal(t, "id", nrRule.FieldName)
 		assert.Equal(t, defaultName, nrRule.DefaultName)
-		assert.Equal(t, 3, len(nrRule.Ranges))
-		assert.Equal(t, 0, nrRule.Ranges[0].Begin)
-		assert.Equal(t, 100, nrRule.Ranges[0].End)
-		assert.Equal(t, 101, nrRule.Ranges[1].Begin)
-		assert.Equal(t, 200, nrRule.Ranges[1].End)
-		assert.Equal(t, 500, nrRule.Ranges[2].Begin)
-		assert.Equal(t, 1000, nrRule.Ranges[2].End)
+		assert.EqualValues(t, 3, len(nrRule.Ranges))
+		assert.EqualValues(t, 0, nrRule.Ranges[0].Begin)
+		assert.EqualValues(t, 100, nrRule.Ranges[0].End)
+		assert.EqualValues(t, 101, nrRule.Ranges[1].Begin)
+		assert.EqualValues(t, 200, nrRule.Ranges[1].End)
+		assert.EqualValues(t, 500, nrRule.Ranges[2].Begin)
+		assert.EqualValues(t, 1000, nrRule.Ranges[2].End)
 
 		var name string
 

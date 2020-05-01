@@ -41,21 +41,21 @@ func TestPaseMeta(t *testing.T) {
 	assert.NotNil(t, meta)
 	assert.EqualValues(t, 15, len(meta.fields))
 	expectIndexs := map[string][]int{
-		"id4":    []int{0},
-		"id3":    []int{1, 0},
-		"id":     []int{1, 1, 0, 0},
-		"name2":  []int{1, 1, 0, 1},
-		"id2":    []int{1, 1, 1},
-		"name3":  []int{1, 1, 2},
-		"name4":  []int{1, 2},
-		"name5":  []int{2},
-		"name6":  []int{3},
-		"name7":  []int{4},
-		"name8":  []int{5},
-		"name9":  []int{6},
-		"name10": []int{7},
-		"name11": []int{8},
-		"conf":   []int{9},
+		"id4":    {0},
+		"id3":    {1, 0},
+		"id":     {1, 1, 0, 0},
+		"name2":  {1, 1, 0, 1},
+		"id2":    {1, 1, 1},
+		"name3":  {1, 1, 2},
+		"name4":  {1, 2},
+		"name5":  {2},
+		"name6":  {3},
+		"name7":  {4},
+		"name8":  {5},
+		"name9":  {6},
+		"name10": {7},
+		"name11": {8},
+		"conf":   {9},
 	}
 	for _, field := range meta.fields {
 		t.Logf("field:%v,%v", field, expectIndexs[field.column])

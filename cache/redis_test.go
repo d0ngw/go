@@ -25,7 +25,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	var groups = map[string][]*RedisServer{"test": []*RedisServer{redisServer}, "example": []*RedisServer{redisServer}}
+	var groups = map[string][]*RedisServer{"test": {redisServer}, "example": {redisServer}}
 	r = NewRedisClient(groups)
 }
 
@@ -226,7 +226,7 @@ func TestIncr(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		val, err := r.IncrBy(key, 2)
 		assert.NoError(t, err)
-		assert.Equal(t, 2*(i+1), val)
+		assert.EqualValues(t, 2*(i+1), val)
 	}
 
 	ttl, err := r.TTL(key)
@@ -239,7 +239,7 @@ func TestIncr(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		val, err := r.IncrBy(key, 2)
 		assert.NoError(t, err)
-		assert.Equal(t, 2*(i+1), val)
+		assert.EqualValues(t, 2*(i+1), val)
 	}
 
 	ttl, err = r.TTL(key)

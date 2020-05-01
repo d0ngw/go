@@ -8,7 +8,6 @@ import (
 	"time"
 
 	c "github.com/d0ngw/go/common"
-	//init mysql
 )
 
 // NewMySQLDBPool build mysql db pool from config

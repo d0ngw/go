@@ -68,7 +68,7 @@ func init() {
 	}
 	var redisConf = cache.RedisConf{
 		Servers: []*cache.RedisServer{redisServer},
-		Groups:  map[string][]string{"test": []string{"test"}, "test.sync": []string{"test"}},
+		Groups:  map[string][]string{"test": {"test"}, "test.sync": {"test"}},
 	}
 
 	err = redisConf.Parse()
@@ -148,29 +148,29 @@ func testCounter(t *testing.T, counter *PersistRedisCounter) {
 
 	fields, err := counter.Get(id)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, fields["a"])
-	assert.Equal(t, 0, fields["b"])
+	assert.EqualValues(t, 1, fields["a"])
+	assert.EqualValues(t, 0, fields["b"])
 
 	err = counter.Incr(id, Fields{"a": 1, "b": 2})
 	assert.Nil(t, err)
 
 	fields, err = counter.Get(id)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, fields["a"])
-	assert.Equal(t, 2, fields["b"])
+	assert.EqualValues(t, 2, fields["a"])
+	assert.EqualValues(t, 2, fields["b"])
 
 	err = counter.persist.Store(id, fields)
 	assert.Nil(t, err)
 
 	fields, err = counter.Get(id)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, fields["a"])
-	assert.Equal(t, 2, fields["b"])
+	assert.EqualValues(t, 2, fields["a"])
+	assert.EqualValues(t, 2, fields["b"])
 
 	fields, err = counter.Get(id)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, fields["a"])
-	assert.Equal(t, 2, fields["b"])
+	assert.EqualValues(t, 2, fields["a"])
+	assert.EqualValues(t, 2, fields["b"])
 }
 
 func TestNoPersistCounter(t *testing.T) {

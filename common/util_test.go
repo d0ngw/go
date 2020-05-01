@@ -167,7 +167,7 @@ func TestStructCopier(t *testing.T) {
 	assert.Equal(t, from.BaseName, to.BaseName)
 	assert.Equal(t, from.BaseName2, to.BaseName2)
 	assert.Equal(t, from.BaseCountry, to.BaseCountry)
-	assert.Equal(t, from.ID2, to.ID2)
+	assert.EqualValues(t, from.ID2, to.ID2)
 	t.Log(to.Address)
 
 	var to2 int32
