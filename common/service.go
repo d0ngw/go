@@ -40,13 +40,13 @@ func (p ServiceState) String() string {
 }
 
 var validStateState = map[ServiceState][]ServiceState{
-	NEW:        []ServiceState{INITED, FAILED, TERMINATED},
-	INITED:     []ServiceState{STARTING, FAILED, TERMINATED},
-	STARTING:   []ServiceState{RUNNING, FAILED, TERMINATED},
-	RUNNING:    []ServiceState{STOPPING, FAILED, TERMINATED},
-	STOPPING:   []ServiceState{TERMINATED, FAILED},
-	TERMINATED: []ServiceState{},
-	FAILED:     []ServiceState{},
+	NEW:        {INITED, FAILED, TERMINATED},
+	INITED:     {STARTING, FAILED, TERMINATED},
+	STARTING:   {RUNNING, FAILED, TERMINATED},
+	RUNNING:    {STOPPING, FAILED, TERMINATED},
+	STOPPING:   {TERMINATED, FAILED},
+	TERMINATED: {},
+	FAILED:     {},
 }
 
 // IsValidServiceState 检查ServiceState的状态转移是否有效
