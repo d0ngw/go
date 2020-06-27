@@ -686,12 +686,10 @@ func (p IntSlice) Less(i, j int) bool { return p[i] < p[j] }
 func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // Int64Slice int64 slice
-
 type Int64Slice []int64
 
 // ToInterface 转为interface slice
 func (p Int64Slice) ToInterface() []interface{} {
-
 	if len(p) == 0 {
 		return nil
 	}
@@ -702,11 +700,9 @@ func (p Int64Slice) ToInterface() []interface{} {
 	return val
 }
 
-func (p Int64Slice) Len() int { return len(p) }
-
+func (p Int64Slice) Len() int           { return len(p) }
 func (p Int64Slice) Less(i, j int) bool { return p[i] < p[j] }
-
-func (p Int64Slice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p Int64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 // Int32Slice int32 slice
 type Int32Slice []int32
