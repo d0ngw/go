@@ -178,7 +178,7 @@ func (p *BaseService) setState(newState ServiceState) bool {
 		p.state = newState
 		return true
 	}
-	Criticalf("Invalid state transfer %s->%s,%s", p.state, newState, p.Name())
+	Errorf("Invalid state transfer %s->%s,%s", p.state, newState, p.Name())
 	return false
 }
 

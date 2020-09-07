@@ -1,7 +1,29 @@
 package common
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestLog(t *testing.T) {
-	Errorf("this is a test")
+	SetLogLevel(Debug)
+	Debugf("this is a test")
+	assert.True(t, DebugEnabled())
+	assert.True(t, InfoEnabled())
+	SetLogLevel(Info)
+	assert.False(t, DebugEnabled())
+	assert.True(t, InfoEnabled())
+	Debugf("this is a test, no debug")
+	Infof("this is a test, info")
+	SetLogLevel("")
+	assert.False(t, DebugEnabled())
+	assert.True(t, InfoEnabled())
+	Infof("this is a test, no level")
+	SetLogLevel(Error)
+	assert.False(t, DebugEnabled())
+	assert.False(t, InfoEnabled())
+	assert.True(t, ErrorEnabled())
+	Infof("this is a test, no error")
+	Errorf("this is a test, error")
 }

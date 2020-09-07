@@ -62,7 +62,7 @@ func (p *Service) Init() bool {
 
 	for pattern, handler := range p.Conf.handles {
 		if handler == nil {
-			c.Criticalf("Can't bind nil handlerFunc to path %s", pattern)
+			c.Errorf("Can't bind nil handlerFunc to path %s", pattern)
 			return false
 		}
 		serveMux.Handle(pattern, p.handleWithMiddleware(handler))
