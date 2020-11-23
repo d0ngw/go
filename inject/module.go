@@ -88,6 +88,14 @@ func (p *Module) BindWithProviderFunc(name string, providerFunc ProviderFunc) {
 	panic(err)
 }
 
+// Append 将src中的绑定追加到本module
+func (p *Module) Append(src *Module) {
+	if src == nil || len(src.binds) == 0 {
+		return
+	}
+	p.binds = append(p.binds, src.binds...)
+}
+
 func checkIsInterface(typ reflect.Type) bool {
 	isInterface := false
 	if typ.Kind() == reflect.Ptr {
