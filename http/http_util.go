@@ -118,6 +118,13 @@ func (p *ResponseHandler) SuccessWithData(data interface{}) {
 	p.Data = data
 }
 
+// SuccessWith 设置成功,数据,消息
+func (p *ResponseHandler) SuccessWith(data interface{}, msg string) {
+	p.Success = true
+	p.Data = data
+	p.Msg = msg
+}
+
 // FailWithMsg 设置失败及出错的消息
 func (p *ResponseHandler) FailWithMsg(msg string) {
 	p.Success = false
