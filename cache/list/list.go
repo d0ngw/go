@@ -172,7 +172,7 @@ func (p *Cache) Add(entity Entity) (bool, error) {
 	}
 
 	listKey := p.listCacheParam.NewParamKey(entity.GetOwnerID())
-	_, err = p.addToRedisList(listKey, 1, []*IDScore{&IDScore{entity.GetTargetID(), scoreID}})
+	_, err = p.addToRedisList(listKey, 1, []*IDScore{{entity.GetTargetID(), scoreID}})
 	if err != nil {
 		return false, err
 	}

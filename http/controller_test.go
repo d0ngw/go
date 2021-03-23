@@ -49,7 +49,7 @@ func testReflectHandlers(t *testing.T, name string) {
 			Name: name,
 			Path: "/" + name,
 			HandlerMiddlewares: map[string][]Middleware{
-				"Index": []Middleware{
+				"Index": {
 					&LogMiddleware{Order: 0},
 					&LogMiddleware{Order: 1},
 					&LogMiddleware{Order: 2},

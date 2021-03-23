@@ -44,7 +44,7 @@ func init() {
 	var err error
 	config := &orm.DBShardConfig{
 		Shards: map[string]*orm.DBConfig{
-			"test": &orm.DBConfig{
+			"test": {
 				User:    "root",
 				Pass:    "123456",
 				URL:     "127.0.0.1:3306",
@@ -68,7 +68,7 @@ func init() {
 	}
 	var redisConf = cache.RedisConf{
 		Servers: []*cache.RedisServer{redisServer},
-		Groups:  map[string][]string{"test": []string{"test"}},
+		Groups:  map[string][]string{"test": {"test"}},
 	}
 
 	err = redisConf.Parse()
