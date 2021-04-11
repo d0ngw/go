@@ -526,6 +526,24 @@ func ParseParams(r url.Values, dest interface{}) error {
 			switch elem.Kind() {
 			case reflect.String:
 				fieldVal.Set(reflect.ValueOf(vals))
+			case reflect.Int:
+				if intSlice, err := strSlice.ToInt(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
+			case reflect.Int8:
+				if intSlice, err := strSlice.ToInt8(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
+			case reflect.Int16:
+				if intSlice, err := strSlice.ToInt16(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
 			case reflect.Int32:
 				if intSlice, err := strSlice.ToInt32(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))

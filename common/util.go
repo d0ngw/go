@@ -239,6 +239,30 @@ func (p StringSlice) ToNumber(typ interface{}) (interface{}, error) {
 	return intSlice.Interface(), nil
 }
 
+// ToInt8 转为[]int8
+func (p StringSlice) ToInt8() ([]int8, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]int8{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]int8), nil
+}
+
+// ToInt16 转为[]int16
+func (p StringSlice) ToInt16() ([]int16, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]int16{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]int16), nil
+}
+
 // ToInt32 转为[]int32
 func (p StringSlice) ToInt32() ([]int32, error) {
 	if p == nil {

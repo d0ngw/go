@@ -29,6 +29,9 @@ type params struct {
 	FriendsWeights []float32 `psep:","`
 	Years          Int
 	H5WarePath     string
+	Ints           []int   `psep:","`
+	Int8s          []int8  `psep:","`
+	Int16s         []int16 `psep:","`
 }
 
 func TestParseParams(t *testing.T) {
@@ -46,6 +49,9 @@ func TestParseParams(t *testing.T) {
 	form.Set("page_size", "5")
 	form.Set("years", "10")
 	form.Set("h5_ware_path", "https://example.com")
+	form.Set("ints", "1,2,3")
+	form.Set("int8s", "4,5,6")
+	form.Set("int16s", "7,8,9")
 
 	p := &params{}
 	err := ParseParams(form, p)
@@ -63,4 +69,7 @@ func TestParseParams(t *testing.T) {
 	assert.EqualValues(t, 10, p.Years)
 	t.Logf("years %d", p.Years)
 	assert.EqualValues(t, "https://example.com", p.H5WarePath)
+	assert.EqualValues(t, []int{1, 2, 3}, p.Ints)
+	assert.EqualValues(t, []int8{4, 5, 6}, p.Int8s)
+	assert.EqualValues(t, []int16{7, 8, 9}, p.Int16s)
 }
