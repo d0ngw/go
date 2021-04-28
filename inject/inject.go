@@ -236,26 +236,42 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 			name = ""
 		}
 
-		foundBind := p.findBind(name, structField.Type)
-		if foundBind == nil {
-			if !optional {
-				panic(fmt.Errorf("Can't find bind instance for %v.%s %s", typ, structField.Name, name))
-			} else {
-				continue
-			}
-		}
-
 		if !fieldVal.CanSet() {
 			panic(fmt.Errorf("Can't inject unexported  %v.%s", typ, structField.Name))
 		}
 
-		fieldInjectDesc := fmt.Sprintf("%s.%s", typ.Name(), structField.Name)
-		if foundBind.injectValue.Kind() == reflect.Ptr && foundBind.injectValue.Pointer() == val.Pointer() {
-			injectSrcDesc := fmt.Sprintf("%#v(addr:%p)", foundBind.instance, foundBind.instance)
-			injectTargetDesc := fmt.Sprintf("%s of %#v(addr:%p)", fieldInjectDesc, target, target)
-			panic(fmt.Errorf("Found circular inject,src:%s,target:%s", injectSrcDesc, injectTargetDesc))
+		if structField.Type.Kind() == reflect.Slice {
+			if name != "" {
+				panic(fmt.Errorf("not support slice with name for slice %v.%s %s", typ, structField.Name, name))
+			}
+			elemType := structField.Type.Elem()
+			var ret = p.findAllBind(p.all, elemType)
+			if len(ret) == 0 && !optional {
+				panic(fmt.Errorf("Can't find bind instance for %v.%s %s", typ, structField.Name, name))
+			}
+			var slice = reflect.MakeSlice(structField.Type, 0, len(ret))
+			for _, bind := range ret {
+				slice = reflect.Append(slice, bind.injectValue)
+			}
+			fieldVal.Set(slice)
+		} else {
+			foundBind := p.findBind(name, structField.Type)
+			if foundBind == nil {
+				if !optional {
+					panic(fmt.Errorf("Can't find bind instance for %v.%s %s", typ, structField.Name, name))
+				} else {
+					continue
+				}
+			}
+
+			if foundBind.injectValue.Kind() == reflect.Ptr && foundBind.injectValue.Pointer() == val.Pointer() {
+				fieldInjectDesc := fmt.Sprintf("%s.%s", typ.Name(), structField.Name)
+				injectSrcDesc := fmt.Sprintf("%#v(addr:%p)", foundBind.instance, foundBind.instance)
+				injectTargetDesc := fmt.Sprintf("%s of %#v(addr:%p)", fieldInjectDesc, target, target)
+				panic(fmt.Errorf("Found circular inject,src:%s,target:%s", injectSrcDesc, injectTargetDesc))
+			}
+			fieldVal.Set(foundBind.injectValue)
 		}
-		fieldVal.Set(foundBind.injectValue)
 	}
 }
 

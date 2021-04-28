@@ -33,8 +33,9 @@ type userRegService struct {
 	LdapImpl              accountService `inject:"ldap"`
 	DbImpl                accountService `inject:"db"`
 	ID                    string
-	Injector              *Injector    `inject:"_"`
-	LdapAccountServicePtr *ldapAccount `inject:"ldap"`
+	Injector              *Injector        `inject:"_"`
+	LdapAccountServicePtr *ldapAccount     `inject:"ldap"`
+	Impls                 []accountService `inject:"_,optional"`
 }
 
 type ldapAccount struct {
@@ -76,6 +77,16 @@ func TestInject(t *testing.T) {
 	assert.NotNil(t, regService.AreaService.Injector)
 	assert.NotNil(t, regService.AgeService.LdapAccountServicePtr)
 	assert.EqualValues(t, regService.AgeService.LdapAccountServicePtr.Name(), regService.LdapImpl.Name())
+	assert.NotNil(t, regService.Impls)
+	assert.EqualValues(t, 2, len(regService.Impls))
+	_, ok := regService.Impls[0].(*dbAccount)
+	if !ok {
+		_, _ = regService.Impls[0].(*ldapAccount)
+		_, _ = regService.Impls[1].(*dbAccount)
+	} else {
+		_, _ = regService.Impls[1].(*ldapAccount)
+	}
+	t.Logf("Impls %#v", regService.Impls)
 
 	injector.RequireInjectWithOverrideTags(regService, map[string]string{"DbImpl": "ldap", "LdapImpl": "db"})
 	assert.Equal(t, "b@db", regService.LdapImpl.Name())
@@ -91,7 +102,7 @@ func TestInject(t *testing.T) {
 	assert.Equal(t, &ldapImplA, ldapImplGet)
 	assert.Equal(t, "a@ldap", ldapImplGet.Name())
 
-	ldapImplGet, ok := injector.GetInstanceByPrototype("", struct{ s accountService }{}).(accountService)
+	ldapImplGet, ok = injector.GetInstanceByPrototype("", struct{ s accountService }{}).(accountService)
 	assert.False(t, ok)
 	assert.Nil(t, ldapImplGet)
 
