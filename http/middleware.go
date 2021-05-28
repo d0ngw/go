@@ -105,10 +105,11 @@ func (p *TokenMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 				authUser, err := p.AuthService.AuthToken(token)
 				if err != nil {
 					c.Errorf("auth by token %s fail,err:%s", token, err)
-				} else {
-					ctx, _ := perm.BindPrincipal(r.Context(), authUser)
-					r = r.WithContext(ctx)
+					RenderJSON(w, &Resp{Msg: err.Error()})
+					return
 				}
+				ctx, _ := perm.BindPrincipal(r.Context(), authUser)
+				r = r.WithContext(ctx)
 			}
 		}
 		next(w, r)
