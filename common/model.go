@@ -17,14 +17,14 @@ func (p *PageParam) Limit(maxPage, maxPageSize int) {
 	if p.Page <= 0 {
 		p.Page = 1
 	}
-	if p.PageSize <= 0 {
-		p.PageSize = 10
-	}
 	if maxPage > 0 && p.Page > maxPage {
 		p.Page = maxPage
 	}
-	if maxPageSize > 0 && p.PageSize > maxPageSize {
+	if maxPageSize > 0 && (p.PageSize > maxPageSize || p.PageSize <= 0) {
 		p.PageSize = maxPageSize
+	}
+	if p.PageSize <= 0 {
+		p.PageSize = 10
 	}
 }
 
