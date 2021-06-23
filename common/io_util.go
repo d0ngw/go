@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 )
 
@@ -105,8 +104,6 @@ func ProcessLines(rd io.Reader, processFunc ProcessLineFunc) {
 	for readErr == nil {
 		data, readErr = scanner.ReadString(LF)
 		lineNum++
-
-		data = strings.TrimSpace(data)
 		if readErr != nil && readErr != io.EOF {
 			processFunc(data, lineNum, readErr)
 			break
@@ -123,6 +120,16 @@ func ProcessLines(rd io.Reader, processFunc ProcessLineFunc) {
 			}
 		}
 	}
+}
+
+// ProcessFileLines 按行处理文件
+func ProcessFileLines(file string, lineFunc ProcessLineFunc) {
+	f, err := os.Open(file)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	ProcessLines(f, lineFunc)
 }
 
 // WaitStop 等待退出信号

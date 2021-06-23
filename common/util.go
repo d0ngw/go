@@ -1,13 +1,11 @@
 package common
 
 import (
-	"bufio"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"os"
 	"os/signal"
 	"reflect"
@@ -41,24 +39,6 @@ func GetFieldType(structObj interface{}, fieldIndex int) reflect.Type {
 // GetFirstFieldType 取得structObj的第一个字段的类型
 func GetFirstFieldType(structObj interface{}) reflect.Type {
 	return getFieldType(structObj, 0)
-}
-
-// ReadLineWithProcessor 按行读取数据,没读取到一行就调用processorFunc进行处理,如果processorFunc返回false,
-// 则停止读取并返回
-func ReadLineWithProcessor(rd io.Reader, processorFunc func(line string) bool) error {
-	r := bufio.NewReaderSize(rd, 4*1024)
-	line, isPrefix, err := r.ReadLine()
-	for err == nil && !isPrefix {
-		s := string(line)
-		if !processorFunc(s) {
-			return nil
-		}
-		line, isPrefix, err = r.ReadLine()
-	}
-	if err != io.EOF {
-		return err
-	}
-	return nil
 }
 
 // Shutdownhook 停止hook
