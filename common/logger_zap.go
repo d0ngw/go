@@ -100,7 +100,7 @@ func NewZapLogger(logConfig *LogConfig) *ZapLogger {
 			LocalTime:  true,
 		})
 	} else {
-		writerSync = zapcore.AddSync(os.Stdout)
+		writerSync = zapcore.AddSync(os.Stderr)
 	}
 
 	core := zapcore.NewCore(encoder, writerSync, logEnable)
