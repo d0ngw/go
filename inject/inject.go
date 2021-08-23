@@ -82,7 +82,6 @@ func (p *Injector) startOrStop(start bool) error {
 		services = append(services, service.(c.Service))
 	}
 	if len(services) == 0 {
-		c.Infof("No service found,skip")
 		return nil
 	}
 
