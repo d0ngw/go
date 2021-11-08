@@ -120,7 +120,7 @@ type CopyBase2 struct {
 	BaseName2 string
 }
 
-type Int int32
+type Int32 int32
 
 func TestStructCopier(t *testing.T) {
 	var from = &struct {
@@ -143,7 +143,7 @@ func TestStructCopier(t *testing.T) {
 	from.ID2 = 33
 
 	var to = &struct {
-		ID2  Int
+		ID2  Int32
 		Name string
 		TestStruct
 		Age         int32

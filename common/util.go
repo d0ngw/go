@@ -330,6 +330,43 @@ func Int64(p interface{}) (i int64, err error) {
 	return
 }
 
+//Int 转为int
+func Int(p interface{}) (i int, err error) {
+	switch v := p.(type) {
+	case int:
+		i = int(v)
+	case int8:
+		i = int(v)
+	case int16:
+		i = int(v)
+	case int32:
+		i = int(v)
+	case int64:
+		i = int(v)
+	case float32:
+		i = int(v)
+	case float64:
+		i = int(v)
+	case string:
+		var i64 int64
+		i64, err = strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return
+		}
+		i = int(i64)
+	case json.Number:
+		var i64 int64
+		i64, err = v.Int64()
+		if err != nil {
+			return
+		}
+		i = int(i64)
+	default:
+		err = fmt.Errorf("unsupported type %T", p)
+	}
+	return
+}
+
 //Float64 转为float64类型
 func Float64(p interface{}) (i float64, err error) {
 	switch v := p.(type) {
@@ -351,6 +388,43 @@ func Float64(p interface{}) (i float64, err error) {
 		i, err = strconv.ParseFloat(v, 64)
 	case json.Number:
 		i, err = v.Float64()
+	default:
+		err = fmt.Errorf("unsupported type %T", p)
+	}
+	return
+}
+
+//Float32 转为float32
+func Float32(p interface{}) (i float32, err error) {
+	switch v := p.(type) {
+	case int:
+		i = float32(v)
+	case int8:
+		i = float32(v)
+	case int16:
+		i = float32(v)
+	case int32:
+		i = float32(v)
+	case int64:
+		i = float32(v)
+	case float32:
+		i = float32(v)
+	case float64:
+		i = float32(v)
+	case string:
+		var f64 float64
+		f64, err = strconv.ParseFloat(v, 64)
+		if err != nil {
+			return
+		}
+		i = float32(f64)
+	case json.Number:
+		var f64 float64
+		f64, err = v.Float64()
+		if err != nil {
+			return
+		}
+		i = float32(f64)
 	default:
 		err = fmt.Errorf("unsupported type %T", p)
 	}
