@@ -285,6 +285,12 @@ func TestUpdateReplace(t *testing.T) {
 	updated, err := UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "1+?", ParamVal: 201}})
 	assert.NoError(t, err)
 	assert.True(t, updated)
+
+	reget, err = Get(dboper, &tm, tm.ID)
+	assert.NoError(t, err)
+	tm3 = reget.(*tmodel)
+	assert.EqualValues(t, 202, tm3.Age)
+
 	updated, err = UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "age+1+?", ParamVal: 101}})
 
 	reget, err = Get(dboper, &tm, tm.ID)
