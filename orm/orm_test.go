@@ -2,6 +2,7 @@ package orm
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -241,4 +242,62 @@ func TestShardEntity(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, entity, shardEntity)
 	assert.True(t, entity == shardEntity)
+}
+
+func TestUpdateReplace(t *testing.T) {
+	tm := tmodel{
+		Name: sql.NullString{String: "d0ngw", Valid: true},
+		Time: sql.NullInt64{Int64: time.Now().Unix(), Valid: true},
+		Age:  1,
+		Conf: &Conf{},
+	}
+
+	defaultMetaReg.clean()
+	_, err = defaultMetaReg.regModel(&tm)
+
+	dboper := &Op{pool: dbpool}
+
+	err = Add(dboper, &tm)
+	checkError(err, true, t, "Add")
+
+	defer dboper.Rollback()
+	_, err := dboper.DoInTrans(func(tx *sql.Tx) (interface{}, error) {
+		tm.Name = sql.NullString{String: "d0ngw1", Valid: true}
+		rt, err := Update(dboper, &tm)
+		checkError(err, true, t, "Update")
+		if !rt {
+			t.Error("Update fail", err, tm.ID, rt)
+		}
+		e, err := Get(dboper, &tm, tm.ID)
+		checkError(err, true, t, "Get")
+		t.Logf("Get:%v", e)
+		return nil, err
+	})
+	checkError(err, true, t, "Update")
+
+	reget, err := Get(dboper, &tm, tm.ID)
+	assert.NoError(t, err)
+	tm3 := reget.(*tmodel)
+	assert.EqualValues(t, 0, tm3.Ver)
+
+	tm.Ver = 10
+	tm.Conf.IDs = append(tm.Conf.IDs, 100)
+	updated, err := UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "1+?", ParamVal: 201}})
+	assert.NoError(t, err)
+	assert.True(t, updated)
+	updated, err = UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "age+1+?", ParamVal: 101}})
+
+	reget, err = Get(dboper, &tm, tm.ID)
+	assert.NoError(t, err)
+	j, _ := json.Marshal(reget)
+	t.Logf("Get:%v", string(j))
+	tm3 = reget.(*tmodel)
+	assert.EqualValues(t, 4, tm3.Ver)
+	assert.EqualValues(t, []int64{100}, tm3.Conf.IDs)
+	assert.EqualValues(t, 1+201+1+101, tm3.Age)
+	rt, err := Del(dboper, &tm, tm.ID)
+	checkError(err, true, t, "Del")
+	if !rt {
+		t.Error("Update fail", err, tm.ID, rt)
+	}
 }

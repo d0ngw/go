@@ -3,7 +3,6 @@ module github.com/d0ngw/go
 go 1.12
 
 require (
-	github.com/BurntSushi/ty v0.0.0-20140213233908-6add9cd6ad42
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gomodule/redigo v1.8.0
 	github.com/json-iterator/go v1.1.9

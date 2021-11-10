@@ -201,6 +201,19 @@ func Update(op *Op, entity Entity) (bool, error) {
 	return modelMeta.updateFunc(op.DB(), entity)
 }
 
+// UpdateReplace 更新实体
+func UpdateReplace(op *Op, entity Entity, replColumns map[string]ReplColumn) (bool, error) {
+	modelMeta := findEntityMeta(entity)
+	if op.tx != nil {
+		bvalue, err := modelMeta.updateReplaceFunc(op.tx, entity, replColumns)
+		if err != nil {
+			return false, err
+		}
+		return reflect.ValueOf(bvalue).Bool(), nil
+	}
+	return modelMeta.updateReplaceFunc(op.DB(), entity, replColumns)
+}
+
 // UpdateExcludeColumns 更新除columns之外的字段
 func UpdateExcludeColumns(op *Op, entity Entity, columns ...string) (bool, error) {
 	modelMeta := findEntityMeta(entity)

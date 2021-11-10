@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
-
-	"github.com/BurntSushi/ty/fun"
 )
+
+// ReplColumn  replace column
+type ReplColumn struct {
+	Repl     string
+	ParamVal interface{}
+}
 
 type entityInsertFunc func(executor interface{}, entity Entity) error
 type entityUpdateFunc func(executor interface{}, entity Entity) (bool, error)
+type entityUpdateReplaceColumnsFunc func(executor interface{}, entity Entity, replColumns map[string]ReplColumn) (bool, error)
 type entityUpdateExcludeColumnsFunc func(executor interface{}, entity Entity, columns ...string) (bool, error)
 type entityUpdateColumnFunc func(executor interface{}, entity Entity, columns string, contition string, params []interface{}) (int64, error)
 type entityQueryFunc func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error)
@@ -94,10 +99,10 @@ func buildParamValues(ind reflect.Value, fields []*metaField) []interface{} {
 
 //构建实体模型的插入函数
 func createInsertFunc(modelInfo *meta) entityInsertFunc {
-	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*metaField)
-	columns := strings.Join(fun.Map(func(field *metaField) string {
+	insertFields := filterFields(exceptIDPred, modelInfo.fields)
+	columns := buildColumns(func(field *metaField) string {
 		return field.column
-	}, insertFields).([]string), ",")
+	}, insertFields)
 	params := strings.Join(toSlice("?", len(insertFields)), ",")
 
 	return func(executor interface{}, entity Entity) error {
@@ -127,10 +132,10 @@ func createInsertFunc(modelInfo *meta) entityInsertFunc {
 
 //构建实体模型的更新函数
 func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
-	updateFields := fun.Filter(noIDPred, modelInfo.fields).([]*metaField)
-	columns := strings.Join(fun.Map(func(field *metaField) string {
+	updateFields := filterFields(noIDPred, modelInfo.fields)
+	columns := buildColumns(func(field *metaField) string {
 		return field.column + "=?"
-	}, updateFields).([]string), ",")
+	}, updateFields)
 
 	return func(executor interface{}, entity Entity) (bool, error) {
 		ind := checkEntity(modelInfo, entity, executor)
@@ -161,7 +166,7 @@ func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
 }
 
 func createUpdateExcludeColmnsFunc(modelInfo *meta) entityUpdateExcludeColumnsFunc {
-	fields := fun.Filter(noIDPred, modelInfo.fields).([]*metaField)
+	fields := filterFields(noIDPred, modelInfo.fields)
 
 	return func(executor interface{}, entity Entity, excludeColumns ...string) (bool, error) {
 		updateFields := fields
@@ -185,9 +190,9 @@ func createUpdateExcludeColmnsFunc(modelInfo *meta) entityUpdateExcludeColumnsFu
 			}
 		}
 
-		columns := strings.Join(fun.Map(func(field *metaField) string {
+		columns := buildColumns(func(field *metaField) string {
 			return field.column + "=?"
-		}, updateFields).([]string), ",")
+		}, updateFields)
 
 		ind := checkEntity(modelInfo, entity, executor)
 		id := ind.FieldByIndex(modelInfo.pkField.index).Interface()
@@ -250,9 +255,9 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 
 //构建查询函数
 func createQueryFunc(modelInfo *meta) entityQueryFunc {
-	columns := strings.Join(fun.Map(func(field *metaField) string {
+	columns := buildColumns(func(field *metaField) string {
 		return "`" + field.column + "`"
-	}, modelInfo.fields).([]string), ",")
+	}, modelInfo.fields)
 
 	return func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error) {
 		ind := checkEntity(modelInfo, entity, executor)
@@ -428,17 +433,17 @@ func createDelFunc(modelInfo *meta) entityDeleteFunc {
 }
 
 func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
-	insertFields := fun.Filter(exceptIDPred, modelInfo.fields).([]*metaField)
-	columns := strings.Join(fun.Map(func(field *metaField) string {
+	insertFields := filterFields(exceptIDPred, modelInfo.fields)
+	columns := buildColumns(func(field *metaField) string {
 		return field.column
-	}, insertFields).([]string), ",")
+	}, insertFields)
 
 	insertParams := strings.Join(toSlice("?", len(insertFields)), ",")
 
-	updateFields := fun.Filter(noIDPred, modelInfo.fields).([]*metaField)
-	updateColumns := strings.Join(fun.Map(func(field *metaField) string {
+	updateFields := filterFields(noIDPred, modelInfo.fields)
+	updateColumns := buildColumns(func(field *metaField) string {
 		return field.column + "=?"
-	}, updateFields).([]string), ",")
+	}, updateFields)
 
 	return func(executor interface{}, entity Entity) (int64, error) {
 		ind := checkEntity(modelInfo, entity, executor)
@@ -474,4 +479,96 @@ func tblName(entity Entity) (string, error) {
 		}
 	}
 	return entity.TableName(), nil
+}
+
+func filterFields(pred func(*metaField) bool, fields []*metaField) (ret []*metaField) {
+	if len(fields) == 0 {
+		return
+	}
+	ret = make([]*metaField, 0, len(fields))
+	for _, field := range fields {
+		if pred(field) {
+			ret = append(ret, field)
+		}
+	}
+	return
+}
+
+func buildColumns(f func(*metaField) string, fileds []*metaField) (ret string) {
+	var columns = make([]string, 0, len(fileds))
+	for _, field := range fileds {
+		columns = append(columns, f(field))
+	}
+	return strings.Join(columns, ",")
+}
+
+func createUpdateReplaceFunc(modelInfo *meta) entityUpdateReplaceColumnsFunc {
+	updateFields := filterFields(noIDPred, modelInfo.fields)
+	//columns := buildColumns(func(field *metaField) string { return field.column + "=?" }, updateFields)
+
+	return func(executor interface{}, entity Entity, replColumns map[string]ReplColumn) (bool, error) {
+		for k, v := range replColumns {
+			if v.Repl == "" {
+				return false, fmt.Errorf("empty repl column %s", k)
+			}
+		}
+
+		ind := checkEntity(modelInfo, entity, executor)
+		id := ind.FieldByIndex(modelInfo.pkField.index).Interface()
+		columns := make([]string, 0, len(updateFields))
+		paramValues := buildParamValues(ind, updateFields)
+		var (
+			replCount     int
+			toRemoveParam = map[int]struct{}{}
+		)
+		for i, field := range updateFields {
+			column := field.column
+			if repl, ok := replColumns[column]; ok {
+				columns = append(columns, column+"="+repl.Repl)
+				if strings.Contains(repl.Repl, "?") {
+					paramValues[i] = repl.ParamVal
+				} else {
+					toRemoveParam[i] = struct{}{}
+				}
+				replCount++
+			} else {
+				columns = append(columns, column+"=?")
+			}
+		}
+
+		if replCount != len(replColumns) {
+			return false, fmt.Errorf("expect replace %d column but replace %d column, ", len(replColumns), replCount)
+		}
+
+		if len(toRemoveParam) > 0 {
+			var tempParam = make([]interface{}, 0, len(paramValues)-len(toRemoveParam))
+			for i := range paramValues {
+				if _, ok := toRemoveParam[i]; !ok {
+					tempParam = append(tempParam, paramValues[i])
+				}
+			}
+			paramValues = tempParam
+		}
+
+		paramValues = append(paramValues, id)
+		tname, err := tblName(entity)
+		if err != nil {
+			return false, err
+		}
+
+		updateSQL := fmt.Sprintf("UPDATE %s SET %s where %s = %s", tname, strings.Join(columns, ","), modelInfo.pkField.column, "?")
+		rs, err := exec(executor, updateSQL, paramValues)
+		if err != nil {
+			return false, err
+		}
+		//检查更新的记录数
+		rows, err := rs.RowsAffected()
+		if err == nil {
+			if rows != 1 {
+				return false, nil
+			}
+			return true, nil
+		}
+		return false, err
+	}
 }

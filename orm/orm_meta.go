@@ -73,6 +73,7 @@ type meta struct {
 	modelType                reflect.Type
 	insertFunc               entityInsertFunc
 	updateFunc               entityUpdateFunc
+	updateReplaceFunc        entityUpdateReplaceColumnsFunc
 	updateExcludeColumnsFunc entityUpdateExcludeColumnsFunc
 	updateColumnsFunc        entityUpdateColumnFunc
 	entityQueryFunc          entityQueryFunc
@@ -223,6 +224,7 @@ func parseMeta(model Entity) (*meta, error) {
 	mInfo.fields = fields
 	mInfo.insertFunc = createInsertFunc(mInfo)
 	mInfo.updateFunc = createUpdateFunc(mInfo)
+	mInfo.updateReplaceFunc = createUpdateReplaceFunc(mInfo)
 	mInfo.updateExcludeColumnsFunc = createUpdateExcludeColmnsFunc(mInfo)
 	mInfo.updateColumnsFunc = createUpdateColumnsFunc(mInfo)
 	mInfo.entityQueryFunc = createQueryFunc(mInfo)

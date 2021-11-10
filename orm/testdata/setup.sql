@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS `tt` (
     `f64` double DEFAULT NULL,
     `conf` varchar(64),
     `conf2` varchar(64) DEFAULT "",
+    `ver` bigint NOT NULL DEFAULT 0,
+    `age` bigint NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`)) 
     ENGINE=InnoDB DEFAULT CHARSET=utf8;
 --

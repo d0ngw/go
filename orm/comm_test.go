@@ -121,6 +121,8 @@ type tmodel struct {
 	F64   sql.NullFloat64 `column:"f64"`
 	Conf  *Conf           `column:"conf"`
 	Conf2 Conf2           `column:"conf2"`
+	Ver   int64           `column:"ver"`
+	Age   int64           `column:"age"`
 }
 
 func (tm *tmodel) TableName() string {
