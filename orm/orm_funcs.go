@@ -16,7 +16,7 @@ type ReplColumn struct {
 
 type entityInsertFunc func(executor interface{}, entity Entity) error
 type entityUpdateFunc func(executor interface{}, entity Entity) (bool, error)
-type entityUpdateReplaceColumnsFunc func(executor interface{}, entity Entity, replColumns map[string]ReplColumn) (bool, error)
+type entityUpdateReplaceColumnsFunc func(executor interface{}, entity Entity, replColumns map[string]ReplColumn, excludeColumns map[string]struct{}) (bool, error)
 type entityUpdateExcludeColumnsFunc func(executor interface{}, entity Entity, columns ...string) (bool, error)
 type entityUpdateColumnFunc func(executor interface{}, entity Entity, columns string, contition string, params []interface{}) (int64, error)
 type entityQueryFunc func(executor interface{}, entity Entity, condition string, params []interface{}) ([]Entity, error)
@@ -504,9 +504,8 @@ func buildColumns(f func(*metaField) string, fileds []*metaField) (ret string) {
 
 func createUpdateReplaceFunc(modelInfo *meta) entityUpdateReplaceColumnsFunc {
 	updateFields := filterFields(noIDPred, modelInfo.fields)
-	//columns := buildColumns(func(field *metaField) string { return field.column + "=?" }, updateFields)
 
-	return func(executor interface{}, entity Entity, replColumns map[string]ReplColumn) (bool, error) {
+	return func(executor interface{}, entity Entity, replColumns map[string]ReplColumn, excludeColumns map[string]struct{}) (bool, error) {
 		for k, v := range replColumns {
 			if v.Repl == "" {
 				return false, fmt.Errorf("empty repl column %s", k)
@@ -517,12 +516,21 @@ func createUpdateReplaceFunc(modelInfo *meta) entityUpdateReplaceColumnsFunc {
 		id := ind.FieldByIndex(modelInfo.pkField.index).Interface()
 		columns := make([]string, 0, len(updateFields))
 		paramValues := buildParamValues(ind, updateFields)
+
 		var (
-			replCount     int
-			toRemoveParam = map[int]struct{}{}
+			replCount       int
+			expectReplCount = len(replColumns)
+			toRemoveParam   = map[int]struct{}{}
 		)
 		for i, field := range updateFields {
 			column := field.column
+			if _, ok := excludeColumns[column]; ok {
+				toRemoveParam[i] = struct{}{}
+				if _, ok := replColumns[column]; ok {
+					expectReplCount--
+				}
+				continue
+			}
 			if repl, ok := replColumns[column]; ok {
 				columns = append(columns, column+"="+repl.Repl)
 				if strings.Contains(repl.Repl, "?") {
@@ -536,8 +544,8 @@ func createUpdateReplaceFunc(modelInfo *meta) entityUpdateReplaceColumnsFunc {
 			}
 		}
 
-		if replCount != len(replColumns) {
-			return false, fmt.Errorf("expect replace %d column but replace %d column, ", len(replColumns), replCount)
+		if replCount != expectReplCount {
+			return false, fmt.Errorf("expect replace %d column but replace %d column, ", expectReplCount, replCount)
 		}
 
 		if len(toRemoveParam) > 0 {

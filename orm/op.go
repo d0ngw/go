@@ -202,16 +202,16 @@ func Update(op *Op, entity Entity) (bool, error) {
 }
 
 // UpdateReplace 更新实体
-func UpdateReplace(op *Op, entity Entity, replColumns map[string]ReplColumn) (bool, error) {
+func UpdateReplace(op *Op, entity Entity, replColumns map[string]ReplColumn, excludeColumns map[string]struct{}) (bool, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
-		bvalue, err := modelMeta.updateReplaceFunc(op.tx, entity, replColumns)
+		bvalue, err := modelMeta.updateReplaceFunc(op.tx, entity, replColumns, excludeColumns)
 		if err != nil {
 			return false, err
 		}
 		return reflect.ValueOf(bvalue).Bool(), nil
 	}
-	return modelMeta.updateReplaceFunc(op.DB(), entity, replColumns)
+	return modelMeta.updateReplaceFunc(op.DB(), entity, replColumns, excludeColumns)
 }
 
 // UpdateExcludeColumns 更新除columns之外的字段

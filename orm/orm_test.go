@@ -282,7 +282,7 @@ func TestUpdateReplace(t *testing.T) {
 
 	tm.Ver = 10
 	tm.Conf.IDs = append(tm.Conf.IDs, 100)
-	updated, err := UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "1+?", ParamVal: 201}})
+	updated, err := UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "1+?", ParamVal: 201}}, nil)
 	assert.NoError(t, err)
 	assert.True(t, updated)
 
@@ -291,16 +291,36 @@ func TestUpdateReplace(t *testing.T) {
 	tm3 = reget.(*tmodel)
 	assert.EqualValues(t, 202, tm3.Age)
 
-	updated, err = UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "age+1+?", ParamVal: 101}})
-
-	reget, err = Get(dboper, &tm, tm.ID)
+	updated, err = UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "age+1+?", ParamVal: 101}}, nil)
 	assert.NoError(t, err)
+	reget, err = Get(dboper, &tm, tm.ID)
 	j, _ := json.Marshal(reget)
 	t.Logf("Get:%v", string(j))
 	tm3 = reget.(*tmodel)
 	assert.EqualValues(t, 4, tm3.Ver)
 	assert.EqualValues(t, []int64{100}, tm3.Conf.IDs)
 	assert.EqualValues(t, 1+201+1+101, tm3.Age)
+
+	updated, err = UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "age+1+?", ParamVal: 101}}, map[string]struct{}{"age": {}})
+	assert.NoError(t, err)
+	reget, err = Get(dboper, &tm, tm.ID)
+	j, _ = json.Marshal(reget)
+	t.Logf("Get:%v", string(j))
+	tm3 = reget.(*tmodel)
+	assert.EqualValues(t, 6, tm3.Ver)
+	assert.EqualValues(t, []int64{100}, tm3.Conf.IDs)
+	assert.EqualValues(t, 1+201+1+101, tm3.Age)
+
+	updated, err = UpdateReplace(dboper, &tm, map[string]ReplColumn{"ver": {Repl: "ver+2"}, "age": {Repl: "age+1+?", ParamVal: 101}}, map[string]struct{}{})
+	assert.NoError(t, err)
+	reget, err = Get(dboper, &tm, tm.ID)
+	j, _ = json.Marshal(reget)
+	t.Logf("Get:%v", string(j))
+	tm3 = reget.(*tmodel)
+	assert.EqualValues(t, 8, tm3.Ver)
+	assert.EqualValues(t, []int64{100}, tm3.Conf.IDs)
+	assert.EqualValues(t, 1+201+1+101+1+101, tm3.Age)
+
 	rt, err := Del(dboper, &tm, tm.ID)
 	checkError(err, true, t, "Del")
 	if !rt {
