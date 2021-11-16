@@ -9,24 +9,19 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// Injector 类似Guice的注入器
-// 绑定约束:相同类型的实例和名称在一个Injector中必须唯一
-// Injector对于struct中可导出的字段进行注入,需要注入的字段应该使用inject tag进行说明
+// Injector is a injector like Guice Injector
 //  type InjectStruct struct{
-//   s ServiceInterface{} `inject:"<name>,[optional]"`
+//   s ServiceInterface{} `inject:"<name|_>,[optional]"`
 //  }
-// inject格式:
-//  name: 绑定的名称,必须的,如果没有名称,使用`_`代替
-//  optional: 标识可选的注入,即不是必须注入
 type Injector struct {
-	ununamed []*internalBind            //未命名的绑定
-	named    map[string][]*internalBind //命名的绑定
-	all      []*internalBind            //所有的绑定
+	ununamed []*internalBind
+	named    map[string][]*internalBind
+	all      []*internalBind
 }
 
 // Inject tag常量
 const (
-	injectTagNoname = "_" //无名称注入
+	injectTagNoname = "_"
 )
 
 func (p *Injector) String() string {

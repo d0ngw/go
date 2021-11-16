@@ -1,19 +1,15 @@
 package inject
 
 import (
-	"os"
 	"path"
-	"sync"
 
 	c "github.com/d0ngw/go/common"
 )
 
-var (
-	// Module 声明了通用的服务
-	module      = NewModule()
-	injectMutex sync.Mutex
-	injectorEnv = map[string]*Injector{}
-)
+// ConfigModuler get module depends on the config
+type ConfigModuler interface {
+	ConfModule() (module *Module, err error)
+}
 
 // SetupInjector 从env指定的环境配置初始化配置,构建Injector
 func SetupInjector(config c.Configurer, addonConfig string, env string, modules ...*Module) (*Injector, error) {
@@ -22,24 +18,6 @@ func SetupInjector(config c.Configurer, addonConfig string, env string, modules 
 
 // SetupInjectorWithLoader 从env指定的环境配置初始化配置,构建Injector
 func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonConfig string, env string, modules ...*Module) (*Injector, error) {
-	injectMutex.Lock()
-	defer injectMutex.Unlock()
-
-	injector, ok := injectorEnv[env]
-	if ok {
-		return injector, nil
-	}
-
-	workfDir := os.Getenv(c.EnvWorkfDir)
-	if workfDir != "" {
-		err := os.Chdir(workfDir)
-		if err != nil {
-			c.Errorf("can't change work dir to %s", workfDir)
-			return nil, err
-		}
-	}
-	c.Infof("work dir:%s", workfDir)
-
 	confDir := "conf"
 	var (
 		confs = []string{"common.yaml"}
@@ -78,17 +56,27 @@ func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonCo
 		return nil, err
 	}
 
+	var confModule *Module
+	if configModuler, ok := config.(ConfigModuler); ok {
+		if confModule, err = configModuler.ConfModule(); err != nil {
+			return nil, err
+		}
+	}
+
 	// 绑定核心的服务
+	module := NewModule()
 	module.Bind(config)
 	var allModuls []*Module
 	allModuls = append(allModuls, module)
 	allModuls = append(allModuls, modules...)
-	injector = NewInjector(allModuls)
+	if confModule != nil {
+		allModuls = append(allModuls, confModule)
+	}
+	injector := NewInjector(allModuls)
 	err = injector.Initialize()
 	if err != nil {
 		return nil, err
 	}
-	injectorEnv[env] = injector
 	return injector, nil
 }
 
