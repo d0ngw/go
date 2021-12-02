@@ -556,6 +556,36 @@ func ParseParams(r url.Values, dest interface{}) error {
 				} else if err != nil {
 					return err
 				}
+			case reflect.Uint:
+				if intSlice, err := strSlice.ToUint(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
+			case reflect.Uint8:
+				if intSlice, err := strSlice.ToUint8(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
+			case reflect.Uint16:
+				if intSlice, err := strSlice.ToUint16(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
+			case reflect.Uint32:
+				if intSlice, err := strSlice.ToUint32(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
+			case reflect.Uint64:
+				if intSlice, err := strSlice.ToUint64(); err == nil {
+					fieldVal.Set(reflect.ValueOf(intSlice))
+				} else if err != nil {
+					return err
+				}
 			case reflect.Float32:
 				if intSlice, err := strSlice.ToFloat32(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))

@@ -204,6 +204,21 @@ func (p StringSlice) ToNumber(typ interface{}) (interface{}, error) {
 			} else {
 				return nil, err
 			}
+		case reflect.Uint:
+			fallthrough
+		case reflect.Uint8:
+			fallthrough
+		case reflect.Uint16:
+			fallthrough
+		case reflect.Uint32:
+			fallthrough
+		case reflect.Uint64:
+			if val64, err := strconv.ParseUint(item, 10, 64); err == nil {
+				indV.SetUint(val64)
+				toAdd = append(toAdd, indV)
+			} else {
+				return nil, err
+			}
 		case reflect.Float32:
 			fallthrough
 		case reflect.Float64:
@@ -265,6 +280,70 @@ func (p StringSlice) ToInt64() ([]int64, error) {
 		return nil, err
 	}
 	return val.([]int64), nil
+}
+
+// ToUint 转为[]uint
+func (p StringSlice) ToUint() ([]uint, error) {
+	if p == nil {
+		return nil, nil
+	}
+	ret := make([]uint, 0, len(p))
+	for _, item := range p {
+		if val64, err := strconv.ParseUint(item, 10, 64); err == nil {
+			ret = append(ret, uint(val64))
+		} else {
+			return nil, err
+		}
+	}
+	return ret, nil
+}
+
+// ToUint8 转为[]uint8
+func (p StringSlice) ToUint8() ([]uint8, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]uint8{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]uint8), nil
+}
+
+// ToUint16 转为[]uint16
+func (p StringSlice) ToUint16() ([]uint16, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]uint16{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]uint16), nil
+}
+
+// ToUint32 转为[]uint32
+func (p StringSlice) ToUint32() ([]uint32, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]uint32{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]uint32), nil
+}
+
+// ToUint64 转为[]uint64
+func (p StringSlice) ToUint64() ([]uint64, error) {
+	if p == nil {
+		return nil, nil
+	}
+	val, err := p.ToNumber([]uint64{})
+	if err != nil {
+		return nil, err
+	}
+	return val.([]uint64), nil
 }
 
 // ToFloat32 转为[]float32

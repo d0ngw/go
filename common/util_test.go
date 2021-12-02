@@ -226,3 +226,14 @@ func TestIsValNil(t *testing.T) {
 	ii = ""
 	assert.False(t, IsValNil(ii))
 }
+
+func TestStringSliceToNumber(t *testing.T) {
+	var s = []string{"-1", "0", "1", "2", "3"}
+	ui8, err := StringSlice(s).ToUint8()
+	assert.Error(t, err)
+
+	s = []string{"355", "0", "1", "2", "3"}
+	ui8, err = StringSlice(s).ToUint8()
+	assert.NoError(t, err)
+	assert.EqualValues(t, []uint8{355 & 0xFF, 0, 1, 2, 3}, ui8)
+}
