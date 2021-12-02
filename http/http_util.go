@@ -168,6 +168,15 @@ func getIntParameter(r url.Values, name string, bitSize int) (val int64, err err
 	return
 }
 
+func getUintParameter(r url.Values, name string, bitSize int) (val uint64, err error) {
+	value := GetParameter(r, name)
+	if value == "" {
+		return 0, errNoparam
+	}
+	val, err = strconv.ParseUint(value, 10, bitSize)
+	return
+}
+
 // GetInt64Parameter 取得由name指定的64位整数参数值
 func GetInt64Parameter(r url.Values, name string) (val int64, err error) {
 	val, err = getIntParameter(r, name, 64)
@@ -498,6 +507,18 @@ func ParseParams(r url.Values, dest interface{}) error {
 		case reflect.Int64:
 			if val64, err := getIntParameter(r, paramName, 64); err == nil {
 				fieldVal.SetInt(val64)
+			}
+		case reflect.Uint:
+			fallthrough
+		case reflect.Uint8:
+			fallthrough
+		case reflect.Uint16:
+			fallthrough
+		case reflect.Uint32:
+			fallthrough
+		case reflect.Uint64:
+			if val64, err := getUintParameter(r, paramName, 64); err == nil {
+				fieldVal.SetUint(val64)
 			}
 		case reflect.Float32:
 			fallthrough
