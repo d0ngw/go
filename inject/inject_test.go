@@ -245,3 +245,17 @@ func TestInjectNoEmbed(t *testing.T) {
 	t.Logf("LdapAccountService %s", regServiceBad.LdapAccountService.Name())
 	t.Logf("LdapAccountServicePtr %s", regServiceBad.LdapAccountServicePtr.Name())
 }
+
+func TestIsBind(t *testing.T) {
+	ldapImplA := ldapAccount{n: "a"}
+	ldapImplPtr := ldapAccount{n: "ptr"}
+	ldapImplB := ldapAccount{n: "b"}
+
+	mod := NewModule()
+	mod.Bind(ldapImplA)
+	mod.Bind(&ldapImplPtr)
+
+	assert.True(t, mod.IsBind(&ldapImplPtr, ""))
+	assert.True(t, mod.IsBind(ldapImplA, ""))
+	assert.False(t, mod.IsBind(ldapImplB, ""))
+}

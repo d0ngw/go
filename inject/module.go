@@ -96,6 +96,16 @@ func (p *Module) Append(src *Module) {
 	p.binds = append(p.binds, src.binds...)
 }
 
+// IsBind check if the instance has been binded
+func (p *Module) IsBind(instance interface{}, name string) bool {
+	for _, internal := range p.binds {
+		if internal.instance == instance && internal.name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func checkIsInterface(typ reflect.Type) bool {
 	isInterface := false
 	if typ.Kind() == reflect.Ptr {
