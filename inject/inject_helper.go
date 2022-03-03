@@ -1,6 +1,7 @@
 package inject
 
 import (
+	"os"
 	"path"
 
 	c "github.com/d0ngw/go/common"
@@ -16,9 +17,15 @@ func SetupInjector(config c.Configurer, addonConfig string, env string, modules 
 	return SetupInjectorWithLoader(c.FileLoader, config, addonConfig, env, modules...)
 }
 
+// EnvConfRoot conf root
+const EnvConfRoot = "conf_root"
+
 // SetupInjectorWithLoader 从env指定的环境配置初始化配置,构建Injector
 func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonConfig string, env string, modules ...*Module) (*Injector, error) {
 	confDir := "conf"
+	if os.Getenv(EnvConfRoot) != "" {
+		confDir = os.Getenv(EnvConfRoot)
+	}
 	var (
 		confs = []string{"common.yaml"}
 	)
