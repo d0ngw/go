@@ -32,6 +32,7 @@ type params struct {
 	Ints           []int   `psep:","`
 	Int8s          []int8  `psep:","`
 	Int16s         []int16 `psep:","`
+	Errs           []int   `psep:","`
 }
 
 func TestParseParams(t *testing.T) {
@@ -52,6 +53,7 @@ func TestParseParams(t *testing.T) {
 	form.Set("ints", "1,2,3")
 	form.Set("int8s", "4,5,6")
 	form.Set("int16s", "7,8,9")
+	form.Set("errs", "")
 
 	p := &params{}
 	err := ParseParams(form, p)
@@ -72,4 +74,5 @@ func TestParseParams(t *testing.T) {
 	assert.EqualValues(t, []int{1, 2, 3}, p.Ints)
 	assert.EqualValues(t, []int8{4, 5, 6}, p.Int8s)
 	assert.EqualValues(t, []int16{7, 8, 9}, p.Int16s)
+	assert.EqualValues(t, []int{}, p.Errs)
 }
