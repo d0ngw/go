@@ -131,9 +131,10 @@ func (tm *tmodel) TableName() string {
 
 type User struct {
 	BaseShardEntity
-	ID   int64          `column:"id" pk:"Y"`
-	Name sql.NullString `column:"name"`
-	Age  int64          `column:"age"`
+	ID       int64          `column:"id" pk:"Y"`
+	Name     sql.NullString `column:"name"`
+	Age      int64          `column:"age"`
+	Birthday NullTime       `column:"birthday"`
 }
 
 func (p *User) TableName() string {

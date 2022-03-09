@@ -2,27 +2,14 @@ package orm
 
 import (
 	"database/sql"
-	"database/sql/driver"
 	"fmt"
 
-	"github.com/go-sql-driver/mysql"
+	// import mysql
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // NullTime null time
-type NullTime mysql.NullTime
-
-// Scan null time scan
-func (nt *NullTime) Scan(value interface{}) (err error) {
-	return (*mysql.NullTime)(nt).Scan(value)
-}
-
-// Value null time value
-func (nt NullTime) Value() (driver.Value, error) {
-	if !nt.Valid {
-		return nil, nil
-	}
-	return nt.Time, nil
-}
+type NullTime = sql.NullTime
 
 // DBError 数据库操作错误
 type DBError struct {
