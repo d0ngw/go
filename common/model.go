@@ -66,6 +66,13 @@ func (p *PageResult[T]) CalTotalPage() {
 	}
 }
 
+// CopyNoItems copy all but no items
+func (p *PageResult[T]) CopyNoItems(src PageResult[any]) {
+	p.PageParam = src.PageParam
+	p.Total = src.Total
+	p.TotalPage = src.TotalPage
+}
+
 //Query 基本的查询参数
 type Query struct {
 	PageParam
