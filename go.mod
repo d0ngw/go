@@ -1,9 +1,8 @@
 module github.com/d0ngw/go
 
-go 1.16
+go 1.18
 
 require (
-	github.com/BurntSushi/toml v1.0.0 // indirect
 	github.com/go-sql-driver/mysql v1.6.0
 	github.com/gomodule/redigo v1.8.8
 	github.com/json-iterator/go v1.1.12
@@ -13,4 +12,15 @@ require (
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
+)
+
+require (
+	github.com/BurntSushi/toml v1.0.0 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
+	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	go.uber.org/atomic v1.7.0 // indirect
+	go.uber.org/multierr v1.6.0 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
