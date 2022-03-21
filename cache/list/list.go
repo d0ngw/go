@@ -27,6 +27,8 @@ type Entity interface {
 	orm.Entity
 	// GetID return the id
 	GetID() int64
+	// SetID
+	SetID(int64)
 	// GetOwnerID return the owner id
 	GetOwnerID() string
 	// GetTargetID return the target id
@@ -53,6 +55,11 @@ func (p *BaseEntity) TableName() string {
 // GetID implements Entity.GetID()
 func (p *BaseEntity) GetID() int64 {
 	return p.ID
+}
+
+// SetID implements Entity.GetID()
+func (p *BaseEntity) SetID(id int64) {
+	p.ID = id
 }
 
 // GetOwnerID implement Entity.GetOwnerID
