@@ -66,8 +66,8 @@ func (p *PageResult[T]) CalTotalPage() {
 	}
 }
 
-// CopyNoItems copy all but no items
-func CopyNoItems[S any, T any](src PageResult[S], dest *PageResult[T]) {
+// CopyPageResult copy PageResult from src to dest (no items)
+func CopyPageResult[S any, T any](src PageResult[S], dest *PageResult[T]) {
 	dest.PageParam = src.PageParam
 	dest.Total = src.Total
 	dest.TotalPage = src.TotalPage
