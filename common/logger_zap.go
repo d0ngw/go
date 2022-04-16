@@ -85,7 +85,7 @@ func NewZapLogger(logConfig *LogConfig) *ZapLogger {
 	}
 
 	if logConfig.Level != "" {
-		zapl, ok := LogLevel(logConfig.Level).zapLevel()
+		zapl, ok := LogLevelName(logConfig.Level).zapLevel()
 		if ok {
 			logEnable = zap.NewAtomicLevelAt(zapl)
 		}

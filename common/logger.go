@@ -7,15 +7,30 @@ import (
 )
 
 // LogLevel log level
-type LogLevel string
+type LogLevel int8
 
 // log levels
 const (
-	Debug LogLevel = "debug"
-	Info  LogLevel = "info"
-	Warn  LogLevel = "warn"
-	Error LogLevel = "error"
+	Debug LogLevel = LogLevel(zapcore.DebugLevel)
+	Info  LogLevel = LogLevel(zapcore.InfoLevel)
+	Warn  LogLevel = LogLevel(zapcore.WarnLevel)
+	Error LogLevel = LogLevel(zapcore.ErrorLevel)
 )
+
+// LogLevelName LogLevel
+func LogLevelName(name string) LogLevel {
+	switch name {
+	case "debug":
+		return Debug
+	case "info":
+		return Info
+	case "warn":
+		return Warn
+	case "error":
+		return Error
+	}
+	return Info
+}
 
 func (p LogLevel) zapLevel() (level zapcore.Level, ok bool) {
 	switch p {
@@ -92,6 +107,21 @@ func ErrorEnabled() bool {
 // SetLogLevel set the log level
 func SetLogLevel(level LogLevel) {
 	logger.SetLevel(level)
+}
+
+// Logf log
+func Logf(level LogLevel, foramt string, params ...interface{}) {
+	if level == Debug {
+		logger.Debugf(foramt, params...)
+	} else if level == Info {
+		logger.Infof(foramt, params...)
+	} else if level == Warn {
+		logger.Warnf(foramt, params...)
+	} else if level == Error {
+		logger.Errorf(foramt, params...)
+	} else {
+		logger.Debugf(foramt, params...)
+	}
 }
 
 // LoggerSync sync log
