@@ -3,6 +3,7 @@ package http
 import (
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -140,7 +141,11 @@ func (p *Service) Start() bool {
 		defer p.graceHandler.waitGroup.Done()
 		err := p.server.Serve(p.listener)
 		if err != nil {
-			c.Errorf("server.Serve return with error:%v", err)
+			var errLevel = c.Error
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				errLevel = c.Warn
+			}
+			c.Logf(errLevel, "server.Serve return with %v", err)
 		}
 	}()
 	return true
