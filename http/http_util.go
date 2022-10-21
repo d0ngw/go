@@ -295,6 +295,13 @@ func RenderText(w http.ResponseWriter, text string) {
 	w.Write([]byte(text))
 }
 
+// RenderHTML 渲染HTML
+func RenderHTML(w http.ResponseWriter, data []byte) {
+	setupHeader(w)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
+}
+
 // GetURL 请求URL
 func GetURL(client *http.Client, url string, params url.Values) (string, error) {
 	return GetURLWithCookie(client, url, params, nil)
