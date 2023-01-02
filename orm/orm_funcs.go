@@ -35,7 +35,7 @@ func toSlice(s string, count int) []string {
 	return slice
 }
 
-//除了自增主键的过滤函数
+// 除了自增主键的过滤函数
 var exceptIDPred = func(field *metaField) bool {
 	if field == nil || (field.pk && field.pkAuto) {
 		return false
@@ -43,7 +43,7 @@ var exceptIDPred = func(field *metaField) bool {
 	return true
 }
 
-//除了主键的过滤函数
+// 除了主键的过滤函数
 var noIDPred = func(field *metaField) bool {
 	if field == nil || field.pk {
 		return false
@@ -51,7 +51,7 @@ var noIDPred = func(field *metaField) bool {
 	return true
 }
 
-//检查实体参数
+// 检查实体参数
 func checkEntity(modelInfo *meta, entity Entity, tx interface{}) (ind reflect.Value) {
 	val, ind, typ := extract(entity)
 	if val.Kind() != reflect.Ptr {
@@ -97,7 +97,7 @@ func buildParamValues(ind reflect.Value, fields []*metaField) []interface{} {
 	return paramValues
 }
 
-//构建实体模型的插入函数
+// 构建实体模型的插入函数
 func createInsertFunc(modelInfo *meta) entityInsertFunc {
 	insertFields := filterFields(exceptIDPred, modelInfo.fields)
 	columns := buildColumns(func(field *metaField) string {
@@ -130,7 +130,7 @@ func createInsertFunc(modelInfo *meta) entityInsertFunc {
 	}
 }
 
-//构建实体模型的更新函数
+// 构建实体模型的更新函数
 func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
 	updateFields := filterFields(noIDPred, modelInfo.fields)
 	columns := buildColumns(func(field *metaField) string {
@@ -221,7 +221,7 @@ func createUpdateExcludeColmnsFunc(modelInfo *meta) entityUpdateExcludeColumnsFu
 	}
 }
 
-//构建实体模型的指定类名的更新函数
+// 构建实体模型的指定类名的更新函数
 func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 	return func(executor interface{}, entity Entity, columns string, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
@@ -253,7 +253,7 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 	}
 }
 
-//构建查询函数
+// 构建查询函数
 func createQueryFunc(modelInfo *meta) entityQueryFunc {
 	columns := buildColumns(func(field *metaField) string {
 		return "`" + field.column + "`"
@@ -292,11 +292,14 @@ func createQueryFunc(modelInfo *meta) entityQueryFunc {
 				return nil, err
 			}
 		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
 		return rt, nil
 	}
 }
 
-//构建查询函数
+// 构建查询函数
 func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
 	return func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error) {
 		ind := checkEntity(modelInfo, entity, executor)
@@ -339,11 +342,14 @@ func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
 				return nil, err
 			}
 		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
 		return rt, nil
 	}
 }
 
-//构建查询函数
+// 构建查询函数
 func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
 	return func(executor interface{}, entity Entity, destStructs interface{}, columns []string, condition string, params []interface{}) error {
 		if destStructs == nil {
@@ -401,12 +407,15 @@ func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
 				return err
 			}
 		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
 		ptrVal.Elem().Set(rt)
 		return nil
 	}
 }
 
-//构建删除函数
+// 构建删除函数
 func createDelFunc(modelInfo *meta) entityDeleteFunc {
 	return func(executor interface{}, entity Entity, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
