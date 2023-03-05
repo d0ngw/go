@@ -37,7 +37,7 @@ type RequestError struct {
 }
 
 func (p *RequestError) Error() string {
-	return fmt.Sprintf("status:%d,data:%s", p.Status, p.Err)
+	return fmt.Sprintf("status:%d, err:%v", p.Status, p.Err)
 }
 
 // CheckRequestError if err is RequestError,then return response status code
@@ -465,7 +465,7 @@ func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Valu
 	if err != nil {
 		return nil, nil, err
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		c.Errorf("requst %s,response %s with status %d", url, string(body), resp.StatusCode)
 		return nil, nil, &RequestError{Status: resp.StatusCode}
 	}
