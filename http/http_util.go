@@ -414,6 +414,14 @@ func PostURLWithCookie(client *http.Client, url string, params url.Values, conte
 
 // PostURLWithCookieAndHeader 请求URL
 func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Values, header map[string]string, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
+	return Post(client, url, params, header, contentType, requestBody, cookies, nil)
+}
+
+// PostPrepare prepare the post request before call client.Do(req)
+type PostPrepare func(req *http.Request, body io.ReadSeeker) (err error)
+
+// Post Http Post
+func Post(client *http.Client, url string, params url.Values, header map[string]string, contentType string, requestBody io.Reader, cookies map[string]string, prepare PostPrepare) ([]byte, http.Header, error) {
 	if requestBody == nil {
 		requestBody = strings.NewReader(params.Encode())
 		if contentType == "" {
@@ -452,6 +460,23 @@ func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Valu
 
 	for k, v := range cookies {
 		req.AddCookie(&http.Cookie{Name: k, Value: v})
+	}
+
+	if prepare != nil {
+		var (
+			sr io.ReadSeeker
+		)
+		if requestBody != nil {
+			buf := bytes.NewBuffer(make([]byte, 0, 512))
+			if _, err = io.Copy(buf, requestBody); err != nil {
+				return nil, nil, err
+			}
+			requestBody = buf
+			sr = bytes.NewReader(buf.Bytes())
+		}
+		if err = prepare(req, sr); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	resp, err := client.Do(req)
