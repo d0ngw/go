@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -84,6 +83,7 @@ type Resp struct {
 	Data    interface{} `json:"data"`
 	Msg     string      `json:"msg"`
 	Code    int32       `json:"code"`
+	ExtData any         `json:"ext_data,omitempty"`
 }
 
 // NewSuccResp 构建成功的响应
@@ -109,6 +109,7 @@ type ResponseHandler struct {
 	Msg     string
 	Cancel  bool
 	Code    int32
+	ExtData any
 	w       http.ResponseWriter
 }
 
@@ -137,9 +138,9 @@ func (p *ResponseHandler) Run() {
 		return
 	}
 	if !p.Success {
-		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg, Code: p.Code, Data: p.Data})
+		RenderJSON(p.w, &Resp{Success: false, Msg: p.Msg, Code: p.Code, Data: p.Data, ExtData: p.ExtData})
 	} else {
-		RenderJSON(p.w, &Resp{Success: true, Msg: p.Msg, Data: p.Data, Code: p.Code})
+		RenderJSON(p.w, &Resp{Success: true, Msg: p.Msg, Data: p.Data, Code: p.Code, ExtData: p.ExtData})
 	}
 }
 
@@ -486,7 +487,7 @@ func Post(client *http.Client, url string, params url.Values, header map[string]
 	if resp.Body != nil {
 		defer resp.Body.Close()
 	}
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, nil, err
 	}
