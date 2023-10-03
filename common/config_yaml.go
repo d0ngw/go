@@ -3,15 +3,15 @@ package common
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // LoadYAMLFromPath 将YAML文件中的配置加载到到结构体target中
 func LoadYAMLFromPath(filename string, target interface{}) error {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
