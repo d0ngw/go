@@ -59,7 +59,7 @@ func (p *ParamConf) NewWithKeyPrefix(keyPrefix string) *ParamConf {
 // NewParamKey create new ParamKey with key
 func (p *ParamConf) NewParamKey(key string) *ParamKey {
 	return &ParamKey{
-		ParamConf: p,
+		ParamConf: *p,
 		key:       p.keyPrefix + key,
 	}
 }
@@ -67,14 +67,14 @@ func (p *ParamConf) NewParamKey(key string) *ParamKey {
 // NewParamKeyWithoutPrefix create new ParamKey without p.keyPrefix
 func (p *ParamConf) NewParamKeyWithoutPrefix(key string) *ParamKey {
 	return &ParamKey{
-		ParamConf: p,
+		ParamConf: *p,
 		key:       key,
 	}
 }
 
 // ParamKey is the cache param with key
 type ParamKey struct {
-	*ParamConf
+	ParamConf
 	key string
 }
 
