@@ -33,19 +33,20 @@ var (
 type RequestError struct {
 	Status int
 	Err    error
+	Body   []byte
 }
 
 func (p *RequestError) Error() string {
 	return fmt.Sprintf("status:%d, err:%v", p.Status, p.Err)
 }
 
-// CheckRequestError if err is RequestError,then return response status code
-func CheckRequestError(err error) (status int, ok bool) {
+// CheckRequestError if err is RequestError,then return response status code and body
+func CheckRequestError(err error) (status int, body []byte, ok bool) {
 	if err == nil {
 		return
 	}
 	if e, ok := err.(*RequestError); ok {
-		return e.Status, true
+		return e.Status, e.Body, true
 	}
 	return
 }
@@ -493,7 +494,7 @@ func Post(client *http.Client, url string, params url.Values, header map[string]
 	}
 	if resp.StatusCode != http.StatusOK {
 		c.Errorf("requst %s,response %s with status %d", url, string(body), resp.StatusCode)
-		return nil, nil, &RequestError{Status: resp.StatusCode}
+		return nil, nil, &RequestError{Status: resp.StatusCode, Body: body}
 	}
 	return body, resp.Header, nil
 }
