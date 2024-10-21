@@ -91,9 +91,10 @@ func NewZapLogger(logConfig *LogConfig) *ZapLogger {
 		}
 	}
 
-	if logConfig.FileName != "" {
+	outputFile := logConfig.GetOutputFile()
+	if outputFile != "" {
 		writerSync = zapcore.AddSync(&lumberjack.Logger{
-			Filename:   logConfig.FileName,
+			Filename:   outputFile,
 			MaxSize:    logConfig.MaxSize,
 			MaxBackups: logConfig.MaxBackups,
 			MaxAge:     logConfig.MaxAge,

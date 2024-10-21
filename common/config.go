@@ -74,6 +74,19 @@ func (p *LogConfig) Parse() error {
 	return initLogger(p)
 }
 
+// GetOutputFile 返回日志的输出文件
+func (p *LogConfig) GetOutputFile() string {
+	if p == nil {
+		return ""
+	}
+
+	name := os.Getenv("LOG_FILE")
+	if name != "" {
+		return name
+	}
+	return p.FileName
+}
+
 // RuntimeConfig 运行期配置
 type RuntimeConfig struct {
 	Maxprocs int //最大的PROCS个数
