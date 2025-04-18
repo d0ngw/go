@@ -197,7 +197,7 @@ func NewStrLenValidator(conf map[string]string) StrValidator {
 		panic(err)
 	}
 	if minLen < 0 || maxLen < 0 || minLen > maxLen {
-		panic(fmt.Errorf("Invalid str length,minLen:%v,maxLen:%v", minLen, maxLen))
+		panic(fmt.Errorf("invalid str length,minLen:%v,maxLen:%v", minLen, maxLen))
 	}
 	return &StringLenValidator{min: minLen, max: maxLen}
 }
@@ -213,7 +213,7 @@ func NewInt32Validator(conf map[string]string) StrValidator {
 		panic(err)
 	}
 	if min > max {
-		panic(fmt.Errorf("Invalid min %d,max %d", min, max))
+		panic(fmt.Errorf("invalid min %d,max %d", min, max))
 	}
 	return &Int32Validator{min: min, max: max}
 
@@ -230,7 +230,7 @@ func NewInt64Validator(conf map[string]string) StrValidator {
 		panic(err)
 	}
 	if min > max {
-		panic(fmt.Errorf("Invalid min %d,max %d", min, max))
+		panic(fmt.Errorf("invalid min %d,max %d", min, max))
 	}
 	return &Int64Validator{min: min, max: max}
 }
@@ -246,7 +246,7 @@ func NewFloat32Validator(conf map[string]string) StrValidator {
 		panic(err)
 	}
 	if min > max {
-		panic(fmt.Errorf("Invalid min %f,max %f", min, max))
+		panic(fmt.Errorf("invalid min %f,max %f", min, max))
 	}
 	return &Float32Validator{min: min, max: max}
 }
@@ -262,7 +262,7 @@ func NewFloat64Validator(conf map[string]string) StrValidator {
 		panic(err)
 	}
 	if min > max {
-		panic(fmt.Errorf("Invalid min %f,max %f", min, max))
+		panic(fmt.Errorf("invalid min %f,max %f", min, max))
 	}
 	return &Float64Validator{min: min, max: max}
 }
@@ -270,14 +270,14 @@ func NewFloat64Validator(conf map[string]string) StrValidator {
 // NewRegexValidator 创建正则表达式验证,conf["pattern"] 正则表达式
 func NewRegexValidator(conf map[string]string) StrValidator {
 	pattern := conf["pattern"]
-	allowEmpty := "true" == strings.ToLower(conf["empty"])
+	allowEmpty := strings.ToLower(conf["empty"]) == "true"
 	if len(pattern) == 0 {
-		panic(fmt.Errorf("Invalid pattern %s", pattern))
+		panic(fmt.Errorf("invalid pattern %s", pattern))
 	}
 	return &RegExValidator{pattern: regexp.MustCompile(pattern), empty: allowEmpty}
 }
 
-//默认的构建器的名称
+// 默认的构建器的名称
 const (
 	VNOTEMPTY = "notempty" //无构建参数
 	VBOOL     = "bool"
@@ -311,7 +311,7 @@ func NewValidatorByConf(conf map[string]string) StrValidator {
 	panic("Can't find the validator name:" + name)
 }
 
-//初始化注册内置的验证器
+// 初始化注册内置的验证器
 func init() {
 	RegValidatorNewer(VNOTEMPTY, NewNotEmptyValidator)
 	RegValidatorNewer(VBOOL, NewBoolValidator)

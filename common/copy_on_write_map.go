@@ -8,7 +8,7 @@ import (
 
 type opType uint
 
-//opType的类型
+// opType的类型
 const (
 	opPut           opType = iota //添加
 	opPutOnlyAbsent               //添加,如果指定的key已经存在,则返回error
@@ -17,7 +17,7 @@ const (
 
 type cowMap map[interface{}]interface{}
 
-//CopyOnWriteMap copy on write map
+// CopyOnWriteMap copy on write map
 type CopyOnWriteMap struct {
 	m     atomic.Value
 	mutex sync.Mutex
@@ -48,7 +48,7 @@ func (p *CopyOnWriteMap) modify(key interface{}, value interface{}, op opType) e
 	switch op {
 	case opPutOnlyAbsent:
 		if _, ok := m1[key]; ok {
-			return fmt.Errorf("Duplicate key:%v", key)
+			return fmt.Errorf("duplicate key:%v", key)
 		}
 		fallthrough
 	case opPut:
@@ -60,7 +60,7 @@ func (p *CopyOnWriteMap) modify(key interface{}, value interface{}, op opType) e
 		delete(m2, key)
 		p.m.Store(m2)
 	default:
-		panic(fmt.Errorf("Unsupported op type %#v", op))
+		panic(fmt.Errorf("unsupported op type %#v", op))
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (p *CopyOnWriteMap) Delete(key interface{}) {
 	p.modify(key, nil, opDel)
 }
 
-//Get 取得key对应的值
+// Get 取得key对应的值
 func (p *CopyOnWriteMap) Get(key interface{}) interface{} {
 	m1 := p.m.Load().(cowMap)
 	if value, ok := m1[key]; ok {
@@ -127,7 +127,7 @@ func (p *CopyOnWriteSlice) modify(value interface{}, op opType) error {
 		}
 		p.m.Store(m2)
 	default:
-		panic(fmt.Errorf("Unsupported op type %#v", op))
+		panic(fmt.Errorf("unsupported op type %#v", op))
 	}
 
 	return nil

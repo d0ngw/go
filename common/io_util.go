@@ -147,11 +147,11 @@ func CreateDirIfAbsent(dir string) error {
 		if os.IsNotExist(err) {
 			err = os.MkdirAll(dir, os.ModePerm)
 			if err != nil {
-				return fmt.Errorf("Can't create dir:%s,err:%s", dir, err)
+				return fmt.Errorf("can't create dir:%s,err:%s", dir, err)
 			}
 		}
 	} else if !info.IsDir() {
-		return fmt.Errorf("Not a dir `%s`", dir)
+		return fmt.Errorf("not a dir `%s`", dir)
 	}
 	return nil
 }

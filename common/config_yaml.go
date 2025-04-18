@@ -21,7 +21,7 @@ func LoadYAMLFromPath(filename string, target interface{}) error {
 // LoadYAMl 将data中的YAML配置加载到到结构体target中
 func LoadYAMl(data []byte, target interface{}) error {
 	if len(data) == 0 {
-		return fmt.Errorf("Can't load yaml config from empty data")
+		return fmt.Errorf("can't load yaml config from empty data")
 	}
 	return yaml.Unmarshal([]byte(data), target)
 }

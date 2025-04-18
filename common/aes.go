@@ -19,15 +19,15 @@ func PKCS5Padding(ciphertext []byte, blockSize int) ([]byte, error) {
 func PKCS5UnPadding(origData []byte) ([]byte, error) {
 	length := len(origData)
 	if length == 0 {
-		return nil, errors.New("Invalid length")
+		return nil, errors.New("invalid length")
 	}
 	unpadding := int(origData[length-1])
 	if unpadding < 0 {
-		return nil, errors.New("Invalid unpadding")
+		return nil, errors.New("invalid unpadding")
 	}
 	end := length - unpadding
 	if end < 0 || end > length {
-		return nil, errors.New("Invalid end padding")
+		return nil, errors.New("invalid end padding")
 	}
 	return origData[:(length - unpadding)], nil
 }

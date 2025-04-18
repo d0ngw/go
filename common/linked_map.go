@@ -79,7 +79,7 @@ type MapEntry struct {
 // Entries return entry slice
 func (p *LinkedMap) Entries() []*MapEntry {
 	p.mutex.RLock()
-	p.mutex.RUnlock()
+	defer p.mutex.RUnlock()
 	entries := make([]*MapEntry, p.l.Len())
 	var i = 0
 	for e := p.l.Front(); e != nil; e = e.Next() {
