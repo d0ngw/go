@@ -177,7 +177,7 @@ func (p StringSlice) ToInt() ([]int, error) {
 	return ret, nil
 }
 
-//ToNumber 转为数字slice
+// ToNumber 转为数字slice
 func (p StringSlice) ToNumber(typ interface{}) (interface{}, error) {
 	sliceType := reflect.TypeOf(typ)
 	intSlice := reflect.MakeSlice(sliceType, 0, len(p))
@@ -382,7 +382,7 @@ func (p StringSlice) ToInterface() []interface{} {
 	return val
 }
 
-//Int64 转为int64类型
+// Int64 转为int64类型
 func Int64(p interface{}) (i int64, err error) {
 	switch v := p.(type) {
 	case int:
@@ -409,7 +409,7 @@ func Int64(p interface{}) (i int64, err error) {
 	return
 }
 
-//Int 转为int
+// Int 转为int
 func Int(p interface{}) (i int, err error) {
 	switch v := p.(type) {
 	case int:
@@ -446,7 +446,7 @@ func Int(p interface{}) (i int, err error) {
 	return
 }
 
-//Float64 转为float64类型
+// Float64 转为float64类型
 func Float64(p interface{}) (i float64, err error) {
 	switch v := p.(type) {
 	case int:
@@ -473,7 +473,7 @@ func Float64(p interface{}) (i float64, err error) {
 	return
 }
 
-//Float32 转为float32
+// Float32 转为float32
 func Float32(p interface{}) (i float32, err error) {
 	switch v := p.(type) {
 	case int:
@@ -637,18 +637,12 @@ func ToSlice(num int, fillFunc func(index int, dest []interface{})) []interface{
 
 // ByteSlice2String convert []byte to string
 func ByteSlice2String(bs []byte) (str string) {
-	return *(*string)(unsafe.Pointer(&bs))
+	return string(str)
 }
 
 // String2ByteSlice convert string to []byte
 func String2ByteSlice(str string) (bs []byte) {
-	var bh reflect.SliceHeader
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&str))
-	bh.Data, bh.Len, bh.Cap = sh.Data, sh.Len, sh.Len
-
-	bs = *(*[]byte)(unsafe.Pointer(&bh))
-	runtime.KeepAlive(&str)
-	return
+	return []byte(str)
 }
 
 // StackTrace record the stack trace
