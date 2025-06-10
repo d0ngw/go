@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 	"unicode"
 )
 
@@ -15,6 +16,8 @@ type Controller interface {
 	GetPath() string
 	// GetHandlerMiddlewares 返回controller的处理方法中,需要增加middleware封装的方法,key是controller中的方法名
 	GetHandlerMiddlewares() map[string][]Middleware
+	// GetPatternMethods Pattern -> Controller Method
+	GetPatternMethods() map[string]string
 }
 
 // BaseController 表示一个控制器
@@ -22,6 +25,7 @@ type BaseController struct {
 	Name               string                  // Controller的名称
 	Path               string                  // Controller的路径
 	HandlerMiddlewares map[string][]Middleware // Controller中需要使用middleware封装的方法
+	PatternMethods     map[string]string
 }
 
 // GetName controller的名称
@@ -37,6 +41,11 @@ func (p *BaseController) GetPath() string {
 // GetHandlerMiddlewares handler的middleware
 func (p *BaseController) GetHandlerMiddlewares() map[string][]Middleware {
 	return p.HandlerMiddlewares
+}
+
+// GetPatternMethods return the pattern and method pairs
+func (p *BaseController) GetPatternMethods() map[string]string {
+	return p.PatternMethods
 }
 
 var (
@@ -57,14 +66,26 @@ func reflectHandlers(controller Controller) (handlers map[string]*handlerWithMid
 		return nil, fmt.Errorf("controller must be a valid pointer")
 	}
 
+	var path = controller.GetPath()
+
 	// 检查方法是否存在
 	hm := controller.GetHandlerMiddlewares()
-	if len(hm) > 0 {
-		for name := range hm {
-			if found := val.MethodByName(name); !found.IsValid() {
-				return nil, fmt.Errorf("Can't find method name %s for middlewares", name)
-			}
+	for name := range hm {
+		if found := val.MethodByName(name); !found.IsValid() {
+			return nil, fmt.Errorf("Can't find method name %s for middlewares", name)
 		}
+	}
+
+	var (
+		method2patterns = map[string][]string{}
+	)
+	for pattern, method := range controller.GetPatternMethods() {
+		if found := val.MethodByName(method); !found.IsValid() {
+			return nil, fmt.Errorf("Can't find method name %s for pattern ", pattern)
+		}
+		patterns := method2patterns[method]
+		patterns = append(patterns, pattern)
+		method2patterns[method] = patterns
 	}
 
 	handlers = map[string]*handlerWithMiddleware{}
@@ -81,7 +102,29 @@ func reflectHandlers(controller Controller) (handlers map[string]*handlerWithMid
 			if middlewares, ok := hm[method.Name]; ok {
 				hmiddle.middlewares = middlewares
 			}
-			handlers[ToUnderlineName(method.Name)] = hmiddle
+
+			patterns := method2patterns[method.Name]
+			if len(patterns) > 0 {
+				for _, pattern := range patterns {
+					subs := strings.SplitN(pattern, "/", 2)
+					if len(subs) != 2 {
+						return nil, fmt.Errorf("invalid pattern: %s", pattern)
+					}
+					if subs[1] != "" && path != "/" {
+						subs[1] = "/" + subs[1]
+					}
+					pattern = subs[0] + path + subs[1]
+					handlers[pattern] = hmiddle
+
+				}
+			} else {
+				var handlerPath = path
+				if path != "/" {
+					handlerPath += "/"
+				}
+				handlerPath += ToUnderlineName(method.Name)
+				handlers[handlerPath] = hmiddle
+			}
 		}
 	}
 	return handlers, nil

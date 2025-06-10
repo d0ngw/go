@@ -4,7 +4,6 @@ package http
 import (
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -42,11 +41,6 @@ func (p *Config) RegController(controller Controller) error {
 
 	p.controllers = append(p.controllers, controller)
 
-	var path = controller.GetPath()
-	if !strings.HasSuffix(path, "/") {
-		path += "/"
-	}
-
 	p.controllerMux.Lock()
 	defer p.controllerMux.Unlock()
 
@@ -61,12 +55,7 @@ func (p *Config) RegController(controller Controller) error {
 	}
 
 	for handlerPath, h := range handlers {
-		if strings.HasPrefix(handlerPath, "/") {
-			handlerPath = handlerPath[1:]
-		}
-
-		patternPath := path + handlerPath
-		if err := p.regHandleFunc(patternPath, h); err != nil {
+		if err := p.regHandleFunc(handlerPath, h); err != nil {
 			return err
 		}
 	}

@@ -584,73 +584,73 @@ func ParseParams(r url.Values, dest interface{}) error {
 			case reflect.Int:
 				if intSlice, err := strSlice.ToInt(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Int8:
 				if intSlice, err := strSlice.ToInt8(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Int16:
 				if intSlice, err := strSlice.ToInt16(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Int32:
 				if intSlice, err := strSlice.ToInt32(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Int64:
 				if intSlice, err := strSlice.ToInt64(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Uint:
 				if intSlice, err := strSlice.ToUint(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Uint8:
 				if intSlice, err := strSlice.ToUint8(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Uint16:
 				if intSlice, err := strSlice.ToUint16(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Uint32:
 				if intSlice, err := strSlice.ToUint32(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Uint64:
 				if intSlice, err := strSlice.ToUint64(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Float32:
 				if intSlice, err := strSlice.ToFloat32(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err != nil {
+				} else {
 					return err
 				}
 			case reflect.Float64:
 				if intSlice, err := strSlice.ToFloat64(); err == nil {
 					fieldVal.Set(reflect.ValueOf(intSlice))
-				} else if err == nil {
+				} else {
 					return err
 				}
 			default:

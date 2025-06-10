@@ -23,6 +23,8 @@ func (p *DemoController) Second(w http.ResponseWriter, r *http.Request) {
 func TestReflectHandlers(t *testing.T) {
 	testReflectHandlers(t, "demo1")
 	testReflectHandlers(t, "demo2")
+	testReflectPatternsHandlers(t, "demo1pattern")
+	testReflectPatternsHandlers(t, "demo2pattern")
 }
 
 type LogMiddleware struct {
@@ -62,14 +64,58 @@ func testReflectHandlers(t *testing.T, name string) {
 	assert.Nil(t, err, "err")
 	assert.EqualValues(t, 2, len(mapping))
 
-	mapping["index"].handlerFunc(nil, nil)
-	mapping["second"].handlerFunc(nil, nil)
+	mapping[controller.Path+"/index"].handlerFunc(nil, nil)
+	mapping[controller.Path+"/second"].handlerFunc(nil, nil)
 
 	mapping, err = reflectHandlers(controller)
 	assert.Nil(t, err, "err")
 	assert.EqualValues(t, 2, len(mapping))
-	mapping["second"].handlerFunc(nil, nil)
-	mapping["index"].handlerFunc(nil, nil)
+	mapping[controller.Path+"/second"].handlerFunc(nil, nil)
+	mapping[controller.Path+"/index"].handlerFunc(nil, nil)
+}
+
+func testReflectPatternsHandlers(t *testing.T, name string) {
+	controller := &DemoController{
+		BaseController: BaseController{
+			Name: name,
+			Path: "/",
+			HandlerMiddlewares: map[string][]Middleware{
+				"Index": {
+					&LogMiddleware{Order: 0},
+					&LogMiddleware{Order: 1},
+					&LogMiddleware{Order: 2},
+				},
+			},
+			PatternMethods: map[string]string{
+				"/":                "Index",
+				"GET /":            "Index",
+				"GET localhost/":   "Index",
+				"/index/{id}":      "Index",
+				"/sec/{id}/{name}": "Second",
+			},
+		},
+	}
+
+	mapping, err := reflectHandlers(controller)
+	assert.Nil(t, err, "err")
+	assert.EqualValues(t, 5, len(mapping))
+
+	mapping[controller.Path].handlerFunc(nil, nil)
+	mapping["GET "+controller.Path].handlerFunc(nil, nil)
+	mapping["GET localhost"+controller.Path].handlerFunc(nil, nil)
+	mapping[controller.Path+"index/{id}"].handlerFunc(nil, nil)
+	mapping[controller.Path+"sec/{id}/{name}"].handlerFunc(nil, nil)
+
+	controller.Path = "/mock"
+	mapping, err = reflectHandlers(controller)
+	assert.Nil(t, err, "err")
+	assert.EqualValues(t, 5, len(mapping))
+
+	mapping[controller.Path].handlerFunc(nil, nil)
+	mapping["GET "+controller.Path].handlerFunc(nil, nil)
+	mapping["GET localhost"+controller.Path].handlerFunc(nil, nil)
+	mapping[controller.Path+"/index/{id}"].handlerFunc(nil, nil)
+	mapping[controller.Path+"/sec/{id}/{name}"].handlerFunc(nil, nil)
 }
 
 func TestToUnderlineName(t *testing.T) {
