@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"text/template"
 
 	c "github.com/d0ngw/go/common"
 	jsoniter "github.com/json-iterator/go"
@@ -78,7 +78,7 @@ func NewRedirectError(req *http.Request, via []*http.Request) error {
 	}
 }
 
-// Resp JSON Http响应
+// Resp represents a JSON HTTP response.
 type Resp struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data"`
@@ -87,7 +87,7 @@ type Resp struct {
 	ExtData any         `json:"ext_data,omitempty"`
 }
 
-// NewSuccResp 构建成功的响应
+// NewSuccResp creates a success response.
 func NewSuccResp(data interface{}) *Resp {
 	return &Resp{
 		Success: true,
@@ -95,7 +95,7 @@ func NewSuccResp(data interface{}) *Resp {
 	}
 }
 
-// NewFailResp 构建失败的响应
+// NewFailResp creates a failure response.
 func NewFailResp(msg string) *Resp {
 	return &Resp{
 		Success: false,
@@ -103,7 +103,7 @@ func NewFailResp(msg string) *Resp {
 	}
 }
 
-// ResponseHandler 响应处理
+// ResponseHandler builds and writes HTTP responses.
 type ResponseHandler struct {
 	Success bool
 	Data    interface{}
@@ -114,20 +114,20 @@ type ResponseHandler struct {
 	w       http.ResponseWriter
 }
 
-// SuccessWithData 设置成功及数据
+// SuccessWithData sets a success response with data.
 func (p *ResponseHandler) SuccessWithData(data interface{}) {
 	p.Success = true
 	p.Data = data
 }
 
-// SuccessWith 设置成功,数据,消息
+// SuccessWith sets a success response with data and a message.
 func (p *ResponseHandler) SuccessWith(data interface{}, msg string) {
 	p.Success = true
 	p.Data = data
 	p.Msg = msg
 }
 
-// FailWithMsg 设置失败及出错的消息
+// FailWithMsg sets a failure response and error message.
 func (p *ResponseHandler) FailWithMsg(msg string) {
 	p.Success = false
 	p.Msg = msg
@@ -145,7 +145,7 @@ func (p *ResponseHandler) Run() {
 	}
 }
 
-// NewResponseHandler 构建响应处理
+// NewResponseHandler creates a response handler.
 func NewResponseHandler(w http.ResponseWriter) *ResponseHandler {
 	return &ResponseHandler{
 		w: w,
@@ -156,7 +156,7 @@ var (
 	errNoparam = fmt.Errorf("missing param")
 )
 
-// GetParameter 取得由name指定的参数值
+// GetParameter retrieves a named request parameter.
 func GetParameter(r url.Values, name string) string {
 	return strings.TrimSpace(r.Get(name))
 }
@@ -179,13 +179,13 @@ func getUintParameter(r url.Values, name string, bitSize int) (val uint64, err e
 	return
 }
 
-// GetInt64Parameter 取得由name指定的64位整数参数值
+// GetInt64Parameter retrieves a named parameter as a 64-bit integer.
 func GetInt64Parameter(r url.Values, name string) (val int64, err error) {
 	val, err = getIntParameter(r, name, 64)
 	return
 }
 
-// GetInt32Parameter 取得由name指定的32位整数参数值
+// GetInt32Parameter retrieves a named parameter as a 32-bit integer.
 func GetInt32Parameter(r url.Values, name string) (val int32, err error) {
 	val64, err := getIntParameter(r, name, 32)
 	if err == nil {
@@ -203,13 +203,13 @@ func getFloatParameter(r url.Values, name string, bitSize int) (val float64, err
 	return
 }
 
-// GetFloat64Parameter 取得由name指定的64位浮点数参数值
+// GetFloat64Parameter retrieves a named parameter as a 64-bit floating-point value.
 func GetFloat64Parameter(r url.Values, name string) (val float64, err error) {
 	val, err = getFloatParameter(r, name, 64)
 	return
 }
 
-// GetFloat32Parameter 取得由name指定的32位浮点数参数值
+// GetFloat32Parameter retrieves a named parameter as a 32-bit floating-point value.
 func GetFloat32Parameter(r url.Values, name string) (val float32, err error) {
 	val64, err := getFloatParameter(r, name, 32)
 	if err == nil {
@@ -235,9 +235,10 @@ func setupHeader(w http.ResponseWriter) {
 	}
 }
 
-// RenderTemplate 渲染模板
+// RenderTemplate renders a template.
 func RenderTemplate(w http.ResponseWriter, templateDir, tmpl string, data interface{}) {
 	setupHeader(w)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	templatePath := path.Join(templateDir, tmpl+".html")
 	t, err := template.ParseFiles(templatePath)
 	if err != nil {
@@ -262,14 +263,14 @@ type JSONMarshaler interface {
 var jsonMarshaler JSONMarshaler
 var regOnce sync.Once
 
-// RegJSONMarshaler 注册JSON Marshaler
+// RegJSONMarshaler registers a JSON marshaler.
 func RegJSONMarshaler(marshaler JSONMarshaler) {
 	regOnce.Do(func() {
 		jsonMarshaler = marshaler
 	})
 }
 
-// RenderJSON 渲染JSON
+// RenderJSON writes a JSON response.
 func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
 	setupHeader(w)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -290,26 +291,26 @@ func RenderJSON(w http.ResponseWriter, jsonData interface{}) {
 	}
 }
 
-// RenderText 渲染Text
+// RenderText writes a plain text response.
 func RenderText(w http.ResponseWriter, text string) {
 	setupHeader(w)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte(text))
 }
 
-// RenderHTML 渲染HTML
+// RenderHTML writes an HTML response.
 func RenderHTML(w http.ResponseWriter, data []byte) {
 	setupHeader(w)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(data)
 }
 
-// GetURL 请求URL
+// GetURL performs an HTTP GET request and returns the response body as text.
 func GetURL(client *http.Client, url string, params url.Values) (string, error) {
 	return GetURLWithCookie(client, url, params, nil)
 }
 
-// GetURLWithCookie 请求URL
+// GetURLWithCookie performs an HTTP GET request with cookies.
 func GetURLWithCookie(client *http.Client, url string, params url.Values, cookies map[string]string) (string, error) {
 	_, body, err := GetURLRaw(client, url, params, nil, cookies)
 	if err != nil {
@@ -318,12 +319,12 @@ func GetURLWithCookie(client *http.Client, url string, params url.Values, cookie
 	return string(body), nil
 }
 
-// GetURLRawToWriter 请求URL
+// GetURLRawToWriter performs an HTTP GET request and writes the response body to a writer.
 func GetURLRawToWriter(client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string, writer io.Writer) (header http.Header, err error) {
 	return GetURLRawToWriterWithContext(nil, client, url, params, reqHeader, cookies, writer)
 }
 
-// GetURLRawToWriterWithContext 请求URL
+// GetURLRawToWriterWithContext performs an HTTP GET request with a context and streams the response body.
 func GetURLRawToWriterWithContext(ctx context.Context, client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string, writer io.Writer) (header http.Header, err error) {
 	var req *http.Request
 	if params != nil {
@@ -394,7 +395,7 @@ func GetURLRawToWriterWithContext(ctx context.Context, client *http.Client, url 
 	return resp.Header, nil
 }
 
-// GetURLRaw 请求URL
+// GetURLRaw performs an HTTP GET request and returns the response body as bytes.
 func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader http.Header, cookies map[string]string) (header http.Header, body []byte, err error) {
 	var writer = &bytes.Buffer{}
 	header, err = GetURLRawToWriter(client, url, params, reqHeader, cookies, writer)
@@ -404,17 +405,17 @@ func GetURLRaw(client *http.Client, url string, params url.Values, reqHeader htt
 	return header, writer.Bytes(), nil
 }
 
-// PostURL 请求URL
+// PostURL performs an HTTP POST request.
 func PostURL(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader) ([]byte, http.Header, error) {
 	return PostURLWithCookie(client, url, params, contentType, requestBody, nil)
 }
 
-// PostURLWithCookie 请求URL
+// PostURLWithCookie performs an HTTP POST request with cookies.
 func PostURLWithCookie(client *http.Client, url string, params url.Values, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
 	return PostURLWithCookieAndHeader(client, url, params, nil, contentType, requestBody, cookies)
 }
 
-// PostURLWithCookieAndHeader 请求URL
+// PostURLWithCookieAndHeader performs an HTTP POST request with cookies and headers.
 func PostURLWithCookieAndHeader(client *http.Client, url string, params url.Values, header map[string]string, contentType string, requestBody io.Reader, cookies map[string]string) ([]byte, http.Header, error) {
 	return Post(client, url, params, header, contentType, requestBody, cookies, nil)
 }
@@ -499,7 +500,7 @@ func Post(client *http.Client, url string, params url.Values, header map[string]
 	return body, resp.Header, nil
 }
 
-// ParseParams 从r中解析参数,并填充到dest中,params应该是struct指针
+// ParseParams parses request parameters into dest, which must be a pointer to a struct.
 func ParseParams(r url.Values, dest interface{}) error {
 	if r == nil || dest == nil {
 		return fmt.Errorf("invalid args")

@@ -25,7 +25,7 @@ func NewMySQLDBPool(config *DBConfig) (*Pool, error) {
 		charset = "utf8"
 	}
 
-	//设置时间为本地时间,并解析时间
+	// Parse database timestamps in the local time zone.
 	loc, err := time.LoadLocation("Local")
 	connectURL := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=%s&loc=%s&parseTime=true", config.User, config.Pass, config.URL, config.Schema, charset, url.QueryEscape(loc.String()))
 	for k, v := range config.Ext {

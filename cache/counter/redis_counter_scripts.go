@@ -1,9 +1,10 @@
 package counter
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -23,7 +24,41 @@ type Scripts struct {
 	del            *redis.Script
 }
 
-//NewScripts new
+//go:embed lua/update.lua
+var defaultUpdateLua string
+
+//go:embed lua/set_sync.lua
+var defaultSetSyncLua string
+
+//go:embed lua/evict.lua
+var defaultEvictLua string
+
+//go:embed lua/get_all.lua
+var defaultGetAllLua string
+
+//go:embed lua/delete.lua
+var defaultDeleteLua string
+
+//go:embed lua/snapshot.lua
+var counterSnapshotLua string
+
+var counterSnapshotScript = redis.NewScript(1, counterSnapshotLua)
+
+// DefaultScripts returns an initialized, independent set of embedded scripts.
+func DefaultScripts() *Scripts {
+	scripts := &Scripts{
+		Update: defaultUpdateLua, SetSync: defaultSetSyncLua,
+		Evict: defaultEvictLua, HgetAll: defaultGetAllLua, Del: defaultDeleteLua,
+		loadFromString: true,
+	}
+	// Embedded sources are nonempty and validated by integration tests.
+	if err := scripts.Init(); err != nil {
+		panic(err)
+	}
+	return scripts
+}
+
+// NewScripts configures custom scripts loaded from strings or files.
 func NewScripts(loadFromString bool) *Scripts {
 	return &Scripts{loadFromString: loadFromString}
 }
@@ -62,7 +97,7 @@ func (p *Scripts) Init() (err error) {
 }
 
 func (p *Scripts) loadScriptFromFile(luaPath string, dest **redis.Script) error {
-	data, err := ioutil.ReadFile(luaPath)
+	data, err := os.ReadFile(luaPath)
 	if err != nil {
 		return err
 	}
@@ -76,7 +111,7 @@ func (p *Scripts) loadScriptFromFile(luaPath string, dest **redis.Script) error 
 
 func (p *Scripts) loadScriptFromString(luaData string, dest **redis.Script) error {
 	if len(luaData) == 0 {
-		return errors.New("empty lua script in %s")
+		return errors.New("empty Lua script")
 	}
 	script := redis.NewScript(1, string(luaData))
 	*dest = script

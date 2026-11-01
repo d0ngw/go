@@ -5,21 +5,21 @@ import (
 	"strings"
 )
 
-// RuleConfig 验证规则配置
+// RuleConfig configures a validation rule.
 type RuleConfig struct {
 	Name       string
-	Desc       string              //规则描述
-	Validators []map[string]string //验证器列表,必须要有name
+	Desc       string              // Rule description.
+	Validators []map[string]string // Validator configurations, each requiring a name.
 }
 
-// ValidateRuleConfig 验证规则配置
+// ValidateRuleConfig configures named validation rules.
 type ValidateRuleConfig struct {
 	Rules  []RuleConfig
-	SName  string          //服务的名称
-	parsed validateRuleMap //解析后的结果
+	SName  string          // Service name.
+	parsed validateRuleMap // Parsed rules.
 }
 
-// Parse 解析验证的配置
+// Parse parses and validates the validation rules.
 func (p *ValidateRuleConfig) Parse() error {
 	if p == nil {
 		Warnf("no validate conf")
@@ -44,7 +44,7 @@ func (p *ValidateRuleConfig) Parse() error {
 	return nil
 }
 
-// NewService 根据配置解析的结果创建验证服务
+// NewService creates a validation service from the parsed configuration.
 func (p *ValidateRuleConfig) NewService() Service {
 	if p.parsed == nil {
 		panic("Can't create ValidateService from nil")
@@ -55,10 +55,10 @@ func (p *ValidateRuleConfig) NewService() Service {
 	return &svr
 }
 
-//ValidateRule 定义验证规则
+// ValidateRule contains a parsed validation rule.
 type ValidateRule struct {
-	desc       string         //规则描述
-	validators []StrValidator //通过Rules构建出来的验证规则
+	desc       string         // Rule description.
+	validators []StrValidator // Validators built from the rule configuration.
 }
 
 type validateRuleMap map[string]*ValidateRule
@@ -68,14 +68,14 @@ type ValidateConfigurer interface {
 	GetValidateRuleConfig() *ValidateRuleConfig
 }
 
-// ValidateService 验证服务
+// ValidateService validates values using named rules.
 type ValidateService interface {
 	Service
-	//Validate 使用name指定验证规则,对value进行验证,验证通过返回nil,否则返回错误原因
+	// Validate checks value against the named rule and returns an error on failure.
 	Validate(name string, value string) error
 }
 
-// RuleValidateService  根据规则进行的验证服务
+// RuleValidateService validates values using named rules.
 type RuleValidateService struct {
 	BaseService
 	Config ValidateConfigurer `inject:"_"`
@@ -98,7 +98,7 @@ func (p *RuleValidateService) Init() error {
 	return nil
 }
 
-// Validate 验证
+// Validate checks a value against the rule.
 func (p *RuleValidateService) Validate(ruleName string, s string) error {
 	rule := p.rules[ruleName]
 	if rule == nil {
@@ -115,7 +115,7 @@ func (p *RuleValidateService) Validate(ruleName string, s string) error {
 	return nil
 }
 
-// ValidatePair 定义验证规则名称其需要验证的值
+// ValidatePair associates a rule name with a value to validate.
 type ValidatePair struct {
 	Name  string
 	Value string
@@ -132,7 +132,7 @@ func NewValidatePairMsg(name, value, msg string) *ValidatePair {
 	return &ValidatePair{Name: name, Value: value, Msg: msg}
 }
 
-// ValidateAll 验证所有的规则
+// ValidateAll validates all supplied rule and value pairs.
 func ValidateAll(validateService ValidateService, nameAndValues ...*ValidatePair) error {
 	for _, nv := range nameAndValues {
 		if err := validateService.Validate(nv.Name, nv.Value); err != nil {
@@ -150,9 +150,9 @@ func ValidateAll(validateService ValidateService, nameAndValues ...*ValidatePair
 
 // ValidateError error
 type ValidateError struct {
-	//错误消息
+	// Error message.
 	msg string
-	//是否未找到规则
+	// Whether the rule was not found.
 	notFoundRule bool
 }
 

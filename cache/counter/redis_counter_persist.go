@@ -1,6 +1,7 @@
 package counter
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -76,6 +77,8 @@ type DBPersist struct {
 	entityType EntityCounter
 }
 
+var _ Persist = (*DBPersist)(nil)
+
 // NewDBPersist create DBPersist
 func NewDBPersist(dbService func() orm.ShardDBService, entityType EntityCounter) (*DBPersist, error) {
 	if c.HasNil(dbService, entityType) {
@@ -144,7 +147,6 @@ type RedisCounterSync struct {
 	Name                  string
 	redisServers          []*cache.RedisServer
 	persistRedisCounter   *PersistRedisCounter
-	dbPersist             Persist
 	slotMaxItems          int64
 	minSyncVersionChanges int64
 	minSyncIntervalMills  int64
@@ -170,7 +172,6 @@ func NewRedisCounterSync(persistRedisCounter *PersistRedisCounter, slotMaxItems,
 		Name:                  persistRedisCounter.Name + ".sync",
 		redisServers:          servers,
 		persistRedisCounter:   persistRedisCounter,
-		dbPersist:             persistRedisCounter.persist,
 		slotMaxItems:          slotMaxItems,
 		minSyncVersionChanges: minSyncVersionChanges,
 		minSyncIntervalMills:  minSyncIntervalSecond * 1000,
@@ -179,18 +180,33 @@ func NewRedisCounterSync(persistRedisCounter *PersistRedisCounter, slotMaxItems,
 
 }
 
-// ScanAll scan all redis server counter sync set
+// ScanAll scans every server and returns combined shard failures.
+// Stop cancels further work between Redis and persistence operations.
 func (p *RedisCounterSync) ScanAll() error {
+	var failures []error
 	for _, redisServer := range p.redisServers {
+		if atomic.LoadInt32(&p.stop) != 0 {
+			return errors.Join(append(failures, context.Canceled)...)
+		}
 		c.Debugf("begin scan redis %s:%d", redisServer.Host, redisServer.Port)
 		for i := 0; i < p.persistRedisCounter.slotsCount; i++ {
+			if atomic.LoadInt32(&p.stop) != 0 {
+				return errors.Join(append(failures, context.Canceled)...)
+			}
 			if err := p.scan(redisServer, i); err != nil {
 				c.Errorf("scan redis %s:%d slot:%d fail,err:%s", redisServer.Host, redisServer.Port, i, err)
+				failures = append(failures, fmt.Errorf("scan %s:%d slot %d: %w", redisServer.Host, redisServer.Port, i, err))
+				if errors.Is(err, context.Canceled) {
+					return errors.Join(failures...)
+				}
 			}
 		}
 		c.Debugf("finish scan redis %s:%d", redisServer.Host, redisServer.Port)
 	}
-	return nil
+	if atomic.LoadInt32(&p.stop) != 0 {
+		failures = append(failures, context.Canceled)
+	}
+	return errors.Join(failures...)
 }
 
 // Stop stop the scan task
@@ -199,15 +215,19 @@ func (p *RedisCounterSync) Stop() {
 }
 
 const (
+	counterGeneration    = "_g"
 	counterWriteVer      = "_w"
 	counterSyncVer       = "_s"
 	counterSyncTimestamp = "_st"
 )
 
-func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error {
+func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) (scanErr error) {
+	var failures []error
+	defer func() { scanErr = errors.Join(append(failures, scanErr)...) }()
 	if atomic.LoadInt32(&p.stop) == 1 {
-		c.Infof("stop,skip")
+		return context.Canceled
 	}
+	counter := p.persistRedisCounter
 	syncSetSlotKey := p.persistRedisCounter.syncSetSlotKey(slotIndex)
 	conn, err := server.GetConn()
 	if err != nil {
@@ -233,13 +253,14 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 		return nil
 	}
 
-	var removeCounterKey = func(counterKey string, batchRemoved *int64) {
+	var removeCounterKey = func(conn redis.Conn, counterKey string, batchRemoved *int64) {
 		if removed, err := redis.Int64(conn.Do(cache.ZREM, syncSetSlotKey, counterKey)); err == nil {
 			if removed > 0 {
 				(*batchRemoved)++
 			}
 		} else {
 			c.Errorf("remove counter key %s in sync set %s fail,err:%s", counterKey, syncSetSlotKey, err)
+			failures = append(failures, fmt.Errorf("remove counter %s: %w", counterKey, err))
 		}
 	}
 
@@ -248,7 +269,7 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 	var batch int64 = 30
 	for nextStart = 0; ; {
 		if atomic.LoadInt32(&p.stop) == 1 {
-			c.Infof("stop,skip")
+			return context.Canceled
 		}
 		start := nextStart
 		if batchRemoved > 0 {
@@ -278,103 +299,125 @@ func (p *RedisCounterSync) scan(server *cache.RedisServer, slotIndex int) error 
 			accessTime, err := strconv.ParseInt(counterKeyAndTimeSet[i+1], 10, 64)
 			if err != nil {
 				c.Errorf("invalid accessTime %s,%d", counterKey, accessTime)
+				failures = append(failures, fmt.Errorf("counter %s access time: %w", counterKey, err))
 				continue
 			}
 
 			if atomic.LoadInt32(&p.stop) == 1 {
-				c.Infof("stop,skip")
+				return context.Canceled
 			}
 
-			fields, err := redis.StringMap(conn.Do(cache.HGETALL, counterKey))
+			counterID, err := p.persistRedisCounter.parseCounterID(counterKey)
 			if err != nil {
-				c.Errorf("invalid counter %s", counterKey)
+				failures = append(failures, err)
 				continue
 			}
-			if len(fields) == 0 {
-				c.Warnf("not exist counter key:%s,remove it from sync set:%s", counterKey, syncSetSlotKey)
-				removeCounterKey(counterKey, &batchRemoved)
-				continue
-			}
+			itemErr := func() error {
+				fields, err := redis.StringMap(counterSnapshotScript.Do(conn, counterKey, c.RandomUUID()))
+				if err != nil {
+					c.Errorf("invalid counter %s", counterKey)
+					failures = append(failures, fmt.Errorf("read counter %s: %w", counterKey, err))
+					return nil
+				}
+				if len(fields) == 0 {
+					c.Warnf("not exist counter key:%s,remove it from sync set:%s", counterKey, syncSetSlotKey)
+					removeCounterKey(conn, counterKey, &batchRemoved)
+					return nil
+				}
 
-			lastWrite := fields[counterWriteVer]
-			lastSync := fields[counterSyncVer]
-			syncTime := fields[counterSyncTimestamp]
-			if lastWrite == "" || lastSync == "" || syncTime == "" {
-				c.Warnf("invalid counter key:%s,_w:%s,_s:%s,_st:%s,remove it from sync set:%s", counterKey, lastWrite, lastSync, syncTime, syncSetSlotKey)
-				removeCounterKey(counterKey, &batchRemoved)
-				continue
-			}
+				lastWrite := fields[counterWriteVer]
+				lastSync := fields[counterSyncVer]
+				syncTime := fields[counterSyncTimestamp]
+				if lastWrite == "" || lastSync == "" || syncTime == "" {
+					c.Warnf("invalid counter key:%s,_w:%s,_s:%s,_st:%s,remove it from sync set:%s", counterKey, lastWrite, lastSync, syncTime, syncSetSlotKey)
+					removeCounterKey(conn, counterKey, &batchRemoved)
+					return nil
+				}
 
-			writeVersion, _ := strconv.ParseInt(lastWrite, 10, 64)
-			syncVersion, _ := strconv.ParseInt(lastSync, 10, 64)
-			syncEcpoch, _ := strconv.ParseInt(syncTime, 10, 64)
-			now := c.UnixMills(time.Now())
+				writeVersion, _ := strconv.ParseInt(lastWrite, 10, 64)
+				syncVersion, _ := strconv.ParseInt(lastSync, 10, 64)
+				syncEcpoch, _ := strconv.ParseInt(syncTime, 10, 64)
+				now := c.UnixMills(time.Now())
 
-			var needSync, needEvict bool
+				var needSync, needEvict bool
 
-			if writeVersion > 0 {
-				if syncVersion < writeVersion {
-					lastSyncInterval := now - syncEcpoch
-					if lastSyncInterval >= p.minSyncIntervalMills || writeVersion-syncVersion >= p.minSyncVersionChanges {
+				if writeVersion > 0 {
+					if syncVersion < writeVersion {
+						lastSyncInterval := now - syncEcpoch
+						if lastSyncInterval >= p.minSyncIntervalMills || writeVersion-syncVersion >= p.minSyncVersionChanges {
+							needSync = true
+						}
+					}
+				}
+				if accessTime > 0 {
+					if now-accessTime >= p.evictIntervalMills {
+						needEvict = true
+					}
+				}
+				if needEvictItemCount > 0 {
+					needEvict = true
+				}
+				if needEvict {
+					if writeVersion > 0 {
 						needSync = true
 					}
 				}
-			}
-			if accessTime > 0 {
-				if now-accessTime >= p.evictIntervalMills {
-					needEvict = true
-				}
-			}
-			if needEvictItemCount > 0 {
-				needEvict = true
-			}
-			if needEvict {
-				if writeVersion > 0 {
-					needSync = true
-				}
-			}
 
-			var synced = false
-			if needSync {
-				counterID, err := p.persistRedisCounter.parseCounterID(counterKey)
-				if err != nil {
-					return err
-				}
-				counterFields, err := p.persistRedisCounter.buildCounterFields(fields)
-				if err != nil {
-					return err
-				}
-				c.Infof("sync counter key %s, val %v, _w %d, _s %d, _st %d", counterKey, counterFields, writeVersion, syncVersion, syncEcpoch)
-				err = p.dbPersist.Store(counterID, counterFields)
-				synced = err == nil
-				if err != nil {
-					c.Errorf("sync counter key:%s,success:%v,last sync:%d fail,err:%v", counterKey, synced, writeVersion, err)
-				}
-				if synced {
-					_, err = p.persistRedisCounter.scripts.setSync.Do(conn, counterKey, writeVersion, now)
+				var synced = false
+				if needSync {
+					counterFields, err := p.persistRedisCounter.buildCounterFields(fields)
 					if err != nil {
 						return err
 					}
-					syncedCount++
-				}
-				if err != nil {
-					c.Errorf("sync counter key:%s,success:%v,last sync:%d fail,err:%v", counterKey, synced, writeVersion, err)
-				}
-			}
-
-			if needEvict {
-				if !needSync || synced {
-					evictResult, err := redis.Ints(p.persistRedisCounter.scripts.evict.Do(conn, counterKey, syncSetSlotKey, writeVersion))
+					c.Infof("sync counter key %s, val %v, _w %d, _s %d, _st %d", counterKey, counterFields, writeVersion, syncVersion, syncEcpoch)
+					if atomic.LoadInt32(&p.stop) != 0 {
+						return context.Canceled
+					}
+					err = counter.persist.Store(counterID, counterFields)
+					synced = err == nil
 					if err != nil {
-						return err
+						c.Errorf("sync counter key:%s,success:%v,last sync:%d fail,err:%v", counterKey, synced, writeVersion, err)
+						failures = append(failures, fmt.Errorf("persist counter %s: %w", counterID, err))
 					}
-					evicted := evictResult[0]
-					if evicted == LUATRUE {
-						needEvictItemCount--
-						evictedCount++
-						batchRemoved++
+					if synced {
+						acknowledged, err := redis.Int(p.persistRedisCounter.scripts.setSync.Do(conn, counterKey, writeVersion, now, fields[counterGeneration]))
+						if err != nil {
+							return err
+						}
+						if acknowledged != LUATRUE {
+							return errors.New("counter generation changed during persistence")
+						}
+						syncedCount++
 					}
 				}
+
+				if needEvict {
+					if atomic.LoadInt32(&p.stop) != 0 {
+						return context.Canceled
+					}
+					if !needSync || synced {
+						evictResult, err := redis.Ints(p.persistRedisCounter.scripts.evict.Do(conn, counterKey, syncSetSlotKey, writeVersion, fields[counterGeneration]))
+						if err != nil {
+							return err
+						}
+						if len(evictResult) != 1 {
+							return errors.New("invalid counter eviction reply")
+						}
+						evicted := evictResult[0]
+						if evicted == LUATRUE {
+							needEvictItemCount--
+							evictedCount++
+							batchRemoved++
+						}
+					}
+				}
+				return nil
+			}()
+			if itemErr != nil {
+				if errors.Is(itemErr, context.Canceled) {
+					return itemErr
+				}
+				failures = append(failures, fmt.Errorf("counter %s: %w", counterID, itemErr))
 			}
 		}
 	}
@@ -392,6 +435,8 @@ type RedisCounterSyncSchedule struct {
 	stopChan           chan int
 	stop               int32
 	wg                 sync.WaitGroup
+	lock               sync.Mutex
+	started            bool
 }
 
 // NewRedisCounterSyncSchedule create new RedisCounterSyncSchedule
@@ -418,6 +463,12 @@ func (p *RedisCounterSyncSchedule) Init() error {
 
 // Start implements Servcie.Start()
 func (p *RedisCounterSyncSchedule) Start() bool {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	if p.started || atomic.LoadInt32(&p.stop) != 0 {
+		return false
+	}
+	p.started = true
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
@@ -449,11 +500,14 @@ func (p *RedisCounterSyncSchedule) Start() bool {
 
 // Stop implements Service.Stop()
 func (p *RedisCounterSyncSchedule) Stop() bool {
-	atomic.StoreInt32(&p.stop, 1)
-	for _, syncScan := range p.redisCounterSyncs {
-		syncScan.Stop()
+	p.lock.Lock()
+	if atomic.CompareAndSwapInt32(&p.stop, 0, 1) {
+		for _, syncScan := range p.redisCounterSyncs {
+			syncScan.Stop()
+		}
+		close(p.stopChan)
 	}
-	close(p.stopChan)
+	p.lock.Unlock()
 	c.Infof("wait scan task finish...")
 	p.wg.Wait()
 	c.Infof("all scan task finished")

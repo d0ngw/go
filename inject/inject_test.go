@@ -96,7 +96,7 @@ func TestInject(t *testing.T) {
 	assert.Equal(t, "a@ldap", regService.LdapImpl.Name())
 	assert.Equal(t, "b@db", regService.DbImpl.Name())
 
-	//根据名称查找
+	// Look up by name.
 	ldapImplGet := injector.GetInstanceByPrototype("ldap", struct{ s accountService }{}).(accountService)
 	assert.NotNil(t, ldapImplGet)
 	assert.Equal(t, &ldapImplA, ldapImplGet)
@@ -258,4 +258,21 @@ func TestIsBind(t *testing.T) {
 	assert.True(t, mod.IsBind(&ldapImplPtr, ""))
 	assert.True(t, mod.IsBind(ldapImplA, ""))
 	assert.False(t, mod.IsBind(ldapImplB, ""))
+}
+
+func TestInvalidInjectionTargetsAreIgnored(t *testing.T) {
+	module := NewModule()
+	module.Bind(&ldapAccount{n: "valid"})
+	injector := NewInjector([]*Module{module})
+	var typedNil *userRegService
+	var injectedNil *injectedService
+	var integer int
+	for _, target := range []interface{}{nil, typedNil, injectedNil, 42, &integer, userRegService{}} {
+		assert.NotPanics(t, func() { injector.RequireInject(target) })
+	}
+	target := &struct {
+		Account accountService `inject:"_"`
+	}{}
+	injector.RequireInject(target)
+	assert.Equal(t, "valid@ldap", target.Account.Name())
 }

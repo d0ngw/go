@@ -6,7 +6,7 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// DBConfigurer DB配置器
+// DBConfigurer provides database configuration.
 type DBConfigurer interface {
 	c.Configurer
 	DBConfig() *DBConfig
@@ -24,7 +24,7 @@ type EntityShardConfigurer interface {
 	EntityShardConfig() *EntityShardConfig
 }
 
-//DBConfig 数据库配置
+// DBConfig configures a database connection pool.
 type DBConfig struct {
 	User          string            `yaml:"user"`
 	Pass          string            `yaml:"pass"`
@@ -89,12 +89,12 @@ func (p *DBShardConfig) DBShardConfig() *DBShardConfig {
 	return p
 }
 
-// EntityShardRuleConfig 实体的shard规则
+// EntityShardRuleConfig configures sharding rules for an entity.
 type EntityShardRuleConfig struct {
-	Name       string   `yaml:"name"`        //名称
-	DBShard    *OneRule `yaml:"db_shard"`    //数据库实例的配置
-	TableShard *OneRule `yaml:"table_shard"` //数据库表的配置
-	Default    bool     `yaml:"default"`     //是否是默认规则
+	Name       string   `yaml:"name"`        // Name.
+	DBShard    *OneRule `yaml:"db_shard"`    // Database sharding configuration.
+	TableShard *OneRule `yaml:"table_shard"` // Table sharding configuration.
+	Default    bool     `yaml:"default"`     // Whether this is the default rule.
 	meta       Meta
 }
 

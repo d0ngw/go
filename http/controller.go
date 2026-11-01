@@ -8,37 +8,37 @@ import (
 	"unicode"
 )
 
-// Controller 接口定义http处理器
+// Controller defines a group of HTTP handlers.
 type Controller interface {
-	// GetName 控制器的名称
+	// GetName returns the controller name.
 	GetName() string
-	// GetPath 路径前缀,以'/'结束,同一个控制下的http.Handler都
+	// GetPath returns the path prefix shared by the controller's handlers, ending in '/'.
 	GetPath() string
-	// GetHandlerMiddlewares 返回controller的处理方法中,需要增加middleware封装的方法,key是controller中的方法名
+	// GetHandlerMiddlewares returns middleware keyed by controller method name.
 	GetHandlerMiddlewares() map[string][]Middleware
 	// GetPatternMethods Pattern -> Controller Method
 	GetPatternMethods() map[string]string
 }
 
-// BaseController 表示一个控制器
+// BaseController provides a basic controller implementation.
 type BaseController struct {
-	Name               string                  // Controller的名称
-	Path               string                  // Controller的路径
-	HandlerMiddlewares map[string][]Middleware // Controller中需要使用middleware封装的方法
+	Name               string                  // Controller name.
+	Path               string                  // Controller path prefix.
+	HandlerMiddlewares map[string][]Middleware // Middleware keyed by controller method name.
 	PatternMethods     map[string]string
 }
 
-// GetName controller的名称
+// GetName returns the controller name.
 func (p *BaseController) GetName() string {
 	return p.Name
 }
 
-// GetPath controller的path
+// GetPath returns the controller path prefix.
 func (p *BaseController) GetPath() string {
 	return p.Path
 }
 
-// GetHandlerMiddlewares handler的middleware
+// GetHandlerMiddlewares returns the middleware for each handler.
 func (p *BaseController) GetHandlerMiddlewares() map[string][]Middleware {
 	return p.HandlerMiddlewares
 }
@@ -58,8 +58,8 @@ type handlerWithMiddleware struct {
 	middlewares []Middleware
 }
 
-// ReflectHandlers 查找controller中类型为http.HandlerFunc的可导出方法,并将驼峰命名改为下划线分隔的路径
-// 例如Index -> index,GetUser -> get_user
+// reflectHandlers finds exported HTTP handler methods and derives paths using snake_case names.
+// For example, Index becomes index and GetUser becomes get_user.
 func reflectHandlers(controller Controller) (handlers map[string]*handlerWithMiddleware, err error) {
 	val := reflect.ValueOf(controller)
 	if !val.IsValid() || val.Kind() != reflect.Ptr {
@@ -68,7 +68,7 @@ func reflectHandlers(controller Controller) (handlers map[string]*handlerWithMid
 
 	var path = controller.GetPath()
 
-	// 检查方法是否存在
+	// Check that the method exists.
 	hm := controller.GetHandlerMiddlewares()
 	for name := range hm {
 		if found := val.MethodByName(name); !found.IsValid() {
@@ -130,7 +130,7 @@ func reflectHandlers(controller Controller) (handlers map[string]*handlerWithMid
 	return handlers, nil
 }
 
-// ToUnderlineName 将驼峰命名改为小写的下划线命名
+// ToUnderlineName converts a camel-case name to lowercase snake_case.
 func ToUnderlineName(camelName string) string {
 	nameRune := []rune(camelName)
 	normalizeName := make([]rune, 0, len(nameRune))

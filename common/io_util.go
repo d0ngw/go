@@ -10,7 +10,7 @@ import (
 	"syscall"
 )
 
-// ParseInputAndOutput 解析输入的文件
+// ParseInputAndOutput opens input and output files, defaulting to standard input and output.
 func ParseInputAndOutput(input, output string) (inputReader, outWriter *os.File, err error) {
 	if input == "-" {
 		inputReader = os.Stdin
@@ -58,7 +58,7 @@ func ParseInputAndOutput(input, output string) (inputReader, outWriter *os.File,
 	return
 }
 
-// ParseInput 解析输入的文件
+// ParseInput opens the input file or standard input.
 func ParseInput(input string) (inputReader *os.File, err error) {
 	if input == "-" {
 		inputReader = os.Stdin
@@ -83,7 +83,7 @@ func ParseInput(input string) (inputReader *os.File, err error) {
 	return
 }
 
-// PrintErrorMsgAndExit 打印信息并退出
+// PrintErrorMsgAndExit prints an error and exits.
 func PrintErrorMsgAndExit(msg string, err error) {
 	fmt.Fprintf(os.Stderr, "%s Error:%v\n", msg, err)
 	os.Exit(1)
@@ -92,10 +92,10 @@ func PrintErrorMsgAndExit(msg string, err error) {
 // LF `\n`
 const LF = '\n'
 
-// ProcessLineFunc 行处理函数
+// ProcessLineFunc processes one line of input.
 type ProcessLineFunc func(data string, lineNum int, readErr error) (stop bool)
 
-// ProcessLines 按行从rd中读取数据,交由processFunc进行处理
+// ProcessLines reads lines from rd and passes them to processFunc.
 func ProcessLines(rd io.Reader, processFunc ProcessLineFunc) {
 	scanner := bufio.NewReaderSize(rd, 4*1024)
 	var readErr error
@@ -122,7 +122,7 @@ func ProcessLines(rd io.Reader, processFunc ProcessLineFunc) {
 	}
 }
 
-// ProcessFileLines 按行处理文件
+// ProcessFileLines processes a file one line at a time.
 func ProcessFileLines(file string, lineFunc ProcessLineFunc) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -132,7 +132,7 @@ func ProcessFileLines(file string, lineFunc ProcessLineFunc) {
 	ProcessLines(f, lineFunc)
 }
 
-// WaitStop 等待退出信号
+// WaitStop waits for a shutdown signal.
 func WaitStop() os.Signal {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGQUIT)
@@ -140,7 +140,7 @@ func WaitStop() os.Signal {
 	return s
 }
 
-// CreateDirIfAbsent 当目录不存在时创建
+// CreateDirIfAbsent creates a directory if it does not exist.
 func CreateDirIfAbsent(dir string) error {
 	info, err := os.Stat(dir)
 	if err != nil {

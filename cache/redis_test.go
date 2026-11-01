@@ -1,7 +1,12 @@
+//go:build integration
+
 package cache
 
 import (
 	"fmt"
+	"github.com/d0ngw/go/internal/testutil"
+	"github.com/stretchr/testify/require"
+	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -11,58 +16,63 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var (
-	redisServer = &RedisServer{
-		ID:   "test",
-		Host: "127.0.0.1",
-		Port: 6379,
-	}
-	r *RedisClient
-)
+var r *RedisClient
+var redisServer *RedisServer
+var testPrefix string
 
-func init() {
-	err := redisServer.initPool(defaultPool)
+func TestMain(m *testing.M) { os.Exit(runRedisTests(m)) }
+func runRedisTests(m *testing.M) (code int) {
+	host, port, err := testutil.RedisAddress()
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	var groups = map[string][]*RedisServer{"test": {redisServer}, "example": {redisServer}}
-	r = NewRedisClient(groups)
+	redisServer = &RedisServer{ID: "test", Host: host, Port: port, Auth: testutil.Env("REDIS_PASSWORD", "")}
+	if err := redisServer.initPool(defaultPool); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	r = NewRedisClient(map[string][]*RedisServer{"test": {redisServer}, "example": {redisServer}})
+	defer testutil.CheckCleanup(&code, r.Close)
+	testPrefix = testutil.UniquePrefix()
+	defer testutil.CheckCleanup(&code, func() error { return testutil.CleanupRedis(testPrefix) })
+	return m.Run()
 }
 
 func TestRedis(t *testing.T) {
 
-	param := NewParamConf("test", "test_", 0)
+	param := NewParamConf("test", testPrefix+"test_", 0)
 	testSetGet(t, r, param)
 
-	expireParam := NewParamConf("test", "test_ex_", 20)
+	expireParam := NewParamConf("test", testPrefix+"test_ex_", 20)
 	testSetGet(t, r, expireParam)
 
 	confKey := expireParam.NewParamKey("server")
 	err := r.SetObject(confKey, redisServer)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	server := RedisServer{}
 	ok, err := r.GetObject(confKey, &server)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, ok)
 	assert.EqualValues(t, server.ID, redisServer.ID)
 
 	ageParam := param.NewParamKey("age")
 	exist, err := r.Exists(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, exist)
 	deleted, err := r.Del(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, deleted)
 	exist, err = r.Exists(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.False(t, exist)
 
 	ageNotExistParam := expireParam.NewParamKey("age_not_exist")
 	expired, err := r.Expire(ageNotExistParam)
 	assert.False(t, expired)
 	deleted, err = r.Del(ageNotExistParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.False(t, deleted)
 }
 
@@ -70,34 +80,34 @@ func testSetGet(t *testing.T, r *RedisClient, param *ParamConf) {
 	ageParam := param.NewParamKey("age")
 	assert.Nil(t, r.Set(ageParam, 10))
 	reply, ok, err := r.Get(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, ok)
 	i, _ := redis.Int(reply, err)
 	assert.EqualValues(t, 10, i)
 
 	v, ok, err := r.GetInt(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 10, v)
 	assert.True(t, ok)
 
 	ageNotExistParam := param.NewParamKey("age_not_exist")
 	ageNotExistParam.expire = 0
 	v, ok, err = r.GetInt(ageNotExistParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.False(t, ok)
 
 	v64, ok, err := r.GetInt64(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 10, v64)
 	assert.True(t, ok)
 
 	f64, ok, err := r.GetFloat64(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 10, f64)
 	assert.True(t, ok)
 
 	s, ok, err := r.GetString(ageParam)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, "10", s)
 	assert.True(t, ok)
 }
@@ -113,8 +123,8 @@ func TestPipeline(t *testing.T) {
 		panic(err)
 	}
 	defer pipeline.Close()
-	paramOdd := NewParamConf("test", "u_odd_", 0)
-	paramEven := NewParamConf("test", "u_even_", 0)
+	paramOdd := NewParamConf("test", testPrefix+"u_odd_", 0)
+	paramEven := NewParamConf("test", testPrefix+"u_even_", 0)
 
 	// set user
 	for i := 0; i < 10; i++ {
@@ -154,19 +164,19 @@ func TestPipeline(t *testing.T) {
 	}
 
 	replies, err := pipeline.Receive()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 31, len(replies))
 
 	setReplies := replies[0:10]
 	for _, v := range setReplies {
 		seted, err := redis.String(v.Reply, v.Err)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, ReplyOK, seted)
 	}
 	getReplies := replies[10:20]
 	for i, v := range getReplies {
 		bytes, err := redis.Bytes(v.Reply, v.Err)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		user := &TestUser{}
 		MsgPackDecodeBytes(bytes, user)
 		assert.Equal(t, "user"+strconv.Itoa(i), user.Name)
@@ -179,13 +189,13 @@ func TestPipeline(t *testing.T) {
 	delReplies := replies[21:31]
 	for _, v := range delReplies {
 		deleted, err := redis.Bool(v.Reply, v.Err)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.True(t, deleted)
 	}
 }
 
 func TestGetObjects(t *testing.T) {
-	paramConf := NewParamConf("test", "u__", 0)
+	paramConf := NewParamConf("test", testPrefix+"u__", 0)
 	keys := []string{}
 
 	// set user
@@ -205,7 +215,7 @@ func TestGetObjects(t *testing.T) {
 	assert.NotNil(t, users[0])
 	assert.True(t, users[0] != nil)
 	err := r.GetObjects(paramConf, keys, users, nil)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 11, len(users))
 	assert.Nil(t, users[0])
 	fmt.Println(reflect.TypeOf(users[0]))
@@ -218,7 +228,7 @@ func TestGetObjects(t *testing.T) {
 }
 
 func TestIncr(t *testing.T) {
-	paramConf := NewParamConf("test", "incu__", 10)
+	paramConf := NewParamConf("test", testPrefix+"incu__", 10)
 
 	key := paramConf.NewParamKey("expire")
 	defer r.Del(key)
@@ -233,7 +243,7 @@ func TestIncr(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, ttl > 0)
 
-	paramConf = NewParamConf("test", "incu__", 0)
+	paramConf = NewParamConf("test", testPrefix+"incu__", 0)
 	key = paramConf.NewParamKey("noexpire")
 	defer r.Del(key)
 	for i := 0; i < 10; i++ {

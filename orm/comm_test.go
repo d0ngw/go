@@ -5,29 +5,9 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"strings"
-	"testing"
 )
 
-var (
-	config = DBConfig{
-		User:    "root",
-		Pass:    "123456",
-		URL:     "127.0.0.1:3306",
-		Schema:  "test",
-		MaxConn: 100,
-		MaxIdle: 10,
-	}
-	dbpool, err = NewMySQLDBPool(&config)
-
-	setupSQL, _    = ioutil.ReadFile(path.Join("testdata", "setup.sql"))
-	teardownSQL, _ = ioutil.ReadFile(path.Join("testdata", "teardown.sql"))
-)
-
-// Conf 配置
+// Conf is a test configuration.
 type Conf struct {
 	IDs []int64 `json:"ids"`
 }
@@ -44,7 +24,7 @@ func (p *Conf) Value() (driver.Value, error) {
 	return string(v), nil
 }
 
-// Scan impls sql.Scanner for Range,src只支持string
+// Scan implements sql.Scanner for string and byte slice values.
 func (p *Conf) Scan(src interface{}) error {
 	if src == nil {
 		return nil
@@ -69,7 +49,7 @@ func (p *Conf) Scan(src interface{}) error {
 	return nil
 }
 
-// Conf2 配置
+// Conf2 is a test configuration.
 type Conf2 struct {
 	IDs []int64 `json:"ids"`
 }
@@ -83,7 +63,7 @@ func (p Conf2) Value() (driver.Value, error) {
 	return string(v), nil
 }
 
-// Scan impls sql.Scanner for Range,src只支持string
+// Scan implements sql.Scanner for string and byte slice values.
 func (p *Conf2) Scan(src interface{}) error {
 	if src == nil {
 		return nil
@@ -139,40 +119,4 @@ type User struct {
 
 func (p *User) TableName() string {
 	return "user"
-}
-
-func TestMain(m *testing.M) {
-	setUp()
-	code := m.Run()
-	teardown()
-	os.Exit(code)
-}
-
-func setUp() {
-	sqls := strings.Split(string(setupSQL), "--")
-	for _, s := range sqls {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		_, err := dbpool.db.Exec(s)
-		if err != nil {
-			fmt.Println(s)
-			panic(err)
-		}
-	}
-}
-
-func teardown() {
-	sqls := strings.Split(string(teardownSQL), "--")
-	for _, s := range sqls {
-		s = strings.TrimSpace(s)
-		if s == "" {
-			continue
-		}
-		_, err := dbpool.db.Exec(s)
-		if err != nil {
-			panic(err)
-		}
-	}
 }

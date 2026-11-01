@@ -7,7 +7,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// StdLogger 使用标准库封装的logger
+// StdLogger adapts the standard library logger to the Logger interface.
 type StdLogger struct {
 	logEnable zap.AtomicLevel
 }

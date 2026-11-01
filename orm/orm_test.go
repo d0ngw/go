@@ -1,3 +1,5 @@
+//go:build integration
+
 package orm
 
 import (
@@ -19,15 +21,6 @@ func checkError(err error, noError bool, t *testing.T, msg string) {
 	} else if !noError && err == nil {
 		t.Error(msg, "Don't have error")
 	}
-}
-
-func TestReflect(t *testing.T) {
-	var err error
-	tm := tmodel{}
-	defaultMetaReg.clean()
-
-	_, err = defaultMetaReg.regModel(&tm)
-	checkError(err, true, t, "pointer tm")
 }
 
 func TestAdd(t *testing.T) {
@@ -223,25 +216,6 @@ func TestCount(t *testing.T) {
 	total, err := QueryCount(dboper, &tm, "id", "")
 	checkError(err, true, t, "Count")
 	t.Logf("countl:%v", total)
-}
-
-func TestAddMeta(t *testing.T) {
-	defaultMetaReg.clean()
-	tm := tmodel{}
-	_meta := AddMeta(&tm)
-	assert.Equal(t, "github.com/d0ngw/go/orm.tmodel", _meta.Name())
-}
-
-func TestShardEntity(t *testing.T) {
-	tm := &tmodel{}
-	tm.Name = sql.NullString{String: "abc", Valid: true}
-
-	var entity Entity = tm
-
-	shardEntity, ok := entity.(ShardEntity)
-	assert.True(t, ok)
-	assert.Equal(t, entity, shardEntity)
-	assert.True(t, entity == shardEntity)
 }
 
 func TestUpdateReplace(t *testing.T) {

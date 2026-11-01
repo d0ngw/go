@@ -8,7 +8,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// ZapLogger 使用zap封装的logger
+// ZapLogger adapts zap to the Logger interface.
 type ZapLogger struct {
 	logEnable zap.AtomicLevel
 	logger    *zap.SugaredLogger

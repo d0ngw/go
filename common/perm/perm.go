@@ -8,10 +8,10 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// Operation 定义操作类型
+// Operation represents permission operations.
 type Operation int8
 
-// 定义操作的类型
+// Supported permission operations.
 const (
 	OPRead Operation = 1 << iota
 	OPInsert
@@ -20,7 +20,7 @@ const (
 	OPAll = OPRead | OPInsert | OPUpdate | OPDelete
 )
 
-// ParseOperation 从字符串中解析操作的权限
+// ParseOperation parses permission operations from a string.
 func ParseOperation(operation string) Operation {
 	operation = strings.ToLower(operation)
 
@@ -43,7 +43,7 @@ func ParseOperation(operation string) Operation {
 	return op
 }
 
-// String 将权限转为字符串表达
+// String returns the permission operations as a string.
 func (p Operation) String() string {
 	str := ""
 	if p&OPRead != 0 {
@@ -61,35 +61,35 @@ func (p Operation) String() string {
 	return str
 }
 
-// Resource 定义资源
+// Resource represents a protected resource.
 type Resource struct {
 	parent *Resource
 	name   string
 	id     string
 }
 
-// GetParent 父级资源
+// GetParent returns the parent resource.
 func (p *Resource) GetParent() *Resource {
 	return p.parent
 }
 
-// GetName 资源的名称
+// GetName returns the resource name.
 func (p *Resource) GetName() string {
 	return p.name
 }
 
-// GetID 资源的id
+// GetID returns the resource ID.
 func (p *Resource) GetID() string {
 	return p.id
 }
 
-// ResourceRegistry 记录所有的资源
+// ResourceRegistry stores registered resources.
 type ResourceRegistry struct {
 	resouceReg *c.LinkedMap
 	lastError  error
 }
 
-// NewResourceRegistry 构建资源注册
+// NewResourceRegistry creates a resource registry.
 func NewResourceRegistry() *ResourceRegistry {
 	return &ResourceRegistry{
 		resouceReg: c.NewLinkedMap(),
@@ -97,7 +97,7 @@ func NewResourceRegistry() *ResourceRegistry {
 	}
 }
 
-// Add 注册一个Resource,如果相同的资源在registry中已经存在,返回error
+// Add registers a resource and returns an error if its ID already exists.
 func (p *ResourceRegistry) Add(resource *Resource) error {
 	if resource == nil {
 		return fmt.Errorf("Not allow nil resource")
@@ -110,19 +110,19 @@ func (p *ResourceRegistry) Add(resource *Resource) error {
 	return nil
 }
 
-// IsExist 检查指定的资源id是否存在
+// IsExist reports whether the resource ID is registered.
 func (p *ResourceRegistry) IsExist(resID string) bool {
 	_, ok := p.resouceReg.Get(resID)
 	return ok
 }
 
-// ResourceGroup 资源分组
+// ResourceGroup groups related resources.
 type ResourceGroup struct {
-	Name      string      //组名称
-	Resources []*Resource //资源
+	Name      string      // Group name.
+	Resources []*Resource // Resources.
 }
 
-// BuildResourceGroup 构建resource group列表
+// BuildResourceGroup builds a list of resource groups.
 func (p *ResourceRegistry) BuildResourceGroup(depth int) (groups []*ResourceGroup, err error) {
 	var result = c.NewLinkedMap()
 	for _, v := range p.resouceReg.Entries() {
@@ -155,7 +155,7 @@ func (p *ResourceRegistry) BuildResourceGroup(depth int) (groups []*ResourceGrou
 	return ret, nil
 }
 
-// NewResource 创建一个新的资源
+// NewResource creates a resource.
 func NewResource(name, id string, parent *Resource) *Resource {
 	ids := []string{}
 	if parent != nil {
@@ -169,7 +169,7 @@ func NewResource(name, id string, parent *Resource) *Resource {
 	}
 }
 
-// NewResourceAndReg 创建并新建一个资源,如果相同的资源在registry中已经存在,则会panic
+// NewResourceAndReg creates and registers a resource, panicking if its ID already exists.
 func NewResourceAndReg(registry *ResourceRegistry, name, id string, parent *Resource) *Resource {
 	res := NewResource(name, id, parent)
 	if err := registry.Add(res); err != nil {
@@ -181,40 +181,40 @@ func NewResourceAndReg(registry *ResourceRegistry, name, id string, parent *Reso
 type permKey int
 
 const (
-	required permKey = 0 //需要的权限
-	user     permKey = 1 //登录的用户
+	required permKey = 0 // Required permissions.
+	user     permKey = 1 // Authenticated user.
 )
 
-//Perm 定义了一个权限,一个权限由资源及其对应的操作组成
+// Perm combines a resource with its allowed operations.
 type Perm struct {
-	Res *Resource //资源
-	Op  Operation //操作
+	Res *Resource // Resources.
+	Op  Operation // Permission operations.
 }
 
-// NewPerm 构建Perm
+// NewPerm creates a permission.
 func NewPerm(res *Resource, op Operation) *Perm {
 	return &Perm{Res: res, Op: op}
 }
 
-//Role 定义角色
+// Role defines a named set of permissions.
 type Role interface {
-	//GetName 角色的名称
+	// GetName returns the role name.
 	GetName() string
-	//GetPerms 角色拥有的权限
+	// GetPerms returns the role's permissions.
 	GetPerms() map[string]Operation
 }
 
-// Principal 定义了拥有权限的主体
+// Principal identifies a subject with roles and permissions.
 type Principal interface {
-	// GetID 取得principal的id
+	// GetID returns the principal ID.
 	GetID() int64
-	// GetName 取得principal的名称
+	// GetName returns the principal name.
 	GetName() string
-	// GetRoles 取得principal所拥有的角色
+	// GetRoles returns the principal's roles.
 	GetRoles() []Role
 }
 
-// ReqPerm 在ctx中声明需要由perms指定的权限
+// ReqPerm adds required permissions to the context.
 func ReqPerm(ctx context.Context, perms []*Perm) (context.Context, error) {
 	if ctx == nil || len(perms) == 0 {
 		return ctx, fmt.Errorf("Ctx or resource must not be nil")
@@ -229,7 +229,7 @@ func ReqPerm(ctx context.Context, perms []*Perm) (context.Context, error) {
 	return ctx, nil
 }
 
-// BindPrincipal 在ctx中绑定principal
+// BindPrincipal stores principal in the context.
 func BindPrincipal(ctx context.Context, principal Principal) (context.Context, error) {
 	if ctx == nil || principal == nil {
 		return ctx, fmt.Errorf("Ctx or principal must not be nil")
@@ -238,7 +238,7 @@ func BindPrincipal(ctx context.Context, principal Principal) (context.Context, e
 	return ctx, nil
 }
 
-// GetPrincipal 在ctx中取得principal
+// GetPrincipal retrieves the principal from the context.
 func GetPrincipal(ctx context.Context) (Principal, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("Ctx must not be nil")
@@ -251,7 +251,7 @@ func GetPrincipal(ctx context.Context) (Principal, error) {
 	return nil, nil
 }
 
-// GetRequiredPerm 在ctx中取得需要权限
+// GetRequiredPerm retrieves the required permissions from the context.
 func GetRequiredPerm(ctx context.Context) ([]*Perm, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("Ctx must not be nil")
@@ -264,7 +264,7 @@ func GetRequiredPerm(ctx context.Context) ([]*Perm, error) {
 	return reqPerms, nil
 }
 
-// HasPermWithPrinciapl 检查principal是否拥有ctx中要求的权限
+// HasPermWithPrinciapl checks whether the principal has the permissions required by the context.
 func HasPermWithPrinciapl(ctx context.Context, principal Principal) bool {
 	if ctx == nil {
 		return false
@@ -278,7 +278,7 @@ func HasPermWithPrinciapl(ctx context.Context, principal Principal) bool {
 	return HasPermWithPrincipalAndPerms(principal, reqPerms)
 }
 
-// HasPermWithPrincipalAndPerms 检查principal是否拥有reqPerms指定的权限
+// HasPermWithPrincipalAndPerms checks whether the principal has all required permissions.
 func HasPermWithPrincipalAndPerms(principal Principal, reqPerms []*Perm) bool {
 	if principal == nil {
 		return false

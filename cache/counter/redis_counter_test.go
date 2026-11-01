@@ -1,12 +1,16 @@
+//go:build integration
+
 package counter
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
-	"os/user"
-	"path"
+	"github.com/d0ngw/go/internal/testutil"
+	"github.com/stretchr/testify/require"
+	"os"
 
 	"github.com/d0ngw/go/cache"
 	c "github.com/d0ngw/go/common"
@@ -40,103 +44,91 @@ func (p *V) ZeroFields() Fields {
 var r *cache.RedisClient
 var dbService orm.ShardDBService
 
-func init() {
-	var err error
+func TestMain(m *testing.M) { os.Exit(runIntegrationTests(m)) }
+
+func runIntegrationTests(m *testing.M) (code int) {
+	database, err := testutil.NewDatabase("counter", testutil.CacheSchema)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer testutil.CheckCleanup(&code, database.Close)
+	testPrefix = database.Name + "_"
 	config := &orm.DBShardConfig{
-		Shards: map[string]*orm.DBConfig{
-			"test": {
-				User:    "root",
-				Pass:    "123456",
-				URL:     "127.0.0.1:3306",
-				Schema:  "test",
-				MaxConn: 100,
-				MaxIdle: 10},
-		},
-		Default: "test",
+		Shards: map[string]*orm.DBConfig{"test": {
+			User: database.User, Pass: database.Password, URL: database.Addr,
+			Schema: database.Name, MaxConn: 10, MaxIdle: 2,
+		}}, Default: "test",
 	}
-
-	shardDBServcie := orm.NewSimpleShardDBService(orm.NewMySQLDBPool)
-	shardDBServcie.DBShardConfig = config
-	dbService = shardDBServcie
-
-	dbService.Init()
-
-	redisServer := &cache.RedisServer{
-		ID:   "test",
-		Host: "127.0.0.1",
-		Port: 6379,
+	var pools []*orm.Pool
+	service := orm.NewSimpleShardDBService(func(conf *orm.DBConfig) (*orm.Pool, error) {
+		pool, err := orm.NewMySQLDBPool(conf)
+		if err == nil {
+			pools = append(pools, pool)
+		}
+		return pool, err
+	})
+	service.DBShardConfig = config
+	if err := service.Init(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	var redisConf = cache.RedisConf{
-		Servers: []*cache.RedisServer{redisServer},
+	defer testutil.CheckCleanup(&code, func() error {
+		var failures []error
+		for _, pool := range pools {
+			failures = append(failures, pool.Close())
+		}
+		return errors.Join(failures...)
+	})
+	dbService = service
+	host, port, err := testutil.RedisAddress()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	redisConf := &cache.RedisConf{
+		Servers: []*cache.RedisServer{{ID: "test", Host: host, Port: port, Auth: testutil.Env("REDIS_PASSWORD", "")}},
 		Groups:  map[string][]string{"test": {"test"}, "test.sync": {"test"}},
 	}
-
-	err = redisConf.Parse()
-	if err != nil {
-		panic(err)
+	if err := redisConf.Parse(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	r = cache.NewRedisClientWithConf(&redisConf)
+	r = cache.NewRedisClientWithConf(redisConf)
+	defer testutil.CheckCleanup(&code, r.Close)
+	defer testutil.CheckCleanup(&code, func() error { return testutil.CleanupRedis(testPrefix) })
 	orm.AddMeta(&V{})
+	return m.Run()
 }
 
-type persistMock struct {
-}
-
-func (p *persistMock) Load(counterID string) (fields Fields, err error) {
-	fmt.Println("Load:" + counterID)
-	return Fields{"a": int64(1), "b": int64(0)}, nil
-}
-
-func (p *persistMock) Del(counterID string) (deleted bool, err error) {
-	fmt.Println("Del:" + counterID)
-	return true, nil
-}
-
-func (p *persistMock) Store(counterID string, fieldAndDelta Fields) error {
-	fmt.Printf("Store %s,v:%v:", counterID, fieldAndDelta)
-	return nil
-}
+var testPrefix string
 
 func TestPersistCounter(t *testing.T) {
-	user, err := user.Current()
-	assert.Nil(t, err)
-	var cacheConf = cache.NewParamConf("test", "c_", 0)
-	scripts := &Scripts{
-		Update:  path.Join(user.HomeDir, "temp", "lua", "counter_update.lua"),
-		SetSync: path.Join(user.HomeDir, "temp", "lua", "counter_update_sync.lua"),
-		Evict:   path.Join(user.HomeDir, "temp", "lua", "counter_evict.lua"),
-		HgetAll: path.Join(user.HomeDir, "temp", "lua", "counter_getall.lua"),
-		Del:     path.Join(user.HomeDir, "temp", "lua", "counter_del.lua"),
-	}
+	var cacheConf = cache.NewParamConf("test", testPrefix+"c_", 0)
+	scripts := DefaultScripts()
 
-	//persist := &persistMock{}
 	persist, err := NewDBPersist(func() orm.ShardDBService { return dbService }, &V{})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	counter := NewPersistRedisCounter("test", func() *cache.RedisClient { return r }, scripts, persist, cacheConf, 10)
 
-	err = counter.scripts.Init()
-	assert.Nil(t, err)
-
 	err = counter.Init()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	testCounter(t, counter)
 
-	//counter.persist, err =
-	//assert.Nil(t, err)
 	testCounter(t, counter)
 
 	redisCounterSync, err := NewRedisCounterSync(counter, 10, 1, 1, 1)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	err = redisCounterSync.ScanAll()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	syncSchedule, err := NewRedisCounterSyncSchedule("test", []*RedisCounterSync{redisCounterSync}, 5)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, syncSchedule.Init())
 	assert.True(t, syncSchedule.Start())
-	time.Sleep(time.Duration(5*syncSchedule.scanIntervalSecond) * time.Second)
+	t.Cleanup(func() { syncSchedule.Stop() })
 	assert.True(t, syncSchedule.Stop())
 }
 
@@ -144,60 +136,60 @@ func testCounter(t *testing.T, counter *PersistRedisCounter) {
 	var err error
 	id := "1"
 	err = counter.Del(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	fields, err := counter.Get(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 1, fields["a"])
 	assert.EqualValues(t, 0, fields["b"])
 
 	err = counter.Incr(id, Fields{"a": 1, "b": 2})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	fields, err = counter.Get(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 2, fields["a"])
 	assert.EqualValues(t, 2, fields["b"])
 
 	err = counter.persist.Store(id, fields)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	fields, err = counter.Get(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 2, fields["a"])
 	assert.EqualValues(t, 2, fields["b"])
 
 	fields, err = counter.Get(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 2, fields["a"])
 	assert.EqualValues(t, 2, fields["b"])
 }
 
 func TestNoPersistCounter(t *testing.T) {
-	var cacheConf = cache.NewParamConf("test", "np_c_", 30)
+	var cacheConf = cache.NewParamConf("test", testPrefix+"np_c_", 30)
 	counter, err := NewNoPersistRedisCounter("test", r, cacheConf)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	id := "1"
 	var fieldAndDelta = Fields{"a": 1, "b": 2}
 	err = counter.Incr(id, fieldAndDelta)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	reply, err := counter.Get(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, fieldAndDelta, reply)
 
 	err = counter.DelFields(id, "a")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	reply, err = counter.Get(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, Fields{"b": 2}, reply)
 
 	err = counter.Del(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	reply, err = counter.Get(id)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, reply)
 }

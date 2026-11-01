@@ -12,7 +12,7 @@ type ConfigModuler interface {
 	ConfModule() (module *Module, err error)
 }
 
-// SetupInjector 从env指定的环境配置初始化配置,构建Injector
+// SetupInjector loads configuration for env and creates an initialized injector.
 func SetupInjector(config c.Configurer, addonConfig string, env string, modules ...*Module) (*Injector, error) {
 	return SetupInjectorWithLoader(c.FileLoader, config, addonConfig, env, modules...)
 }
@@ -20,7 +20,7 @@ func SetupInjector(config c.Configurer, addonConfig string, env string, modules 
 // EnvConfRoot conf root
 const EnvConfRoot = "conf_root"
 
-// SetupInjectorWithLoader 从env指定的环境配置初始化配置,构建Injector
+// SetupInjectorWithLoader loads configuration for env using loader and creates an initialized injector.
 func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonConfig string, env string, modules ...*Module) (*Injector, error) {
 	confDir := "conf"
 	if os.Getenv(EnvConfRoot) != "" {
@@ -70,7 +70,7 @@ func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonCo
 		}
 	}
 
-	// 绑定核心的服务
+	// Bind the core services.
 	module := NewModule()
 	module.Bind(config)
 	var allModuls []*Module
@@ -87,14 +87,14 @@ func SetupInjectorWithLoader(loader c.ConfigLoader, config c.Configurer, addonCo
 	return injector, nil
 }
 
-// Injected 判断是否已经完成注入
+// Injected reports whether dependency injection has completed.
 type Injected interface {
-	// 是否已经完成注入
+	// IsInjected reports whether dependency injection has completed.
 	IsInjected() bool
 }
 
-// IsInjected 判断i是否实现了Injected接口
-// 当i实现了Injected接口时,ok为true,这时injected表示接口i是否已经完成了注入
+// IsInjected reports whether i implements Injected and has been injected.
+// If i implements Injected, ok is true and injected is the result of i.IsInjected().
 func IsInjected(i interface{}) (ok bool, injected bool) {
 	if i == nil {
 		return

@@ -4,105 +4,131 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 )
 
-// PKCS5Padding pkcs5 padding
-func PKCS5Padding(ciphertext []byte, blockSize int) ([]byte, error) {
-	padding := blockSize - len(ciphertext)%blockSize
-	padtext := bytes.Repeat([]byte{byte(padding)}, padding)
-	return append(ciphertext, padtext...), nil
-}
+// The format identifier is authenticated as additional data. Never fall back to
+// unauthenticated CBC when a message fails version or authentication checks.
+const aesEnvelope = "GTK\x01"
 
-// PKCS5UnPadding pkcs5 unpadding
-func PKCS5UnPadding(origData []byte) ([]byte, error) {
-	length := len(origData)
-	if length == 0 {
-		return nil, errors.New("invalid length")
+// PKCS5Padding pads data using PKCS#7 (historically named PKCS5 in this API).
+func PKCS5Padding(data []byte, blockSize int) ([]byte, error) {
+	if blockSize < 1 || blockSize > 255 {
+		return nil, errors.New("invalid padding block size")
 	}
-	unpadding := int(origData[length-1])
-	if unpadding < 0 {
-		return nil, errors.New("invalid unpadding")
+	padding := blockSize - len(data)%blockSize
+	return append(data, bytes.Repeat([]byte{byte(padding)}, padding)...), nil
+}
+
+// PKCS5UnPadding removes PKCS padding after validating every padding byte.
+// It does not authenticate the input. AES-CBC decryption also validates block size.
+func PKCS5UnPadding(data []byte) ([]byte, error) {
+	return unpad(data, 255)
+}
+
+func unpad(data []byte, blockSize int) ([]byte, error) {
+	if len(data) == 0 {
+		return nil, errors.New("invalid padding")
 	}
-	end := length - unpadding
-	if end < 0 || end > length {
-		return nil, errors.New("invalid end padding")
+	padding := int(data[len(data)-1])
+	if padding == 0 || padding > blockSize || padding > len(data) {
+		return nil, errors.New("invalid padding")
 	}
-	return origData[:(length - unpadding)], nil
+	valid := 1
+	for _, b := range data[len(data)-padding:] {
+		valid &= subtle.ConstantTimeByteEq(b, byte(padding))
+	}
+	if valid != 1 {
+		return nil, errors.New("invalid padding")
+	}
+	return data[:len(data)-padding], nil
 }
 
-// AesEncrypt 对data用key加密,使用PKCS5 Padding
-func AesEncrypt(data, key []byte) (result []byte, err error) {
-	return aesEncrypt(data, key, nil)
-}
-
-// AesEncryptWithIV 对data用key加密,使用PKCS5 Padding
-func AesEncryptWithIV(data, key, iv []byte) (result []byte, err error) {
-	return aesEncrypt(data, key, iv)
-}
-
-// AesDecrypt 对data用key解密,使用PKCS5 Padding
-func AesDecrypt(data, key []byte) (result []byte, err error) {
-	return aesDecrypt(data, key, nil)
-}
-
-// AesDecryptWithIV 对data用key和iv解密加密,使用PKCS5 Padding
-func AesDecryptWithIV(data, key, iv []byte) (result []byte, err error) {
-	return aesDecrypt(data, key, iv)
-}
-
-func aesEncrypt(data, key, iv []byte) (result []byte, err error) {
-	defer func() {
-		if reErr := recover(); reErr != nil {
-			Errorf("AES Encrypt err:%s ", reErr)
-			err = fmt.Errorf("AES Encrypt fail,%v", reErr)
-		}
-	}()
+// AesEncrypt encrypts data using versioned AES-GCM with a fresh random nonce.
+// The output contains the format identifier, nonce, ciphertext, and tag.
+// A key must encrypt fewer than 2^32 messages before it is rotated.
+func AesEncrypt(data, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
-	blockSize := block.BlockSize()
-	data, err = PKCS5Padding(data, blockSize)
+	aead, err := cipher.NewGCMWithRandomNonce(block)
 	if err != nil {
 		return nil, err
 	}
-	if len(iv) == 0 {
-		iv = key[:blockSize]
-	}
-	if len(iv) != block.BlockSize() {
-		err = fmt.Errorf("invalid iv length %d", len(iv))
-		return
-	}
-	blockMode := cipher.NewCBCEncrypter(block, iv)
-	crypted := make([]byte, len(data))
-	blockMode.CryptBlocks(crypted, data)
-	return crypted, nil
+	return aead.Seal([]byte(aesEnvelope), nil, data, []byte(aesEnvelope)), nil
 }
 
-func aesDecrypt(data, key, iv []byte) (result []byte, err error) {
-	defer func() {
-		if reErr := recover(); reErr != nil {
-			Errorf("AES Decrypt err:%s", reErr)
-			err = fmt.Errorf("AES Decrypt fail,%v", reErr)
-		}
-	}()
-
+// AesDecrypt authenticates and decrypts data produced by AesEncrypt.
+// Legacy ciphertext must be migrated explicitly using AesDecryptLegacy.
+func AesDecrypt(data, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
-	blockSize := block.BlockSize()
+	if !bytes.HasPrefix(data, []byte(aesEnvelope)) {
+		return nil, errors.New("unsupported AES ciphertext format")
+	}
+	aead, err := cipher.NewGCMWithRandomNonce(block)
+	if err != nil {
+		return nil, err
+	}
+	plaintext, err := aead.Open(nil, nil, data[len(aesEnvelope):], []byte(aesEnvelope))
+	if err != nil {
+		return nil, errors.New("AES ciphertext authentication failed")
+	}
+	return plaintext, nil
+}
+
+// AesEncryptWithIV encrypts legacy AES-CBC data using an explicit 16-byte IV.
+// Deprecated: use AesEncrypt, which generates a nonce and authenticates its output.
+// CBC requires an unpredictable IV and independent authentication by the caller.
+func AesEncryptWithIV(data, key, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(iv) != aes.BlockSize {
+		return nil, fmt.Errorf("invalid IV length %d", len(iv))
+	}
+	padded, err := PKCS5Padding(data, aes.BlockSize)
+	if err != nil {
+		return nil, err
+	}
+	ciphertext := make([]byte, len(padded))
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(ciphertext, padded)
+	return ciphertext, nil
+}
+
+// AesDecryptWithIV decrypts legacy AES-CBC data using an explicit 16-byte IV.
+// Deprecated: migrate stored CBC data and use AesDecrypt for authenticated data.
+func AesDecryptWithIV(data, key, iv []byte) ([]byte, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	if len(iv) != aes.BlockSize {
+		return nil, fmt.Errorf("invalid IV length %d", len(iv))
+	}
+	if len(data) == 0 || len(data)%aes.BlockSize != 0 {
+		return nil, errors.New("invalid AES-CBC ciphertext length")
+	}
+	plaintext := make([]byte, len(data))
+	cipher.NewCBCDecrypter(block, iv).CryptBlocks(plaintext, data)
+	return unpad(plaintext, aes.BlockSize)
+}
+
+// AesDecryptLegacy decrypts ciphertext from the old AES-CBC helpers for migration.
+// A nil or empty IV reproduces the old key-derived IV. CBC cannot authenticate
+// ciphertext: call this only for trusted legacy data, then re-encrypt with AesEncrypt.
+func AesDecryptLegacy(data, key, iv []byte) ([]byte, error) {
+	if len(key) != 16 && len(key) != 24 && len(key) != 32 {
+		return nil, aes.KeySizeError(len(key))
+	}
 	if len(iv) == 0 {
-		iv = key[:blockSize]
+		iv = key[:aes.BlockSize]
 	}
-	if len(iv) != block.BlockSize() {
-		err = fmt.Errorf("invalid iv length %d", len(iv))
-		return
-	}
-	blockMode := cipher.NewCBCDecrypter(block, iv)
-	origData := make([]byte, len(data))
-	blockMode.CryptBlocks(origData, data)
-	return PKCS5UnPadding(origData)
+	return AesDecryptWithIV(data, key, iv)
 }

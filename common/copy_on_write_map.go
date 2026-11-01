@@ -8,11 +8,11 @@ import (
 
 type opType uint
 
-// opType的类型
+// Supported copy-on-write operations.
 const (
-	opPut           opType = iota //添加
-	opPutOnlyAbsent               //添加,如果指定的key已经存在,则返回error
-	opDel                         //删除指定的key
+	opPut           opType = iota // Add a value.
+	opPutOnlyAbsent               // Add a value, returning an error if the key exists.
+	opDel                         // Delete the specified key.
 )
 
 type cowMap map[interface{}]interface{}
@@ -23,14 +23,14 @@ type CopyOnWriteMap struct {
 	mutex sync.Mutex
 }
 
-// NewCopyOnWriteMap 创建CopyOnWriteMap
+// NewCopyOnWriteMap creates a copy-on-write map.
 func NewCopyOnWriteMap() *CopyOnWriteMap {
 	reg := &CopyOnWriteMap{}
 	reg.m.Store(make(cowMap))
 	return reg
 }
 
-// copyMap 复制src map
+// copyMap copies src.
 func copyMap(src cowMap) cowMap {
 	m := make(cowMap)
 	for k, v := range src {
@@ -39,7 +39,7 @@ func copyMap(src cowMap) cowMap {
 	return m
 }
 
-// modify 根据opType的操作类型修改CopyOnWriteMap
+// modify applies an operation to a copy of the map.
 func (p *CopyOnWriteMap) modify(key interface{}, value interface{}, op opType) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -66,22 +66,22 @@ func (p *CopyOnWriteMap) modify(key interface{}, value interface{}, op opType) e
 	return nil
 }
 
-// Put key及对应的value,如果key已经存在,则进行替换
+// Put stores value under key, replacing any existing value.
 func (p *CopyOnWriteMap) Put(key interface{}, value interface{}) {
 	p.modify(key, value, opPut)
 }
 
-// PutIfAbsent put key及对应的value,如果key已经存在,不进行替换,并返回错误
+// PutIfAbsent stores value unless key already exists, in which case it returns an error.
 func (p *CopyOnWriteMap) PutIfAbsent(key interface{}, value interface{}) error {
 	return p.modify(key, value, opPutOnlyAbsent)
 }
 
-// Delete 删除key
+// Delete removes key.
 func (p *CopyOnWriteMap) Delete(key interface{}) {
 	p.modify(key, nil, opDel)
 }
 
-// Get 取得key对应的值
+// Get returns the value associated with key.
 func (p *CopyOnWriteMap) Get(key interface{}) interface{} {
 	m1 := p.m.Load().(cowMap)
 	if value, ok := m1[key]; ok {
@@ -99,14 +99,14 @@ type CopyOnWriteSlice struct {
 	mutex sync.Mutex
 }
 
-// NewCopyOnWriteSlice 创建CopyOnWriteSlice
+// NewCopyOnWriteSlice creates a copy-on-write slice.
 func NewCopyOnWriteSlice() *CopyOnWriteSlice {
 	reg := &CopyOnWriteSlice{}
 	reg.m.Store(make(cowSlice, 0))
 	return reg
 }
 
-// modify 根据opType的类型,修改CopyOnWriteSlice
+// modify applies an operation to a copy of the slice.
 func (p *CopyOnWriteSlice) modify(value interface{}, op opType) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -133,7 +133,7 @@ func (p *CopyOnWriteSlice) modify(value interface{}, op opType) error {
 	return nil
 }
 
-// Add 添加
+// Add appends a value.
 func (p *CopyOnWriteSlice) Add(value interface{}) error {
 	if value == nil {
 		panic("Can't add nil value")
@@ -141,7 +141,7 @@ func (p *CopyOnWriteSlice) Add(value interface{}) error {
 	return p.modify(value, opPut)
 }
 
-// Delete 删除value
+// Delete removes value.
 func (p *CopyOnWriteSlice) Delete(value interface{}) error {
 	if value == nil {
 		panic("Can't delete nil value")
@@ -149,7 +149,7 @@ func (p *CopyOnWriteSlice) Delete(value interface{}) error {
 	return p.modify(value, opDel)
 }
 
-// Get 取得Slice
+// Get returns the stored slice.
 func (p *CopyOnWriteSlice) Get() []interface{} {
 	return p.m.Load().(cowSlice)
 }

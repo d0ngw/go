@@ -9,7 +9,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-// redis的命令及响应
+// Redis commands and responses.
 const (
 	ReplyOK = "OK"
 	DEL     = "DEL"
@@ -42,6 +42,21 @@ func NewRedisClient(groups map[string][]*RedisServer) *RedisClient {
 // NewRedisClientWithConf create redis from conf
 func NewRedisClientWithConf(conf *RedisConf) *RedisClient {
 	return &RedisClient{groups: conf.groups}
+}
+
+// Close closes every connection pool owned by the client.
+func (p *RedisClient) Close() error {
+	seen := map[*redis.Pool]bool{}
+	var failures []error
+	for _, servers := range p.groups {
+		for _, server := range servers {
+			if server.pool != nil && !seen[server.pool] {
+				seen[server.pool] = true
+				failures = append(failures, server.pool.Close())
+			}
+		}
+	}
+	return errors.Join(failures...)
 }
 
 func (p *RedisClient) getServerIndex(param Param, servers []*RedisServer) (index int, err error) {
@@ -478,6 +493,7 @@ func UnLock(lockKey string, paramConf *ParamConf, redisClient *RedisClient) erro
 }
 
 // CheckNilErr check the err:
+//
 //	if err == nil, return true,nil; if the err is ErrNIl return false,nil;,otherwise return false ,err
 func CheckNilErr(err error) (bool, error) {
 	if err == nil {

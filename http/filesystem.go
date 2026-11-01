@@ -5,12 +5,12 @@ import (
 	"os"
 )
 
-// NoDirFS 不输出目录列表的FS
+// NoDirFS is a file system that disables directory listings.
 type NoDirFS struct {
 	Fs http.FileSystem
 }
 
-// Open 取得指定的文件,如果name指向的是个目录,且目录下没有index.html,返回os.ErrPermission
+// Open opens a file and rejects directories without an index.html file with os.ErrPermission.
 func (fs NoDirFS) Open(name string) (http.File, error) {
 	f, err := fs.Fs.Open(name)
 	if err != nil {

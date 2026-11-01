@@ -9,7 +9,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// LoadYAMLFromPath 将YAML文件中的配置加载到到结构体target中
+// LoadYAMLFromPath loads a YAML file into target.
 func LoadYAMLFromPath(filename string, target interface{}) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -18,7 +18,7 @@ func LoadYAMLFromPath(filename string, target interface{}) error {
 	return LoadYAMl(data, target)
 }
 
-// LoadYAMl 将data中的YAML配置加载到到结构体target中
+// LoadYAMl decodes YAML data into target.
 func LoadYAMl(data []byte, target interface{}) error {
 	if len(data) == 0 {
 		return fmt.Errorf("can't load yaml config from empty data")
@@ -26,12 +26,12 @@ func LoadYAMl(data []byte, target interface{}) error {
 	return yaml.Unmarshal([]byte(data), target)
 }
 
-// LoadConfig 从configDir目录下的多个path指定的YAML配置文件中加载配置
+// LoadConfig loads and combines the YAML files under configDir.
 func LoadConfig(config Configurer, addonConfig string, configDir string, pathes ...string) (err error) {
 	return LoadConfigWithLoader(FileLoader, config, addonConfig, configDir, pathes...)
 }
 
-// LoadConfigWithLoader 使用指定的加载器加载配置
+// LoadConfigWithLoader loads configuration using the supplied loader.
 func LoadConfigWithLoader(loader ConfigLoader, config Configurer, addonConfig string, configDir string, pathes ...string) (err error) {
 	if loader == nil {
 		err = errors.New("no loader")

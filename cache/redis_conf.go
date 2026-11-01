@@ -9,7 +9,7 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-// Redis连接池的默认参数
+// Default Redis connection pool settings.
 const (
 	DefaultConnectTimout = 5 * 1000
 	DefaultReadTimeout   = 5 * 1000
@@ -19,20 +19,20 @@ const (
 	DefaultIdleTimeout   = 60 * 1000
 )
 
-// RedisConfigurer Redis配置器
+// RedisConfigurer provides Redis configuration.
 type RedisConfigurer interface {
 	c.Configurer
 	RedisConfig() *RedisConf
 }
 
-// RedisPoolConf  Redis连接池配置
+// RedisPoolConf configures a Redis connection pool.
 type RedisPoolConf struct {
-	ConnectTimeout int `yaml:"connect_timeout"` //连接超时时间,单位毫秒秒
-	ReadTimeout    int `yaml:"read_timeout"`    //读取超时,单位毫秒
-	WriteTimeout   int `yaml:"write_timeout"`   //写取超时,单位毫秒
-	MaxIdle        int `yaml:"max_idle"`        //最大空闲连接
-	MaxActive      int `yaml:"max_active"`      //最大活跃连接,0表示不限制
-	IdleTimeout    int `yaml:"idel_teimout"`    //空闲连接的超时时间,单位毫秒
+	ConnectTimeout int `yaml:"connect_timeout"` // Connection timeout in milliseconds.
+	ReadTimeout    int `yaml:"read_timeout"`    // Read timeout in milliseconds.
+	WriteTimeout   int `yaml:"write_timeout"`   // Write timeout in milliseconds.
+	MaxIdle        int `yaml:"max_idle"`        // Maximum number of idle connections.
+	MaxActive      int `yaml:"max_active"`      // Maximum number of active connections; zero means unlimited.
+	IdleTimeout    int `yaml:"idel_teimout"`    // Idle connection timeout in milliseconds.
 }
 
 var defaultPool = &RedisPoolConf{
@@ -44,16 +44,16 @@ var defaultPool = &RedisPoolConf{
 	IdleTimeout:    DefaultIdleTimeout,
 }
 
-// RedisServer Redis实例的配置
+// RedisServer configures a Redis server.
 type RedisServer struct {
-	ID   string      `yaml:"id"`   //Redis实例的id
-	Host string      `yaml:"host"` //Redis主机地址
-	Port int         `yaml:"port"` //Redis的端口
-	Auth string      `yaml:"auth"` //Redis认证密码
-	pool *redis.Pool //Redis实例的连接池
+	ID   string      `yaml:"id"`   // Redis server ID.
+	Host string      `yaml:"host"` // Redis host address.
+	Port int         `yaml:"port"` // Redis port.
+	Auth string      `yaml:"auth"` // Redis authentication password.
+	pool *redis.Pool // Redis connection pool.
 }
 
-// initPool 使用指定的参数初始化pool
+// initPool initializes the pool with the supplied settings.
 func (p *RedisServer) initPool(poolConf *RedisPoolConf) error {
 	if p.pool != nil {
 		return fmt.Errorf("server %s already inited", p.ID)
@@ -91,10 +91,10 @@ func (p *RedisServer) GetConn() (redis.Conn, error) {
 
 // RedisConf redis config
 type RedisConf struct {
-	Servers   []*RedisServer            `yaml:"servers"`      //实例列表
-	Groups    map[string][]string       `yaml:"groups"`       //Redis组定义,key为组ID;value为Server的id列表
-	Pool      *RedisPoolConf            `yaml:"pool"`         //默认的链接池配置
-	GroupPool map[string]*RedisPoolConf `yaml:"groups_pools"` //Redis组的连接池配置
+	Servers   []*RedisServer            `yaml:"servers"`      // Server configurations.
+	Groups    map[string][]string       `yaml:"groups"`       // Group IDs mapped to lists of Redis server IDs.
+	Pool      *RedisPoolConf            `yaml:"pool"`         // Default connection pool settings.
+	GroupPool map[string]*RedisPoolConf `yaml:"groups_pools"` // Connection pool settings for each Redis group.
 	groups    map[string][]*RedisServer
 }
 
@@ -107,7 +107,7 @@ func (p *RedisConf) Parse() error {
 	groups := map[string][]*RedisServer{}
 	servers := map[string]*RedisServer{}
 
-	//解析,并检查server的配置
+	// Parse and validate server configurations.
 	var dupChekc = map[string]struct{}{}
 	for _, server := range p.Servers {
 		if c.IsEmpty(server.ID, server.Host) {
@@ -131,7 +131,7 @@ func (p *RedisConf) Parse() error {
 		servers[server.ID] = server
 	}
 
-	//解析并检查group
+	// Parse and validate groups.
 	for groupID, groupServers := range p.Groups {
 		if groupID == "" {
 			return fmt.Errorf("invalid redis group id")
@@ -155,7 +155,7 @@ func (p *RedisConf) Parse() error {
 			poolConf = defaultPool
 		}
 
-		//对redis实例进行排序
+		// Sort Redis servers.
 		sort.Sort(sort.StringSlice(groupServers))
 		redisServers := make([]*RedisServer, 0, len(groupServers))
 		for _, serverID := range groupServers {

@@ -35,7 +35,7 @@ func toSlice(s string, count int) []string {
 	return slice
 }
 
-// 除了自增主键的过滤函数
+// Filter out auto-increment primary keys.
 var exceptIDPred = func(field *metaField) bool {
 	if field == nil || (field.pk && field.pkAuto) {
 		return false
@@ -43,7 +43,7 @@ var exceptIDPred = func(field *metaField) bool {
 	return true
 }
 
-// 除了主键的过滤函数
+// Filter out primary keys.
 var noIDPred = func(field *metaField) bool {
 	if field == nil || field.pk {
 		return false
@@ -51,7 +51,7 @@ var noIDPred = func(field *metaField) bool {
 	return true
 }
 
-// 检查实体参数
+// Validate the entity argument.
 func checkEntity(modelInfo *meta, entity Entity, tx interface{}) (ind reflect.Value) {
 	val, ind, typ := extract(entity)
 	if val.Kind() != reflect.Ptr {
@@ -97,7 +97,7 @@ func buildParamValues(ind reflect.Value, fields []*metaField) []interface{} {
 	return paramValues
 }
 
-// 构建实体模型的插入函数
+// Build an insert function for the entity model.
 func createInsertFunc(modelInfo *meta) entityInsertFunc {
 	insertFields := filterFields(exceptIDPred, modelInfo.fields)
 	columns := buildColumns(func(field *metaField) string {
@@ -130,7 +130,7 @@ func createInsertFunc(modelInfo *meta) entityInsertFunc {
 	}
 }
 
-// 构建实体模型的更新函数
+// Build an update function for the entity model.
 func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
 	updateFields := filterFields(noIDPred, modelInfo.fields)
 	columns := buildColumns(func(field *metaField) string {
@@ -153,7 +153,7 @@ func createUpdateFunc(modelInfo *meta) entityUpdateFunc {
 		if err != nil {
 			return false, err
 		}
-		//检查更新的记录数
+		// Check the number of affected rows.
 		rows, err := rs.RowsAffected()
 		if err == nil {
 			if rows != 1 {
@@ -209,7 +209,7 @@ func createUpdateExcludeColmnsFunc(modelInfo *meta) entityUpdateExcludeColumnsFu
 		if err != nil {
 			return false, err
 		}
-		//检查更新的记录数
+		// Check the number of affected rows.
 		rows, err := rs.RowsAffected()
 		if err == nil {
 			if rows != 1 {
@@ -221,7 +221,7 @@ func createUpdateExcludeColmnsFunc(modelInfo *meta) entityUpdateExcludeColumnsFu
 	}
 }
 
-// 构建实体模型的指定类名的更新函数
+// Build an update function for the selected columns.
 func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 	return func(executor interface{}, entity Entity, columns string, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
@@ -244,7 +244,7 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 			return 0, err
 		}
 
-		//检查更新的记录数
+		// Check the number of affected rows.
 		rows, err := rs.RowsAffected()
 		if err == nil {
 			return rows, nil
@@ -253,7 +253,7 @@ func createUpdateColumnsFunc(modelInfo *meta) entityUpdateColumnFunc {
 	}
 }
 
-// 构建查询函数
+// Build a query function.
 func createQueryFunc(modelInfo *meta) entityQueryFunc {
 	columns := buildColumns(func(field *metaField) string {
 		return "`" + field.column + "`"
@@ -299,7 +299,7 @@ func createQueryFunc(modelInfo *meta) entityQueryFunc {
 	}
 }
 
-// 构建查询函数
+// Build a query function.
 func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
 	return func(executor interface{}, entity Entity, columns []string, condition string, params []interface{}) ([]Entity, error) {
 		ind := checkEntity(modelInfo, entity, executor)
@@ -349,7 +349,7 @@ func createQueryColumnFunc(modelInfo *meta) entityQueryColumnFunc {
 	}
 }
 
-// 构建查询函数
+// Build a query function.
 func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
 	return func(executor interface{}, entity Entity, destStructs interface{}, columns []string, condition string, params []interface{}) error {
 		if destStructs == nil {
@@ -415,7 +415,7 @@ func createQueryColumnsFunc(modelInfo *meta) queryColumnsFunc {
 	}
 }
 
-// 构建删除函数
+// Build a delete function.
 func createDelFunc(modelInfo *meta) entityDeleteFunc {
 	return func(executor interface{}, entity Entity, condition string, params []interface{}) (int64, error) {
 		checkEntity(modelInfo, entity, executor)
@@ -432,7 +432,7 @@ func createDelFunc(modelInfo *meta) entityDeleteFunc {
 		if err != nil {
 			return 0, err
 		}
-		//检查更新的记录数
+		// Check the number of affected rows.
 		rows, err := rs.RowsAffected()
 		if err != nil {
 			return 0, err
@@ -470,7 +470,7 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 			return 0, err
 		}
 
-		//检查更新的记录数
+		// Check the number of affected rows.
 		rows, err := rs.RowsAffected()
 		if err == nil {
 			return rows, nil
@@ -479,7 +479,7 @@ func createInsertOrUpdateFunc(modelInfo *meta) entityInsertOrUpdateFunc {
 	}
 }
 
-// tblName 确定表名
+// tblName determines the table name.
 func tblName(entity Entity) (string, error) {
 	if shardEntity, ok := entity.(ShardEntity); ok {
 		if shardEntity.TableShardFunc() != nil {
@@ -578,7 +578,7 @@ func createUpdateReplaceFunc(modelInfo *meta) entityUpdateReplaceColumnsFunc {
 		if err != nil {
 			return false, err
 		}
-		//检查更新的记录数
+		// Check the number of affected rows.
 		rows, err := rs.RowsAffected()
 		if err == nil {
 			if rows != 1 {

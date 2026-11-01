@@ -6,7 +6,7 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// ShardDBService 支持分库,分表的DBService
+// ShardDBService supports database and table sharding.
 type ShardDBService interface {
 	DBService
 	// NewOpByShardName create op by shard name

@@ -7,20 +7,20 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// 内部的绑定实例
+// Internal representation of a binding.
 type internalBind struct {
-	name        string            //绑定的名称
-	instance    interface{}       //绑定的实例
-	injectType  reflect.Type      //注入的类型
-	injectValue reflect.Value     //注入的值,相当于reflect.ValueOf(instance)
-	injectTags  map[string]string //用于注入的tag,用于覆盖struct field中定义的tag
+	name        string            // Binding name.
+	instance    interface{}       // Bound instance.
+	injectType  reflect.Type      // Type of the injected instance.
+	injectValue reflect.Value     // Injected value, equivalent to reflect.ValueOf(instance).
+	injectTags  map[string]string // Injection tags that override struct field tags.
 }
 
 func (p internalBind) String() string {
 	return fmt.Sprintf("%v#%s", p.injectType, p.name)
 }
 
-// bindKey 用于绑定的key
+// bindKey identifies a binding.
 type bindKey struct {
 	bindName string
 	bindType reflect.Type
@@ -30,26 +30,26 @@ func (p bindKey) String() string {
 	return fmt.Sprintf("%v#%s", p.bindType, p.bindName)
 }
 
-// Provider 提供类似Guice Provider的功能,用于创建一个对象
+// Provider creates instances, like a Guice provider.
 type Provider interface {
-	// GetInstance 用于创建一个实例
+	// GetInstance creates an instance.
 	GetInstance() interface{}
 }
 
-// ProviderFunc 定义用于创建一个对象的函数类型
+// ProviderFunc is a function that creates an instance.
 type ProviderFunc func() interface{}
 
-// Module 提供Guice Module的功能
+// Module groups dependency bindings, like a Guice module.
 type Module struct {
 	binds []*internalBind
 }
 
-// NewModule 创建新的Module
+// NewModule creates a module.
 func NewModule() *Module {
 	return &Module{binds: []*internalBind{}}
 }
 
-// BindWithNameOverrideTags 添加带名称的绑定,injectTags用于覆盖instance中struct field中field中定义的inject tag
+// BindWithNameOverrideTags adds a named binding with injection tags that override instance field tags.
 func (p *Module) BindWithNameOverrideTags(name string, instance interface{}, injectTags map[string]string) {
 	if instance == nil {
 		panic("Can't bind nil instance")
@@ -58,17 +58,17 @@ func (p *Module) BindWithNameOverrideTags(name string, instance interface{}, inj
 	p.binds = append(p.binds, b)
 }
 
-// BindWithName 添加带名称的绑定
+// BindWithName adds a named binding.
 func (p *Module) BindWithName(name string, instance interface{}) {
 	p.BindWithNameOverrideTags(name, instance, map[string]string{})
 }
 
-// Bind 添加不带名称的绑定
+// Bind adds an unnamed binding.
 func (p *Module) Bind(instance interface{}) {
 	p.BindWithName("", instance)
 }
 
-// BindWithProvider 通过Provider提供带名称的绑定功能
+// BindWithProvider adds a named binding using a provider.
 func (p *Module) BindWithProvider(name string, provider Provider) {
 	if instance := provider.GetInstance(); instance != nil {
 		p.BindWithName(name, instance)
@@ -78,7 +78,7 @@ func (p *Module) BindWithProvider(name string, provider Provider) {
 	panic(err)
 }
 
-// BindWithProviderFunc 通过Provider提供带名称的绑定功能
+// BindWithProviderFunc adds a named binding using a provider function.
 func (p *Module) BindWithProviderFunc(name string, providerFunc ProviderFunc) {
 	if instance := providerFunc(); instance != nil {
 		p.BindWithName(name, instance)
@@ -88,7 +88,7 @@ func (p *Module) BindWithProviderFunc(name string, providerFunc ProviderFunc) {
 	panic(err)
 }
 
-// Append 将src中的绑定追加到本module
+// Append adds the bindings from src to this module.
 func (p *Module) Append(src *Module) {
 	if src == nil || len(src.binds) == 0 {
 		return
@@ -118,12 +118,12 @@ func checkIsInterface(typ reflect.Type) bool {
 	return isInterface
 }
 
-// injectType 取得注入的类型,如果实例不能被注入,会抛出一个panic
+// injectType returns the injectable type and panics if the instance cannot be injected.
 func injectType(instance interface{}) reflect.Type {
 	val := reflect.ValueOf(instance)
 	typ := val.Type()
 
-	//确保typ的类型不是interface{}
+	// Ensure typ is not an empty interface.
 	if checkIsInterface(typ) {
 		panic(fmt.Errorf("The type of instance `%#v` is interface,can't find it's exact type", val.Interface()))
 	}
@@ -133,7 +133,7 @@ func injectType(instance interface{}) reflect.Type {
 	return typ
 }
 
-// mergeBinds 合并多个模块的绑定,返回未命名的绑定和命名绑定
+// mergeBinds combines modules and returns unnamed, named, and all bindings.
 func mergeBinds(modules []*Module) (unnamed []*internalBind, named map[string][]*internalBind, all []*internalBind) {
 	all = []*internalBind{}
 	unnamed = []*internalBind{}
@@ -163,7 +163,7 @@ func mergeBinds(modules []*Module) (unnamed []*internalBind, named map[string][]
 	return
 }
 
-// Merge 合并Module
+// Merge combines modules.
 func Merge(modules ...[]*Module) []*Module {
 	var merged []*Module
 	for _, v := range modules {

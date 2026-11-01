@@ -50,7 +50,7 @@ func (p LogLevel) zapLevel() (level zapcore.Level, ok bool) {
 	return
 }
 
-// Logger 日志记录接口
+// Logger defines the logging interface.
 type Logger interface {
 	Debugf(format string, params ...interface{})
 	DebugEnabled() bool
@@ -64,7 +64,7 @@ type Logger interface {
 	Sync()
 }
 
-// Debugf debug级别记录日志
+// Debugf logs a message at debug level.
 func Debugf(format string, params ...interface{}) {
 	logger.Debugf(format, params...)
 }
@@ -74,7 +74,7 @@ func DebugEnabled() bool {
 	return logger.DebugEnabled()
 }
 
-// Infof info级别记录日志
+// Infof logs a message at info level.
 func Infof(format string, params ...interface{}) {
 	logger.Infof(format, params...)
 }
@@ -84,7 +84,7 @@ func InfoEnabled() bool {
 	return logger.InfoEnabled()
 }
 
-// Warnf warn级别记录日志
+// Warnf logs a message at warn level.
 func Warnf(format string, params ...interface{}) {
 	logger.Warnf(format, params...)
 }
@@ -94,7 +94,7 @@ func WarnEnabled() bool {
 	return logger.WarnEnabled()
 }
 
-// Errorf error级别记录日志
+// Errorf logs a message at error level.
 func Errorf(format string, params ...interface{}) {
 	logger.Errorf(format, params...)
 }
@@ -136,7 +136,7 @@ var (
 var m sync.Mutex
 var loggerInitd bool
 
-// initLogger 初始化logger
+// initLogger initializes the logger.
 func initLogger(logConfig *LogConfig) (err error) {
 	m.Lock()
 	defer m.Unlock()

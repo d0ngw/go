@@ -1,4 +1,4 @@
-// Package http 提供基本的http服务
+// Package http provides HTTP services, controllers, and client helpers.
 package http
 
 import (
@@ -11,19 +11,20 @@ import (
 	"github.com/d0ngw/go/inject"
 )
 
-// Config Http配置
+// Config configures an HTTP service.
 type Config struct {
-	Addr          string                            //Http监听地址
-	ReadTimeout   time.Duration                     //读超时,单位秒
-	WriteTimeout  time.Duration                     //写超时,单位秒
-	MaxConns      int                               //最大的并发连接数
-	middlewares   []Middleware                      //过滤操作
-	controllers   []Controller                      //controller
-	handles       map[string]*handlerWithMiddleware //handles
-	controllerMux sync.RWMutex
+	Addr            string                            // HTTP listen address.
+	ReadTimeout     time.Duration                     // Read timeout in seconds.
+	WriteTimeout    time.Duration                     // Write timeout in seconds.
+	ShutdownTimeout time.Duration                     // Graceful shutdown duration; zero defaults to 30 seconds.
+	MaxConns        int                               // Maximum number of concurrent connections.
+	middlewares     []Middleware                      // Request middleware.
+	controllers     []Controller                      //controller
+	handles         map[string]*handlerWithMiddleware //handles
+	controllerMux   sync.RWMutex
 }
 
-// NewConfig 创建配置
+// NewConfig creates an HTTP service configuration.
 func NewConfig(addr string) *Config {
 	return &Config{
 		Addr:        addr,
@@ -33,7 +34,7 @@ func NewConfig(addr string) *Config {
 	}
 }
 
-// RegController 注册controller中的所有处理函数
+// RegController registers all handler methods on controller.
 func (p *Config) RegController(controller Controller) error {
 	if controller == nil {
 		return fmt.Errorf("Can't reg nil contriller")
@@ -62,7 +63,7 @@ func (p *Config) RegController(controller Controller) error {
 	return nil
 }
 
-// RegHandleFunc 注册patternPath的处理函数handlerFunc
+// RegHandleFunc registers handlerFunc for patternPath.
 func (p *Config) regHandleFunc(patternPath string, handle *handlerWithMiddleware) error {
 	if _, ok := p.handles[patternPath]; ok {
 		return fmt.Errorf("Duplicate ,path:%s", patternPath)
@@ -71,7 +72,7 @@ func (p *Config) regHandleFunc(patternPath string, handle *handlerWithMiddleware
 	return nil
 }
 
-// RegHandleFunc 注册patternPath的处理函数handlerFunc
+// RegHandleFunc registers handlerFunc for patternPath.
 func (p *Config) RegHandleFunc(patternPath string, handlerFunc http.HandlerFunc) error {
 	if _, ok := p.handles[patternPath]; ok {
 		return fmt.Errorf("Duplicate ,path:%s", patternPath)
@@ -80,7 +81,7 @@ func (p *Config) RegHandleFunc(patternPath string, handlerFunc http.HandlerFunc)
 	return nil
 }
 
-// RegStaticFunc 注册静态资源patternPath的处理函数handlerFunc
+// RegStaticFunc registers handlers for static resource paths.
 func (p *Config) RegStaticFunc(patternAndPath map[string]string) error {
 	if patternAndPath == nil {
 		return nil
@@ -99,7 +100,7 @@ func (p *Config) RegStaticFunc(patternAndPath map[string]string) error {
 	return nil
 }
 
-// RegMiddleware 注册middleware,middleware的注册需要在RegController和RegHandleFunc之前完成
+// RegMiddleware registers middleware before controllers and handlers are registered.
 func (p *Config) RegMiddleware(middleware Middleware) error {
 	if middleware == nil {
 		return fmt.Errorf("invalid middleware")
@@ -108,7 +109,7 @@ func (p *Config) RegMiddleware(middleware Middleware) error {
 	return nil
 }
 
-// InitWithInjector 初始化操作
+// InitWithInjector injects dependencies and registers controllers.
 func (p *Config) InitWithInjector(injector *inject.Injector) error {
 	for _, c := range p.controllers {
 		injector.RequireInject(c)

@@ -18,7 +18,9 @@ type Counter interface {
 	Del(counterID string) error
 }
 
-// Persist counter fields to the persist storage
+// Persist loads, saves, and deletes counter fields in persistent storage.
+// Implementations must support concurrent calls. Operations are not serialized
+// with Redis updates or background scans.
 type Persist interface {
 	// Load the fields of counterID from persist storage
 	Load(counterID string) (fields Fields, err error)

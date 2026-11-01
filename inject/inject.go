@@ -1,4 +1,4 @@
-// Package inject 提供类似Guice Injector的依赖注入功能,可以用于简化服务的组装
+// Package inject provides Guice-style dependency injection for assembling services.
 package inject
 
 import (
@@ -9,17 +9,18 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// Injector is a injector like Guice Injector
-//  type InjectStruct struct{
-//   s ServiceInterface{} `inject:"<name|_>,[optional]"`
-//  }
+// Injector assigns bound dependencies to exported, tagged struct fields.
+//
+//	type InjectStruct struct {
+//	    Service ServiceInterface `inject:"name,optional"`
+//	}
 type Injector struct {
 	ununamed []*internalBind
 	named    map[string][]*internalBind
 	all      []*internalBind
 }
 
-// Inject tag常量
+// Injection tag constants.
 const (
 	injectTagNoname = "_"
 )
@@ -28,7 +29,7 @@ func (p *Injector) String() string {
 	return fmt.Sprintf("Injector,unnamed binds:%v,named binds:%v", len(p.ununamed), len(p.named))
 }
 
-// NewInjector 创建一个Injector
+// NewInjector creates an injector and injects the module bindings.
 func NewInjector(modules []*Module) *Injector {
 	injector := &Injector{}
 	injectorModule := NewModule()
@@ -42,9 +43,9 @@ func NewInjector(modules []*Module) *Injector {
 	return injector
 }
 
-// Initialize 初始化injector
+// Initialize initializes the bound instances.
 func (p *Injector) Initialize() error {
-	// 执行初始化操作
+	// Initialize bound instances.
 	inits := p.GetInstancesByPrototype(struct{ s c.Initable }{})
 	for _, init := range inits {
 		if service, ok := init.(c.Service); ok {
@@ -61,12 +62,12 @@ func (p *Injector) Initialize() error {
 	return nil
 }
 
-// Start 启动服务
+// Start starts the services.
 func (p *Injector) Start() error {
 	return p.startOrStop(true)
 }
 
-// Stop 停止服务
+// Stop stops the services.
 func (p *Injector) Stop() error {
 	return p.startOrStop(false)
 }
@@ -93,19 +94,19 @@ func (p *Injector) startOrStop(start bool) error {
 	return nil
 }
 
-// RequireInject 由Injector向targets注入服务
+// RequireInject injects dependencies into targets.
 func (p *Injector) RequireInject(targets ...interface{}) {
 	for _, target := range targets {
 		p.injectInstance(target)
 	}
 }
 
-// RequireInjectWithOverrideTags 由Injector向target注入服务,injectTags用于覆盖target struct字段中定义的inject tag
+// RequireInjectWithOverrideTags injects dependencies using tags that override target field tags.
 func (p *Injector) RequireInjectWithOverrideTags(target interface{}, injectTags map[string]string) {
 	p.injectInstanceWithOverrideTags(target, injectTags)
 }
 
-// GetInstance 从Injector中查找与name和expectedType匹配的实例,如果没有找到返回nil
+// GetInstance returns the instance matching name and expectedType, or nil if none exists.
 func (p *Injector) GetInstance(name string, expectedType reflect.Type) interface{} {
 	bind := p.findBind(name, expectedType)
 	if bind == nil {
@@ -114,12 +115,12 @@ func (p *Injector) GetInstance(name string, expectedType reflect.Type) interface
 	return bind.instance
 }
 
-// GetInstanceByPrototype 从Injector重查找与name和prototype匹配的实例,如果没有找到返回nil
+// GetInstanceByPrototype returns the instance matching name and the prototype field type, or nil.
 func (p *Injector) GetInstanceByPrototype(name string, prototype interface{}) interface{} {
 	return p.GetInstance(name, getFieldType(prototype, 0))
 }
 
-// GetInstancesByPrototype 从Injector里查找与prototype匹配的所有实例
+// GetInstancesByPrototype returns all instances matching the prototype field type.
 func (p *Injector) GetInstancesByPrototype(prototype interface{}) []interface{} {
 	expectedType := getFieldType(prototype, 0)
 	var ret = p.findAllBind(p.all, expectedType)
@@ -141,11 +142,11 @@ func (p *Injector) findAllBind(binds []*internalBind, expectedType reflect.Type)
 	return ret
 }
 
-// findBind 寻找一个可用的绑定
+// findBind finds a matching binding.
 func (p *Injector) findBind(name string, expectedType reflect.Type) *internalBind {
 	var toFind []*internalBind
 	if len(name) != 0 {
-		//按名称查找
+		// Look up by name.
 		if binds, ok := p.named[name]; ok {
 			toFind = binds
 		}
@@ -174,27 +175,28 @@ func (p *Injector) findBind(name string, expectedType reflect.Type) *internalBin
 	}
 }
 
-// injectInstance 向target注入实例
+// injectInstance injects dependencies into target.
 func (p *Injector) injectInstance(target interface{}) {
 	p.injectInstanceWithOverrideTags(target, map[string]string{})
 }
 
-// injectInstanceWithOverrideTAgs 向target注入实例,injectTags用于覆盖target struct中定义的inject tag定义
+// injectInstanceWithOverrideTags injects dependencies using tags that override target field tags.
 func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags map[string]string) {
+	val := reflect.ValueOf(target)
+	// Only pointers to structs can receive injected dependencies.
+	if !val.IsValid() || val.Kind() != reflect.Ptr || val.IsNil() {
+		return
+	}
+	ind := val.Elem()
+	if ind.Kind() != reflect.Struct {
+		return
+	}
 	if len(injectTags) == 0 {
 		if ok, injected := IsInjected(target); ok && injected {
-			//已经完成注入,直接返回
 			return
 		}
 	}
-	val := reflect.ValueOf(target)
-	ind := reflect.Indirect(val)
 	typ := ind.Type()
-
-	//仅struct的指针才能被注入
-	if val.Kind() != reflect.Ptr || ind.Kind() != reflect.Struct {
-		return
-	}
 
 	fieldNum := ind.NumField()
 	for i := 0; i < fieldNum; i++ {
@@ -204,7 +206,7 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 			continue
 		}
 
-		//注入匿名结构体字段结
+		// Inject dependencies into embedded struct fields.
 		if reflect.Indirect(fieldVal).Kind() == reflect.Struct && field.Anonymous {
 			if fieldVal.Kind() == reflect.Ptr {
 				p.injectInstanceWithOverrideTags(fieldVal.Interface(), injectTags)
@@ -269,7 +271,7 @@ func (p *Injector) injectInstanceWithOverrideTags(target interface{}, injectTags
 	}
 }
 
-// injectModules 注入Injector中各个Module中的绑定
+// injectModules injects dependencies into every module binding.
 func (p *Injector) injectModules() {
 	for _, bind := range p.ununamed {
 		p.injectInstanceWithOverrideTags(bind.instance, bind.injectTags)
@@ -282,13 +284,13 @@ func (p *Injector) injectModules() {
 	}
 }
 
-// getFieldType 取得struct中field的类型
+// getFieldType returns the type of a struct field.
 func getFieldType(structObj interface{}, fieldIndex int) reflect.Type {
 	val := reflect.Indirect(reflect.ValueOf(structObj))
 	return val.Field(fieldIndex).Type()
 }
 
-// parseInjectTag 解析inject tag,inject tag的格式
+// parseInjectTag parses a tag in the form "name[,optional]".
 func parseInjectTag(tag string) (found bool, name string, optional bool) {
 	tag = strings.TrimSpace(tag)
 	if len(tag) == 0 {

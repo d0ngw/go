@@ -1,31 +1,31 @@
 package common
 
-// Status 定义状态
+// Status represents an enabled or disabled state.
 type Status int8
 
 const (
-	// DISABLE 禁用
+	// DISABLE marks a disabled state.
 	DISABLE Status = 0
-	// ENABLE 有效
+	// ENABLE marks an enabled state.
 	ENABLE Status = 1
 )
 
-// IsValid 判断状态是否是有效的
+// IsValid reports whether the status is valid.
 func (p Status) IsValid() bool {
 	return p == DISABLE || p == ENABLE
 }
 
-// Value 状态的值
+// Value returns the status value.
 func (p Status) Value() int8 {
 	return int8(p)
 }
 
-// 定义环境变量
+// Environment variable names.
 const (
 	EnvWorkfDir = "work_dir"
 )
 
-// 定义环境的常量
+// Environment names.
 const (
 	EnvDev        = "dev"
 	EnvTest       = "test"

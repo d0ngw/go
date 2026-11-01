@@ -1,4 +1,4 @@
-// Package cache 提供缓冲相关的服务
+// Package cache provides caching services.
 package cache
 
 // Param is the cache param

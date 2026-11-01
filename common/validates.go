@@ -8,29 +8,29 @@ import (
 	"unicode/utf8"
 )
 
-// StrValidator 字符串验证器
+// StrValidator validates string values.
 type StrValidator interface {
-	//Vlidate 验证字符串参数是否符合规则
+	// Validate reports whether the string satisfies the rule.
 	Validate(param string) bool
 }
 
-// StringLenValidator 字符串长度验证
+// StringLenValidator validates string length.
 type StringLenValidator struct {
-	min int //最小长度
-	max int //最大长度
+	min int // Minimum length.
+	max int // Maximum length.
 }
 
-// Validate 验证字符串的长度
+// Validate checks the string length.
 func (p *StringLenValidator) Validate(param string) bool {
 	strLen := utf8.RuneCountInString(param)
 	return p.min <= strLen && strLen <= p.max
 }
 
-// NotEmptyValidator 非空
+// NotEmptyValidator rejects empty strings.
 type NotEmptyValidator struct {
 }
 
-// Validate 验证字符串是否为空
+// Validate checks that the string is not empty.
 func (p *NotEmptyValidator) Validate(param string) bool {
 	if len(param) == 0 {
 		return false
@@ -38,13 +38,13 @@ func (p *NotEmptyValidator) Validate(param string) bool {
 	return len(strings.TrimSpace(param)) > 0
 }
 
-// Int32Validator 32位整数验证
+// Int32Validator validates 32-bit integers.
 type Int32Validator struct {
-	min int32 //最小值
-	max int32 //最大值
+	min int32 // Minimum value.
+	max int32 // Maximum value.
 }
 
-// Validate 验证整型值
+// Validate checks an integer value.
 func (p *Int32Validator) Validate(param string) bool {
 	if len(param) == 0 {
 		return true
@@ -56,13 +56,13 @@ func (p *Int32Validator) Validate(param string) bool {
 	return false
 }
 
-// Int64Validator 64位整数验证
+// Int64Validator validates 64-bit integers.
 type Int64Validator struct {
-	min int64 //最小值
-	max int64 //最大值
+	min int64 // Minimum value.
+	max int64 // Maximum value.
 }
 
-// Validate 验证整型值
+// Validate checks an integer value.
 func (p *Int64Validator) Validate(param string) bool {
 	if len(param) == 0 {
 		return true
@@ -73,13 +73,13 @@ func (p *Int64Validator) Validate(param string) bool {
 	return false
 }
 
-// Float32Validator  32位浮点数验证
+// Float32Validator validates 32-bit floating-point values.
 type Float32Validator struct {
-	min float32 //最小值
-	max float32 //最大值
+	min float32 // Minimum value.
+	max float32 // Maximum value.
 }
 
-// Validate 验证浮点数值
+// Validate checks a floating-point value.
 func (p *Float32Validator) Validate(param string) bool {
 	if len(param) == 0 {
 		return true
@@ -91,13 +91,13 @@ func (p *Float32Validator) Validate(param string) bool {
 	return false
 }
 
-// Float64Validator  64位浮点数验证
+// Float64Validator validates 64-bit floating-point values.
 type Float64Validator struct {
-	min float64 //最小值
-	max float64 //最大值
+	min float64 // Minimum value.
+	max float64 // Maximum value.
 }
 
-// Validate 验证浮点数值
+// Validate checks a floating-point value.
 func (p *Float64Validator) Validate(param string) bool {
 	if len(param) == 0 {
 		return true
@@ -108,11 +108,11 @@ func (p *Float64Validator) Validate(param string) bool {
 	return false
 }
 
-// BoolValidator  bool验证
+// BoolValidator validates boolean values.
 type BoolValidator struct {
 }
 
-// Validate 验证bool值
+// Validate checks a boolean value.
 func (p *BoolValidator) Validate(param string) bool {
 	if len(param) == 0 {
 		return true
@@ -123,13 +123,13 @@ func (p *BoolValidator) Validate(param string) bool {
 	return false
 }
 
-// RegExValidator 正则表达式验证
+// RegExValidator validates strings using a regular expression.
 type RegExValidator struct {
-	pattern *regexp.Regexp //正则表达式
-	empty   bool           //是否允许为空
+	pattern *regexp.Regexp // Regular expression.
+	empty   bool           // Whether empty values are allowed.
 }
 
-// Validate 正则表达式验证
+// Validate checks whether a value matches the regular expression.
 func (p *RegExValidator) Validate(param string) bool {
 	if param == "" && p.empty {
 		return true
@@ -137,13 +137,13 @@ func (p *RegExValidator) Validate(param string) bool {
 	return p.pattern.MatchString(param)
 }
 
-// ParseInt 解析整数
+// ParseInt parses an integer.
 func ParseInt(param string) (v int, err error) {
 	v, err = strconv.Atoi(param)
 	return
 }
 
-// ParseInt32 解析整数
+// ParseInt32 parses a 32-bit integer.
 func ParseInt32(param string) (v int32, err error) {
 	v64, err := strconv.ParseInt(param, 10, 32)
 	if err == nil {
@@ -152,13 +152,13 @@ func ParseInt32(param string) (v int32, err error) {
 	return
 }
 
-// ParseInt64 解析整数
+// ParseInt64 parses a 64-bit integer.
 func ParseInt64(param string) (v int64, err error) {
 	v, err = strconv.ParseInt(param, 10, 64)
 	return
 }
 
-// ParseFloat32 解析浮点数
+// ParseFloat32 parses a 32-bit floating-point value.
 func ParseFloat32(param string) (v float32, err error) {
 	v64, err := strconv.ParseFloat(param, 32)
 	if err == nil {
@@ -167,26 +167,26 @@ func ParseFloat32(param string) (v float32, err error) {
 	return
 }
 
-// ParseFloat64 解析浮点数
+// ParseFloat64 parses a 64-bit floating-point value.
 func ParseFloat64(param string) (v float64, err error) {
 	v, err = strconv.ParseFloat(param, 64)
 	return
 }
 
-// ValidatorNewer 创建验证器的函数类型
+// ValidatorNewer constructs a validator from configuration.
 type ValidatorNewer func(conf map[string]string) StrValidator
 
-// NewNotEmptyValidator 创建非空验证器
+// NewNotEmptyValidator creates a validator that rejects empty strings.
 func NewNotEmptyValidator(conf map[string]string) StrValidator {
 	return vNOTEMPTY
 }
 
-// NewBoolValidator 创建bool验证器
+// NewBoolValidator creates a boolean validator.
 func NewBoolValidator(conf map[string]string) StrValidator {
 	return vBOOL
 }
 
-// NewStrLenValidator 创建字符串长度验证,conf["min"],最小值;conf["max"],最大值
+// NewStrLenValidator creates a string length validator using conf["min"] and conf["max"].
 func NewStrLenValidator(conf map[string]string) StrValidator {
 	minLen, err := ParseInt(conf["min"])
 	if err != nil {
@@ -202,7 +202,7 @@ func NewStrLenValidator(conf map[string]string) StrValidator {
 	return &StringLenValidator{min: minLen, max: maxLen}
 }
 
-// NewInt32Validator 创建int32验证,conf["min"],最小值;conf["max"],最大值
+// NewInt32Validator creates an int32 validator using conf["min"] and conf["max"].
 func NewInt32Validator(conf map[string]string) StrValidator {
 	min, err := ParseInt32(conf["min"])
 	if err != nil {
@@ -219,7 +219,7 @@ func NewInt32Validator(conf map[string]string) StrValidator {
 
 }
 
-// NewInt64Validator 创建int64验证,conf["min"],最小值;conf["max"],最大值
+// NewInt64Validator creates an int64 validator using conf["min"] and conf["max"].
 func NewInt64Validator(conf map[string]string) StrValidator {
 	min, err := ParseInt64(conf["min"])
 	if err != nil {
@@ -235,7 +235,7 @@ func NewInt64Validator(conf map[string]string) StrValidator {
 	return &Int64Validator{min: min, max: max}
 }
 
-// NewFloat32Validator  创建float32验证,conf["min"],最小值;conf["max"],最大值
+// NewFloat32Validator creates a float32 validator using conf["min"] and conf["max"].
 func NewFloat32Validator(conf map[string]string) StrValidator {
 	min, err := ParseFloat32(conf["min"])
 	if err != nil {
@@ -251,7 +251,7 @@ func NewFloat32Validator(conf map[string]string) StrValidator {
 	return &Float32Validator{min: min, max: max}
 }
 
-// NewFloat64Validator 创建float64验证,conf["min"],最小值;conf["max"],最大值
+// NewFloat64Validator creates a float64 validator using conf["min"] and conf["max"].
 func NewFloat64Validator(conf map[string]string) StrValidator {
 	min, err := ParseFloat64(conf["min"])
 	if err != nil {
@@ -267,7 +267,7 @@ func NewFloat64Validator(conf map[string]string) StrValidator {
 	return &Float64Validator{min: min, max: max}
 }
 
-// NewRegexValidator 创建正则表达式验证,conf["pattern"] 正则表达式
+// NewRegexValidator creates a validator using the regular expression in conf["pattern"].
 func NewRegexValidator(conf map[string]string) StrValidator {
 	pattern := conf["pattern"]
 	allowEmpty := strings.ToLower(conf["empty"]) == "true"
@@ -277,9 +277,9 @@ func NewRegexValidator(conf map[string]string) StrValidator {
 	return &RegExValidator{pattern: regexp.MustCompile(pattern), empty: allowEmpty}
 }
 
-// 默认的构建器的名称
+// Built-in validator constructor names.
 const (
-	VNOTEMPTY = "notempty" //无构建参数
+	VNOTEMPTY = "notempty" // No constructor parameters.
 	VBOOL     = "bool"
 	VSTRLEN   = "strlen"
 	VINT32    = "i32"
@@ -295,14 +295,14 @@ var (
 	validateRegister = NewCopyOnWriteMap()
 )
 
-// RegValidatorNewer 根据名称注册验证器构建函数
+// RegValidatorNewer registers a validator constructor by name.
 func RegValidatorNewer(name string, validator ValidatorNewer) {
 	if err := validateRegister.PutIfAbsent(name, validator); err != nil {
 		panic("Duplicate validator " + err.Error())
 	}
 }
 
-// NewValidatorByConf 根据配置conf["name"]及其对应的参数构建验证器
+// NewValidatorByConf creates a validator using conf["name"] and its parameters.
 func NewValidatorByConf(conf map[string]string) StrValidator {
 	name := conf["name"]
 	if f := validateRegister.Get(name); f != nil {
@@ -311,7 +311,7 @@ func NewValidatorByConf(conf map[string]string) StrValidator {
 	panic("Can't find the validator name:" + name)
 }
 
-// 初始化注册内置的验证器
+// Register built-in validators.
 func init() {
 	RegValidatorNewer(VNOTEMPTY, NewNotEmptyValidator)
 	RegValidatorNewer(VBOOL, NewBoolValidator)

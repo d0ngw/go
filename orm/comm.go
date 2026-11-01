@@ -11,7 +11,7 @@ import (
 // NullTime null time
 type NullTime = sql.NullTime
 
-// DBError 数据库操作错误
+// DBError describes a database operation error.
 type DBError struct {
 	Msg string
 	Err error
@@ -21,34 +21,34 @@ func (e *DBError) Error() string {
 	return fmt.Sprintf("DBError msg:%s,err:%v", e.Msg, e.Err)
 }
 
-// NewDBError  构建数据库操作错误
+// NewDBError creates a database operation error.
 func NewDBError(err error, msg string) *DBError {
 	return &DBError{Msg: msg, Err: err}
 }
 
-// NewDBErrorf  使用fmt.Sprintf构建
+// NewDBErrorf creates a formatted database operation error.
 func NewDBErrorf(err error, msgFormat string, args ...interface{}) *DBError {
 	return &DBError{Msg: fmt.Sprintf(msgFormat, args...), Err: err}
 }
 
-// Entity  实体接口
+// Entity identifies a database entity.
 type Entity interface {
 	TableName() string
 }
 
-// ShardHandler 分片处理
+// ShardHandler determines the shard for an entity.
 type ShardHandler func() (shardName string, err error)
 
-// ShardEntity 支持按表分片实体的接口
+// ShardEntity defines an entity that supports table sharding.
 type ShardEntity interface {
 	Entity
-	//TableShardFunc table分片函数
+	// TableShardFunc returns the table sharding function.
 	TableShardFunc() ShardHandler
-	//SetTableShardFunc table设置分片函数
+	// SetTableShardFunc sets the table sharding function.
 	SetTableShardFunc(ShardHandler)
 }
 
-// BaseShardEntity 基础的分片实体
+// BaseShardEntity provides table sharding support.
 type BaseShardEntity struct {
 	tblShardFunc ShardHandler
 }
@@ -78,13 +78,18 @@ func (p EntitySlice) ToInterface() []interface{} {
 	return ret
 }
 
-// Pool 数据库连接池
+// Pool wraps a database connection pool.
 type Pool struct {
 	db   *sql.DB
 	name string
 }
 
-//NewOp 创建DBOper
+// Close releases the database pool and its connections.
+func (p *Pool) Close() error {
+	return p.db.Close()
+}
+
+// NewOp creates a database operation.
 func (p *Pool) NewOp() *Op {
 	return &Op{pool: p}
 }

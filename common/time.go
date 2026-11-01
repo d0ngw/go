@@ -5,35 +5,35 @@ import (
 )
 
 const (
-	// FormatDefault 默认的日期时间格式
+	// FormatDefault is the default date and time layout.
 	FormatDefault = "2006-01-02 15:04:05"
-	// FormatYYYYMMDD 日期时间格式
+	// FormatYYYYMMDD is a compact date layout.
 	FormatYYYYMMDD = "20060102 15:04:05"
-	// FormatYMDH 日期格式
+	// FormatYMDH is a date and hour layout.
 	FormatYMDH = "2006010215"
-	// FormatYMD 日期格式
+	// FormatYMD is a date layout.
 	FormatYMD = "2006-01-02"
 )
 
-// LocalLocation 本地时区
+// LocalLocation is the local time zone.
 var LocalLocation = time.Now().Local().Location()
 
-// ParseLocalTime  解析本地时间
+// ParseLocalTime parses a timestamp in the local time zone.
 func ParseLocalTime(t string) (time.Time, error) {
 	return time.ParseInLocation(FormatDefault, t, LocalLocation)
 }
 
-// ParseLocatTimeWithFormat 解析本地时间
+// ParseLocatTimeWithFormat parses a timestamp with the supplied layout in the local time zone.
 func ParseLocatTimeWithFormat(format, t string) (time.Time, error) {
 	return time.ParseInLocation(format, t, LocalLocation)
 }
 
-// UnixMills 取得毫秒
+// UnixMills returns the Unix timestamp in milliseconds.
 func UnixMills(t time.Time) int64 {
 	return t.UnixNano() / int64(time.Millisecond)
 }
 
-// UnixMillsTime 根据毫秒取得时间
+// UnixMillsTime converts a Unix timestamp in milliseconds to a time.
 func UnixMillsTime(tmillis int64) time.Time {
 	return time.Unix(tmillis/1000, (tmillis%1000)*int64(time.Millisecond))
 }

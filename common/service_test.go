@@ -44,3 +44,26 @@ func TestServices(t *testing.T) {
 	assert.Equal(t, true, s2.Start())
 	assert.Equal(t, true, s2.Stop())
 }
+
+type failingStopService struct{ BaseService }
+
+func (p *failingStopService) Stop() bool { return false }
+
+type observedStopService struct {
+	BaseService
+	stopped bool
+}
+
+func (p *observedStopService) Stop() bool { p.stopped = true; return true }
+
+func TestServicesReportStopFailuresAndContinue(t *testing.T) {
+	failed := &failingStopService{}
+	other := &observedStopService{}
+	services := NewServices([]Service{failed, other}, false)
+	assert.True(t, services.Init())
+	assert.True(t, services.Start())
+	assert.False(t, services.Stop())
+	assert.Equal(t, FAILED, failed.State())
+	assert.True(t, other.stopped)
+	assert.Equal(t, TERMINATED, other.State())
+}

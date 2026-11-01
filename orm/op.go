@@ -9,7 +9,7 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// OpTxFunc 在事务中处理的函数
+// OpTxFunc performs an operation within a transaction.
 type OpTxFunc func(tx *sql.Tx) (interface{}, error)
 
 // OpCreator Op
@@ -18,14 +18,14 @@ type OpCreator interface {
 	NewOp() (*Op, error)
 }
 
-// Op 数据库操作接口,与sql.DB对应,封装了事务等
+// Op wraps database operations and transaction state.
 type Op struct {
-	pool           *Pool          //数据连接
-	tx             *sql.Tx        //事务
-	txDone         bool           //事务是否结束
-	rollbackOnly   bool           //是否只回滚
-	transDepth     int            //调用的深度
-	sharDBSerevcie ShardDBService //分片服务
+	pool           *Pool          // Database connection pool.
+	tx             *sql.Tx        // Transaction.
+	txDone         bool           // Whether the transaction has finished.
+	rollbackOnly   bool           // Whether the transaction must be rolled back.
+	transDepth     int            // Nested transaction depth.
+	sharDBSerevcie ShardDBService // Sharding service.
 }
 
 // DB sql.DB
@@ -64,7 +64,7 @@ func (p *Op) close() {
 	p.transDepth = 0
 }
 
-//检查事务的状态
+// Check the transaction state.
 func (p *Op) checkTransStatus() error {
 	if p.txDone {
 		return sql.ErrTxDone
@@ -87,7 +87,7 @@ func (p *Op) decrTransDepth() error {
 	return nil
 }
 
-//结束事务
+// Finish the transaction.
 func (p *Op) finishTrans() error {
 	if err := p.checkTransStatus(); err != nil {
 		return err
@@ -106,13 +106,14 @@ func (p *Op) finishTrans() error {
 	return p.tx.Commit()
 }
 
-// BeginTx 开始事务,支持简单的嵌套调用,如果已经开始了事务,则直接返回成功
+// BeginTx starts a transaction or increases the nesting depth of an existing transaction.
 func (p *Op) BeginTx() (err error) {
 	p.incrTransDepth()
 	if p.tx != nil {
-		return nil //事务已经开启
+		return nil // The transaction has already started.
 	}
-	if tx, err := p.DB().Begin(); err == nil {
+	tx, err := p.DB().Begin()
+	if err == nil {
 		p.tx = tx
 		p.txDone = false
 		return nil
@@ -120,34 +121,34 @@ func (p *Op) BeginTx() (err error) {
 	return err
 }
 
-// Commit 提交事务
+// Commit commits the transaction.
 func (p *Op) Commit() error {
 	return p.finishTrans()
 }
 
-// Rollback 回滚事务
+// Rollback rolls back the transaction.
 func (p *Op) Rollback() error {
 	p.SetRollbackOnly(true)
 	return p.finishTrans()
 }
 
-// SetRollbackOnly 设置只回滚
+// SetRollbackOnly marks the transaction for rollback.
 func (p *Op) SetRollbackOnly(rollback bool) {
 	p.rollbackOnly = rollback
 }
 
-// IsRollbackOnly 是否只回滚
+// IsRollbackOnly reports whether the transaction must be rolled back.
 func (p *Op) IsRollbackOnly() bool {
 	return p.rollbackOnly
 }
 
-// DoInTrans 在事务中执行
+// DoInTrans runs a function within a transaction.
 func (p *Op) DoInTrans(peration OpTxFunc) (rt interface{}, err error) {
 	if err := p.BeginTx(); err != nil {
 		return nil, err
 	}
 	var succ = false
-	//结束事务
+	// Finish the transaction.
 	defer func() {
 		if !succ {
 			p.SetRollbackOnly(true)
@@ -169,7 +170,7 @@ func (p *Op) DoInTrans(peration OpTxFunc) (rt interface{}, err error) {
 	return
 }
 
-//查找实体对应的模型元
+// Look up the entity metadata.
 func findEntityMeta(entity Entity) *meta {
 	_, _, typ := extract(entity)
 	modelMeta := findMeta(typ)
@@ -179,7 +180,7 @@ func findEntityMeta(entity Entity) *meta {
 	return modelMeta
 }
 
-// Add 添加实体
+// Add inserts an entity.
 func Add(op *Op, entity Entity) error {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -188,7 +189,7 @@ func Add(op *Op, entity Entity) error {
 	return modelMeta.insertFunc(op.DB(), entity)
 }
 
-// Update 更新实体
+// Update updates an entity.
 func Update(op *Op, entity Entity) (bool, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -201,7 +202,7 @@ func Update(op *Op, entity Entity) (bool, error) {
 	return modelMeta.updateFunc(op.DB(), entity)
 }
 
-// UpdateReplace 更新实体
+// UpdateReplace updates an entity, replacing selected column expressions.
 func UpdateReplace(op *Op, entity Entity, replColumns map[string]ReplColumn, excludeColumns map[string]struct{}) (bool, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -214,7 +215,7 @@ func UpdateReplace(op *Op, entity Entity, replColumns map[string]ReplColumn, exc
 	return modelMeta.updateReplaceFunc(op.DB(), entity, replColumns, excludeColumns)
 }
 
-// UpdateExcludeColumns 更新除columns之外的字段
+// UpdateExcludeColumns updates all fields except columns.
 func UpdateExcludeColumns(op *Op, entity Entity, columns ...string) (bool, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -227,7 +228,7 @@ func UpdateExcludeColumns(op *Op, entity Entity, columns ...string) (bool, error
 	return modelMeta.updateExcludeColumnsFunc(op.DB(), entity, columns...)
 }
 
-// UpdateColumns 更新列
+// UpdateColumns updates the selected columns.
 func UpdateColumns(op *Op, entity Entity, columns string, condition string, params ...interface{}) (int64, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -236,7 +237,7 @@ func UpdateColumns(op *Op, entity Entity, columns string, condition string, para
 	return modelMeta.updateColumnsFunc(op.DB(), entity, columns, condition, params)
 }
 
-// Get 根据ID查询实体
+// Get retrieves an entity by ID.
 func Get(op *Op, entity Entity, id interface{}) (Entity, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -249,7 +250,7 @@ func Get(op *Op, entity Entity, id interface{}) (Entity, error) {
 	return modelMeta.getFunc(op.DB(), entity, id)
 }
 
-// Query 根据条件查询实体
+// Query retrieves entities matching a condition.
 func Query(op *Op, entity Entity, condition string, params ...interface{}) ([]Entity, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -258,7 +259,7 @@ func Query(op *Op, entity Entity, condition string, params ...interface{}) ([]En
 	return modelMeta.entityQueryFunc(op.DB(), entity, condition, params)
 }
 
-// QueryColumns 根据条件查询columns指定的字段
+// QueryColumns retrieves selected columns for entities matching a condition.
 func QueryColumns(op *Op, entity Entity, columns []string, condition string, params ...interface{}) ([]Entity, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -271,7 +272,7 @@ type count struct {
 	Count int64
 }
 
-// QueryCount 根据条件查询条数
+// QueryCount counts rows matching a condition.
 func QueryCount(op *Op, entity Entity, column string, condition string, params ...interface{}) (num int64, err error) {
 	modelMeta := findEntityMeta(entity)
 	columns := []string{"count(" + column + ")"}
@@ -290,7 +291,7 @@ func QueryCount(op *Op, entity Entity, column string, condition string, params .
 	return
 }
 
-// QueryColumnsForDestSlice 根据条件查询数据,结果保存到destSlicePtr
+// QueryColumnsForDestSlice queries selected columns into destSlicePtr.
 func QueryColumnsForDestSlice(op *Op, entity Entity, destSlicePtr interface{}, columns []string, condition string, params ...interface{}) (err error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -304,7 +305,7 @@ func QueryColumnsForDestSlice(op *Op, entity Entity, destSlicePtr interface{}, c
 	return
 }
 
-// Del 根据ID删除实体
+// Del deletes an entity by ID.
 func Del(op *Op, entity Entity, id interface{}) (bool, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -313,7 +314,7 @@ func Del(op *Op, entity Entity, id interface{}) (bool, error) {
 	return modelMeta.delEFunc(op.DB(), entity, id)
 }
 
-// DelByCondition 根据条件删除
+// DelByCondition deletes entities matching a condition.
 func DelByCondition(op *Op, entity Entity, condition string, params ...interface{}) (int64, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {
@@ -322,7 +323,7 @@ func DelByCondition(op *Op, entity Entity, condition string, params ...interface
 	return modelMeta.delFunc(op.DB(), entity, condition, params)
 }
 
-// AddOrUpdate 添加或者更新实体(如果id已经存在),只支持MySql
+// AddOrUpdate inserts an entity or updates it if its ID exists; only MySQL is supported.
 func AddOrUpdate(op *Op, entity Entity) (int64, error) {
 	modelMeta := findEntityMeta(entity)
 	if op.tx != nil {

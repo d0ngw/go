@@ -9,17 +9,17 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// ShardPolicy 分片规则
+// ShardPolicy identifies a sharding policy.
 type ShardPolicy string
 
-// ShardRule 分片规则的实现
+// ShardRule defines a sharding rule.
 type ShardRule interface {
 	c.Configurer
-	// Policy 返回策略名称
+	// Policy returns the policy name.
 	Policy() ShardPolicy
-	// Shard 计算分片的名称
+	// Shard computes the shard name.
 	Shard(val interface{}) (shardName string, err error)
-	// ShardFieldName 用于分片的字段名称
+	// ShardFieldName returns the field used for sharding.
 	ShardFieldName() string
 }
 
@@ -32,16 +32,16 @@ const (
 	NumRange ShardPolicy = "num_range"
 )
 
-// IsValid 是否有效
+// IsValid reports whether the rule is valid.
 func (p ShardPolicy) IsValid() bool {
 	return p == Hash || p == Named || p == NumRange
 }
 
-// HashRule hash规则
+// HashRule selects a shard using a hash.
 type HashRule struct {
-	Count      int64  `yaml:"count"`       //hash的个数
-	NamePrefix string `yaml:"name_prefix"` //名称的前缀
-	FieldName  string `yaml:"field_name"`  //hash取值的字段名
+	Count      int64  `yaml:"count"`       // Number of hash buckets.
+	NamePrefix string `yaml:"name_prefix"` // Shard name prefix.
+	FieldName  string `yaml:"field_name"`  // Field used to compute the hash.
 }
 
 // Policy implements ShardRule
@@ -75,12 +75,12 @@ func (p *HashRule) Shard(val interface{}) (shardName string, err error) {
 	return p.NamePrefix + strconv.FormatInt((valInt64%p.Count), 10), nil
 }
 
-// ShardFieldName 用于分片的字段名
+// ShardFieldName returns the field used for sharding.
 func (p *HashRule) ShardFieldName() string {
 	return p.FieldName
 }
 
-// NamedRule 指定命名
+// NamedRule selects a shard by name.
 type NamedRule struct {
 	Name string `yaml:"name"`
 }
@@ -103,15 +103,15 @@ func (p *NamedRule) Shard(val interface{}) (shardName string, err error) {
 	return p.Name, nil
 }
 
-// ShardFieldName 用于分片的字段名
+// ShardFieldName returns the field used for sharding.
 func (p *NamedRule) ShardFieldName() string {
 	return ""
 }
 
-// NumRangeRule 数字区间
+// NumRangeRule selects a shard by numeric range.
 type NumRangeRule struct {
-	FieldName   string `yaml:"field_name"`   //分片取值的字段名
-	DefaultName string `yaml:"default_name"` //默认名称
+	FieldName   string `yaml:"field_name"`   // Field used to select a shard.
+	DefaultName string `yaml:"default_name"` // Default shard name.
 	Ranges      []*struct {
 		Begin int64  `yaml:"begin"`
 		End   int64  `yaml:"end"`
@@ -177,12 +177,12 @@ func (p *NumRangeRule) Shard(val interface{}) (shardName string, err error) {
 	return "", fmt.Errorf("can't find name for val %d", val)
 }
 
-// ShardFieldName 用于分片的字段名
+// ShardFieldName returns the field used for sharding.
 func (p *NumRangeRule) ShardFieldName() string {
 	return p.FieldName
 }
 
-// OneRule 选择一个
+// OneRule selects one sharding rule.
 type OneRule struct {
 	Hash     *HashRule     `yaml:"hash"`
 	Named    *NamedRule    `yaml:"named"`
@@ -225,7 +225,7 @@ func (p *OneRule) Shard(val interface{}) (shardName string, err error) {
 	return p.rule.Shard(val)
 }
 
-// ShardFieldName 用于分片的字段名
+// ShardFieldName returns the field used for sharding.
 func (p *OneRule) ShardFieldName() string {
 	return p.rule.ShardFieldName()
 }

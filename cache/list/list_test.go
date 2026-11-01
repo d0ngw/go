@@ -1,8 +1,13 @@
+//go:build integration
+
 package list
 
 import (
-	"os/user"
-	"path"
+	"errors"
+	"fmt"
+	"github.com/d0ngw/go/internal/testutil"
+	"github.com/stretchr/testify/require"
+	"os"
 	"testing"
 
 	"github.com/d0ngw/go/cache"
@@ -40,69 +45,80 @@ func (p *testListEntity) TableName() string {
 	return "list"
 }
 
-func init() {
-	var err error
-	config := &orm.DBShardConfig{
-		Shards: map[string]*orm.DBConfig{
-			"test": {
-				User:    "root",
-				Pass:    "123456",
-				URL:     "127.0.0.1:3306",
-				Schema:  "test",
-				MaxConn: 100,
-				MaxIdle: 10},
-		},
-		Default: "test",
-	}
+func TestMain(m *testing.M) { os.Exit(runIntegrationTests(m)) }
 
-	shardDBService := orm.NewSimpleShardDBService(orm.NewMySQLDBPool)
-	shardDBService.DBShardConfig = config
-
-	dbService = shardDBService
-	dbService.Init()
-
-	redisServer := &cache.RedisServer{
-		ID:   "test",
-		Host: "127.0.0.1",
-		Port: 6379,
-	}
-	var redisConf = cache.RedisConf{
-		Servers: []*cache.RedisServer{redisServer},
-		Groups:  map[string][]string{"test": {"test"}},
-	}
-
-	err = redisConf.Parse()
+func runIntegrationTests(m *testing.M) (code int) {
+	database, err := testutil.NewDatabase("list", testutil.CacheSchema)
 	if err != nil {
-		panic(err)
+		fmt.Fprintln(os.Stderr, err)
+		return 1
 	}
-	r = cache.NewRedisClientWithConf(&redisConf)
+	defer testutil.CheckCleanup(&code, database.Close)
+	testPrefix = database.Name + "_"
+	config := &orm.DBShardConfig{
+		Shards: map[string]*orm.DBConfig{"test": {
+			User: database.User, Pass: database.Password, URL: database.Addr,
+			Schema: database.Name, MaxConn: 10, MaxIdle: 2,
+		}}, Default: "test",
+	}
+	var pools []*orm.Pool
+	service := orm.NewSimpleShardDBService(func(conf *orm.DBConfig) (*orm.Pool, error) {
+		pool, err := orm.NewMySQLDBPool(conf)
+		if err == nil {
+			pools = append(pools, pool)
+		}
+		return pool, err
+	})
+	service.DBShardConfig = config
+	if err := service.Init(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer testutil.CheckCleanup(&code, func() error {
+		var failures []error
+		for _, pool := range pools {
+			failures = append(failures, pool.Close())
+		}
+		return errors.Join(failures...)
+	})
+	dbService = service
+	host, port, err := testutil.RedisAddress()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	redisConf := &cache.RedisConf{
+		Servers: []*cache.RedisServer{{ID: "test", Host: host, Port: port, Auth: testutil.Env("REDIS_PASSWORD", "")}},
+		Groups:  map[string][]string{"test": {"test"}, "test.sync": {"test"}},
+	}
+	if err := redisConf.Parse(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	r = cache.NewRedisClientWithConf(redisConf)
+	defer testutil.CheckCleanup(&code, r.Close)
+	defer testutil.CheckCleanup(&code, func() error { return testutil.CleanupRedis(testPrefix) })
 	orm.AddMeta(&testCounterEntity{})
 	orm.AddMeta(&testListEntity{})
+	return m.Run()
 }
 
+var testPrefix string
+
 func TestList(t *testing.T) {
-	listCacheParm := cache.NewParamConf("test", "list_", 30)
-	counterCacheParam := cache.NewParamConf("test", "list_c_", 30)
-	user, err := user.Current()
-	scripts := &counter.Scripts{
-		Update:  path.Join(user.HomeDir, "temp", "lua", "counter_update.lua"),
-		SetSync: path.Join(user.HomeDir, "temp", "lua", "counter_update_sync.lua"),
-		Evict:   path.Join(user.HomeDir, "temp", "lua", "counter_evict.lua"),
-		HgetAll: path.Join(user.HomeDir, "temp", "lua", "counter_getall.lua"),
-		Del:     path.Join(user.HomeDir, "temp", "lua", "counter_del.lua"),
-	}
-	err = scripts.Init()
-	assert.Nil(t, err)
+	listCacheParm := cache.NewParamConf("test", testPrefix+"list_", 30)
+	counterCacheParam := cache.NewParamConf("test", testPrefix+"list_c_", 30)
+	scripts := counter.DefaultScripts()
 
 	persist, err := counter.NewDBPersist(func() orm.ShardDBService { return dbService }, &testCounterEntity{})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	counter := counter.NewPersistRedisCounter("test", func() *cache.RedisClient { return r }, scripts, persist, counterCacheParam, 10)
 	err = counter.Init()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// id as score
 	listCache, err := NewCache(&testListEntity{}, func() orm.ShardDBService { return dbService }, func() *cache.RedisClient { return r }, listCacheParm, 500, false, counter)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	for i := 1; i <= 100; i++ {
 		toAdd := &testListEntity{BaseEntity: BaseEntity{OwnerID: "d0ngw", TargetID: int64(i)}}
@@ -115,11 +131,11 @@ func TestList(t *testing.T) {
 	}
 
 	total, err := listCache.GetCount("d0ngw")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 100, total)
 
 	total, ids, err := listCache.LoadList("d0ngw", 1, 10, 0)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 100, total)
 	assert.EqualValues(t, 10, len(ids))
 	for i, v := range ids {
@@ -127,7 +143,7 @@ func TestList(t *testing.T) {
 	}
 
 	total, targetScores, err := listCache.LoadListWithScore("d0ngw", 1, 10, 0)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 100, total)
 	assert.EqualValues(t, 10, len(targetScores))
 	for i, v := range targetScores {
@@ -137,17 +153,17 @@ func TestList(t *testing.T) {
 
 	for i := 1; i <= 100; i++ {
 		succ, err := listCache.Del("d0ngw", int64(i))
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.True(t, succ)
 	}
 
 	total, err = listCache.GetCount("d0ngw")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, total)
 
 	// target id as score
 	listCache, err = NewCache(&testListEntity{}, func() orm.ShardDBService { return dbService }, func() *cache.RedisClient { return r }, listCacheParm, 5, true, counter)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	for i := 1; i <= 100; i++ {
 		toAdd := &testListEntity{BaseEntity: BaseEntity{OwnerID: "d0ngw-t", TargetID: int64(i)}}
@@ -160,11 +176,11 @@ func TestList(t *testing.T) {
 	}
 
 	total, err = listCache.GetCount("d0ngw-t")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 100, total)
 
 	total, ids, err = listCache.LoadList("d0ngw-t", 1, 10, 0)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 100, total)
 	assert.EqualValues(t, 10, len(ids))
 	for i, v := range ids {
@@ -172,7 +188,7 @@ func TestList(t *testing.T) {
 	}
 
 	total, targetScores, err = listCache.LoadListWithScore("d0ngw-t", 1, 100, 0)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 100, total)
 	assert.EqualValues(t, 100, len(targetScores))
 	for i, v := range targetScores {
@@ -182,11 +198,11 @@ func TestList(t *testing.T) {
 
 	for i := 1; i <= 100; i++ {
 		succ, err := listCache.Del("d0ngw-t", int64(i))
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.True(t, succ)
 	}
 
 	total, err = listCache.GetCount("d0ngw-t")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.EqualValues(t, 0, total)
 }

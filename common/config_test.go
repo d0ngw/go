@@ -36,7 +36,7 @@ var appConfigData = `validates:
   sname: v1
   rules:
   - name: minStr
-    desc: "字符串不恩能够为空,且最小长度为1,最大长度为2"
+    desc: "The string must not be empty and must contain 1 to 2 characters."
     validators:
     - min: "1"
       name: strlen
@@ -46,14 +46,14 @@ validates2:
   sname: v2
   rules:
   - name: minStr
-    desc: "字符串不恩能够为空,且最小长度为1,最大长度为5"
+    desc: "The string must not be empty and must contain 1 to 5 characters."
     validators:
     - min: "1"
       name: strlen
       max: "5"
     - name: notempty
   - name: allowempty
-    desc: "字符串可以为空,如果不为空,则最小长度为2,最大长度为5"
+    desc: "The string may be empty; non-empty values must contain at most 5 characters."
     validators:
     - min: "0"
       name: strlen

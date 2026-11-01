@@ -5,22 +5,22 @@ import (
 	"strings"
 )
 
-// MiddlewareFunc middleware函数
+// MiddlewareFunc wraps an HTTP handler.
 type MiddlewareFunc func(http.ResponseWriter, *http.Request)
 
-// Middleware 接口
+// Middleware defines an HTTP handler wrapper.
 type Middleware interface {
-	// Handle处理
+	// Handle wraps the next handler.
 	Handle(next MiddlewareFunc) MiddlewareFunc
 }
 
-// RequestMehotdMiddleware http请求方法
+// RequestMehotdMiddleware restricts allowed HTTP methods.
 type RequestMehotdMiddleware struct {
-	//允许的请求方法
+	// Allowed HTTP methods.
 	AllowsMethods map[string]struct{}
 }
 
-// Handle 校验Http请求的方法
+// Handle checks the HTTP request method.
 func (p *RequestMehotdMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := p.AllowsMethods[r.Method]; !ok {
@@ -31,7 +31,7 @@ func (p *RequestMehotdMiddleware) Handle(next MiddlewareFunc) MiddlewareFunc {
 	}
 }
 
-// NewRequestMetodMiddleware 用methods构建middleware
+// NewRequestMetodMiddleware creates middleware for the allowed methods.
 func NewRequestMetodMiddleware(methods ...string) *RequestMehotdMiddleware {
 	m := &RequestMehotdMiddleware{
 		AllowsMethods: map[string]struct{}{},
@@ -42,7 +42,7 @@ func NewRequestMetodMiddleware(methods ...string) *RequestMehotdMiddleware {
 	return m
 }
 
-// Merge 合并Middleware
+// Merge combines middleware.
 func Merge(middlewares ...[]Middleware) []Middleware {
 	var merged []Middleware
 	for _, v := range middlewares {

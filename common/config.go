@@ -12,14 +12,14 @@ var (
 	errInvalidConf = errors.New("invalid conf")
 )
 
-// ConfigLoader 配置内容加载器
+// ConfigLoader loads configuration content.
 type ConfigLoader interface {
 	Load(configPath string) (content []byte, err error)
 
 	Exist(configPath string) (exist bool, err error)
 }
 
-// ConfigFileLoader 从本地文件中加载配置
+// ConfigFileLoader loads configuration from local files.
 type ConfigFileLoader struct {
 }
 
@@ -43,17 +43,17 @@ func (p *ConfigFileLoader) Exist(configPath string) (exist bool, err error) {
 }
 
 var (
-	//FileLoader 默认加载
+	// FileLoader is the default configuration loader.
 	FileLoader ConfigLoader = &ConfigFileLoader{}
 )
 
-// Configurer 配置器
+// Configurer parses and validates configuration.
 type Configurer interface {
-	//解析配置
+	// Parse parses the configuration.
 	Parse() error
 }
 
-// LogConfig 日志配置
+// LogConfig configures logging.
 type LogConfig struct {
 	Env        string `yaml:"env"`
 	FileName   string `yaml:"file_name"`
@@ -69,12 +69,12 @@ type LogConfiger interface {
 	GetLogConfig() *LogConfig
 }
 
-// Parse 解析日志配置
+// Parse configures logging.
 func (p *LogConfig) Parse() error {
 	return initLogger(p)
 }
 
-// GetOutputFile 返回日志的输出文件
+// GetOutputFile returns the log output file name.
 func (p *LogConfig) GetOutputFile() string {
 	if p == nil {
 		return ""
@@ -87,12 +87,12 @@ func (p *LogConfig) GetOutputFile() string {
 	return p.FileName
 }
 
-// RuntimeConfig 运行期配置
+// RuntimeConfig configures runtime behavior.
 type RuntimeConfig struct {
-	Maxprocs int //最大的PROCS个数
+	Maxprocs int // Maximum number of OS threads executing Go code simultaneously.
 }
 
-// Parse 解析运行期配置
+// Parse applies the runtime settings.
 func (p *RuntimeConfig) Parse() error {
 	if p.Maxprocs > 0 {
 		preProcs := runtime.GOMAXPROCS(p.Maxprocs)
@@ -101,14 +101,14 @@ func (p *RuntimeConfig) Parse() error {
 	return nil
 }
 
-// AppConfig 基础的应用配置
+// AppConfig contains common application settings.
 type AppConfig struct {
 	*LogConfig          `yaml:"log"`
 	*RuntimeConfig      `yaml:"runtime"`
 	*ValidateRuleConfig `yaml:"validates"`
 }
 
-// Parse 解析基础的应用配置
+// Parse parses the common application configuration.
 func (p *AppConfig) Parse() error {
 	return Parse(p)
 }
@@ -123,7 +123,7 @@ func (p *AppConfig) GetLogConfig() *LogConfig {
 	return p.LogConfig
 }
 
-// Parse 解析配置
+// Parse parses the configuration.
 func Parse(conf interface{}) error {
 	config := reflect.Indirect(reflect.ValueOf(conf))
 	fieldCount := config.NumField()

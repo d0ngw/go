@@ -1,4 +1,4 @@
-// Package orm 简单的DAL 封装
+// Package orm provides a lightweight data access layer.
 package orm
 
 import (
@@ -18,7 +18,7 @@ type Meta interface {
 	FieldValue(entity Entity, name string) (val interface{}, err error)
 }
 
-//AddMeta register entity meta
+// AddMeta register entity meta
 func AddMeta(entity Entity) Meta {
 	m, err := defaultMetaReg.regModel(entity)
 	if err != nil {
@@ -27,7 +27,7 @@ func AddMeta(entity Entity) Meta {
 	return m
 }
 
-//MetaOf parse meta
+// MetaOf parse meta
 func MetaOf(entity Entity) Meta {
 	m, err := parseMeta(entity)
 	if err != nil {
@@ -114,11 +114,11 @@ func (p *meta) String() string {
 }
 
 type metaField struct {
-	name        string              //struct中的字段名称
-	column      string              //表列名
-	pk          bool                //是否主键
-	pkAuto      bool                //如果是主键,是否是自增的id
-	index       []int               //索引
+	name        string              // Struct field name.
+	column      string              // Database column name.
+	pk          bool                // Whether this is the primary key.
+	pkAuto      bool                // Whether the primary key is auto-incremented.
+	index       []int               // Field index path.
 	structField reflect.StructField //StructField
 }
 

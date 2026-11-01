@@ -2,10 +2,12 @@ package http
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type MockController struct {
@@ -35,7 +37,7 @@ func TestHttpServer(t *testing.T) {
 		},
 	}
 
-	httpConfig := NewConfig("127.0.0.1:8888")
+	httpConfig := NewConfig("127.0.0.1:0")
 	err := httpConfig.RegController(controller)
 	assert.NoError(t, err)
 
@@ -43,27 +45,29 @@ func TestHttpServer(t *testing.T) {
 
 		Conf: httpConfig,
 	}
-	ok := httpSvc.Init()
-	assert.True(t, ok)
+	require.NoError(t, httpSvc.Init())
 
-	ok = httpSvc.Start()
-	assert.True(t, ok)
+	require.True(t, httpSvc.Start())
 	defer httpSvc.Stop()
 
 	client := &http.Client{}
-	ret, err := GetURL(client, "http://localhost:8888", nil)
+	t.Cleanup(client.CloseIdleConnections)
+	addr := httpSvc.Addr().String()
+	_, port, err := net.SplitHostPort(addr)
+	require.NoError(t, err)
+	ret, err := GetURL(client, "http://localhost:"+port, nil)
 	assert.NoError(t, err)
 	assert.EqualValues(t, "method:GET, param id:, path id:", ret)
 
-	ret, err = GetURL(client, "http://localhost:8888/index/id1?id=id2", nil)
+	ret, err = GetURL(client, "http://localhost:"+port+"/index/id1?id=id2", nil)
 	assert.NoError(t, err)
 	assert.EqualValues(t, "method:GET, param id:id2, path id:id1", ret)
 
-	ret, err = GetURL(client, "http://127.0.0.1:8888/index/id3?id=id2", nil)
+	ret, err = GetURL(client, "http://"+addr+"/index/id3?id=id2", nil)
 	assert.NoError(t, err)
 	assert.EqualValues(t, "method:GET, param id:id2, path id:id3", ret)
 
-	ret, err = GetURL(client, "http://127.0.0.1:8888/index/?id=id2", nil)
+	ret, err = GetURL(client, "http://"+addr+"/index/?id=id2", nil)
 	assert.NoError(t, err)
 	assert.EqualValues(t, "method:GET, param id:id2, path id:", ret)
 }

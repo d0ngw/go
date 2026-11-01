@@ -1,3 +1,5 @@
+//go:build integration
+
 package orm
 
 import (
@@ -19,6 +21,9 @@ func TestShardDBServcie(t *testing.T) {
 	err := c.LoadYAMLFromPath("testdata/shard.yaml", conf)
 	assert.NoError(t, err)
 
+	for _, shard := range conf.DBShards.Shards {
+		shard.User, shard.Pass, shard.URL, shard.Schema = config.User, config.Pass, config.URL, config.Schema
+	}
 	err = conf.Parse()
 	assert.NoError(t, err)
 
@@ -28,6 +33,11 @@ func TestShardDBServcie(t *testing.T) {
 
 	err = shardServcie.Init()
 	assert.Nil(t, err)
+	t.Cleanup(func() {
+		for _, pool := range shardServcie.pools {
+			pool.Close()
+		}
+	})
 
 	op, err := shardServcie.NewOp()
 	assert.Equal(t, "test0", op.PoolName())

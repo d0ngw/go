@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//PageParam 分野参数
+// PageParam contains pagination parameters.
 type PageParam struct {
 	Page     int
 	PageSize int
@@ -61,8 +61,8 @@ func TestParseParams(t *testing.T) {
 	t.Logf("%#v\n", p)
 	assert.EqualValues(t, 10, p.ID)
 	assert.EqualValues(t, "golang", p.Name)
-	assert.EqualValues(t, 1.23, p.Weight)
-	assert.EqualValues(t, 1.01, p.Height)
+	assert.Equal(t, float32(1.23), p.Weight)
+	assert.Equal(t, float32(1.01), p.Height)
 	assert.EqualValues(t, []int32{1, 2, 3}, p.Ages)
 	assert.EqualValues(t, []string{"tom", "jerry"}, p.FriendsNames)
 	assert.EqualValues(t, []float32{0.1, 0.0, -0.3}, p.FriendsWeights)

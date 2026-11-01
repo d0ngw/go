@@ -12,7 +12,10 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-// PersistRedisCounter use redis implements Counter which be pesisisted by `Persist``
+// PersistRedisCounter implements Counter using Redis and a Persist backend.
+// Redis scripts make counter updates atomic. Cache-miss loads, deletion, and
+// asynchronous persistence are not serialized; applications must coordinate
+// these operations when ordering across Redis and persistence is required.
 type PersistRedisCounter struct {
 	c.Initable
 	Name        string
@@ -45,100 +48,110 @@ func (p *PersistRedisCounter) Init() error {
 	if c.HasNil(p.redisClient, p.scripts, p.persist, p.cacheParam) {
 		return fmt.Errorf("RedisClient,Scripts must be set")
 	}
+	if p.slotsCount <= 0 {
+		return errors.New("counter slots count must be positive")
+	}
 	if strings.Contains(p.cacheParam.KeyPrefix(), ":") {
 		return fmt.Errorf("cacheParam.KeyPrefix %s must does not contain `:`", p.cacheParam.KeyPrefix())
 	}
 	return nil
 }
 
-// Incr implements Counter.Incr
-func (p *PersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) error {
-	if counterID == "" || fieldAndDelta == nil || len(fieldAndDelta) == 0 {
-		return fmt.Errorf("counterID and fieldAndDelta must not be empty")
-	}
-	counterKey := p.counterKey(counterID)
-	syncSetKey := p.syncSetKey(counterKey)
-	updateArgs := p.updateArgs(syncSetKey, LUAFALSE, fieldAndDelta)
-
-	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
-
-	exist, updated, err := p.updateReply(p.redisClient().Eval(param, p.scripts.update, updateArgs...))
-	if err != nil {
-		return err
-	}
-	if updated == LUATRUE {
-		return nil
-	}
-
-	if exist == LUAFALSE {
-		fields, err := p.persist.Load(counterID)
-		if err != nil {
-			return err
-		}
-		updateArgs = p.updateArgs(syncSetKey, LUATRUE, p.buildInitFields(fields), fieldAndDelta)
-		exist, updated, err = p.updateReply(p.redisClient().Eval(param, p.scripts.update, updateArgs...))
-		if err != nil {
-			return err
-		}
-		if updated != LUATRUE {
-			return fmt.Errorf("update counterID %s fail,exist:%d,updated:%d", counterID, exist, updated)
+func validFields(fields Fields) error {
+	for field := range fields {
+		if field == "" || strings.HasPrefix(field, "_") {
+			return fmt.Errorf("invalid counter field %q", field)
 		}
 	}
 	return nil
 }
 
-// Get implements Counter.Get
-func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
-	lastAccessTime := c.UnixMills(time.Now())
-	counterKey := p.counterKey(counterID)
-	syncSetKey := p.syncSetKey(counterKey)
-
-	getArgs := []interface{}{syncSetKey, strconv.FormatInt(lastAccessTime, 10)}
-	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
-
-	reply, err := redis.Strings(p.redisClient().Eval(param, p.scripts.hgetAll, getArgs...))
-	if err != nil {
-		return nil, err
+// Incr applies all deltas atomically, including int64 overflow validation.
+func (p *PersistRedisCounter) Incr(counterID string, fieldAndDelta Fields) error {
+	if counterID == "" || len(fieldAndDelta) == 0 {
+		return errors.New("counter ID and deltas must not be empty")
 	}
-	fields = Fields{}
-	for i := 0; i < len(reply); i += 2 {
-		k := reply[i]
-		if strings.HasPrefix(k, "_") {
-			continue
-		}
-		v, err := strconv.ParseInt(reply[i+1], 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("parse counterID %s fail,err:%s", counterID, err)
-		}
-		fields[k] = v
-	}
-	if len(fields) == 0 {
-		origin, err := p.persist.Load(counterID)
-		if err != nil {
-			return nil, err
-		}
-		if origin == nil {
-			return nil, fmt.Errorf("Load counterID %s nil", counterID)
-		}
-		_, err = p.redisClient().Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUATRUE, p.buildInitFields(origin))...)
-		if err != nil {
-			c.Errorf("init counterID %s fail,err:%s", counterID, err)
-		}
-		fields = origin
-	}
-	return
-}
-
-// Del implements Counter.Del
-func (p *PersistRedisCounter) Del(counterID string) (err error) {
-	_, err = p.persist.Del(counterID)
-	if err != nil {
+	if err := validFields(fieldAndDelta); err != nil {
 		return err
 	}
 	counterKey := p.counterKey(counterID)
-	delArgs := []interface{}{p.syncSetKey(counterKey)}
-	_, err = p.redisClient().Eval(p.cacheParam.NewParamKeyWithoutPrefix(counterKey), p.scripts.del, delArgs...)
-	return
+	syncSetKey := p.syncSetKey(counterKey)
+	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
+	_, updated, err := p.updateReply(p.redisClient().Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUAFALSE, fieldAndDelta)...))
+	if err != nil || updated == LUATRUE {
+		return err
+	}
+	fields, err := p.persist.Load(counterID)
+	if err != nil {
+		return err
+	}
+	if err := validFields(fields); err != nil {
+		return err
+	}
+	_, updated, err = p.updateReply(p.redisClient().Eval(param, p.scripts.update,
+		p.updateArgs(syncSetKey, LUATRUE, p.buildInitFields(fields), fieldAndDelta)...))
+	if err != nil {
+		return err
+	}
+	if updated != LUATRUE {
+		return errors.New("counter initialization did not update the counter")
+	}
+	return nil
+}
+
+func (p *PersistRedisCounter) read(counterKey, syncSetKey string) (Fields, bool, error) {
+	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
+	reply, err := redis.StringMap(p.redisClient().Eval(param, p.scripts.hgetAll, syncSetKey, c.UnixMills(time.Now())))
+	if err != nil {
+		return nil, false, err
+	}
+	fields, err := p.buildCounterFields(reply)
+	return fields, len(reply) > 0, err
+}
+
+// Get returns a counter, loading it from persistence on a cache miss.
+func (p *PersistRedisCounter) Get(counterID string) (fields Fields, err error) {
+	if counterID == "" {
+		return nil, errors.New("counter ID must not be empty")
+	}
+	counterKey := p.counterKey(counterID)
+	syncSetKey := p.syncSetKey(counterKey)
+	if values, exists, err := p.read(counterKey, syncSetKey); err != nil || exists {
+		return values, err
+	}
+	origin, err := p.persist.Load(counterID)
+	if err != nil {
+		return nil, err
+	}
+	if origin == nil {
+		return nil, errors.New("counter persistence returned nil initial fields")
+	}
+	if err := validFields(origin); err != nil {
+		return nil, err
+	}
+	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
+	_, _, err = p.updateReply(p.redisClient().Eval(param, p.scripts.update, p.updateArgs(syncSetKey, LUATRUE, p.buildInitFields(origin))...))
+	if err != nil {
+		return nil, err
+	}
+	// Concurrent increments may have changed the hash already.
+	fields, _, err = p.read(counterKey, syncSetKey)
+	return fields, err
+}
+
+// Del deletes persistence and Redis state without waiting for active scans.
+// A concurrent Store may recreate the persisted data after deletion.
+func (p *PersistRedisCounter) Del(counterID string) error {
+	if counterID == "" {
+		return errors.New("counter ID must not be empty")
+	}
+	counterKey := p.counterKey(counterID)
+	if _, err := p.persist.Del(counterID); err != nil {
+		return err
+	}
+	param := p.cacheParam.NewParamKeyWithoutPrefix(counterKey)
+	_, err := p.redisClient().Eval(param, p.scripts.del, p.syncSetKey(counterKey))
+	return err
 }
 
 func (p *PersistRedisCounter) counterKey(counterID string) string {
@@ -188,7 +201,7 @@ func (p *PersistRedisCounter) buildCounterFields(raw map[string]string) (fields 
 }
 
 func (p *PersistRedisCounter) updateArgs(syncSetKey string, isInit int, fieldAndDelats ...Fields) []interface{} {
-	args := []interface{}{syncSetKey, strconv.FormatInt(c.UnixMills(time.Now()), 10), strconv.Itoa(isInit)}
+	args := []interface{}{syncSetKey, strconv.FormatInt(c.UnixMills(time.Now()), 10), strconv.Itoa(isInit), "__g", c.RandomUUID()}
 	for _, fieldAndDelat := range fieldAndDelats {
 		for k, v := range fieldAndDelat {
 			args = append(args, k, strconv.FormatInt(v, 10))

@@ -18,7 +18,7 @@ import (
 	"unsafe"
 )
 
-// ExtractRefTuple 抽取反射的val:ValueOf ,ind:Indirect,typ:ind.Type
+// ExtractRefTuple returns the reflected value, its indirect value, and the indirect type.
 func ExtractRefTuple(obj interface{}) (val reflect.Value, ind reflect.Value, typ reflect.Type) {
 	val = reflect.ValueOf(obj)
 	ind = reflect.Indirect(val)
@@ -31,26 +31,26 @@ func getFieldType(structObj interface{}, fieldIndex int) reflect.Type {
 	return val.Field(fieldIndex).Type()
 }
 
-// GetFieldType 取得structObje的指定字段的类型
+// GetFieldType returns the type of the specified struct field.
 func GetFieldType(structObj interface{}, fieldIndex int) reflect.Type {
 	return getFieldType(structObj, fieldIndex)
 }
 
-// GetFirstFieldType 取得structObj的第一个字段的类型
+// GetFirstFieldType returns the type of the first struct field.
 func GetFirstFieldType(structObj interface{}) reflect.Type {
 	return getFieldType(structObj, 0)
 }
 
-// Shutdownhook 停止hook
+// Shutdownhook runs registered callbacks when the process shuts down.
 type Shutdownhook struct {
-	ch         chan os.Signal //接收信号的channel
-	hooks      []func()       //停机时需要调用的方法列表
-	sync.Mutex                //同步锁
+	ch         chan os.Signal // Channel receiving OS signals.
+	hooks      []func()       // Callbacks to run during shutdown.
+	sync.Mutex                // Synchronization lock.
 	stop       int32
 	osStop     int32
 }
 
-// NewShutdownhook 创建一个Shutdownhook,sig是要监听的信号,默认会监听syscall.SIGINT,syscall.SIGTERM
+// NewShutdownhook watches the supplied signals, defaulting to SIGINT and SIGTERM.
 func NewShutdownhook(sig ...os.Signal) *Shutdownhook {
 	if len(sig) == 0 {
 		sig = []os.Signal{syscall.SIGINT, syscall.SIGTERM}
@@ -66,14 +66,14 @@ func (p *Shutdownhook) getCh() chan os.Signal {
 	return p.ch
 }
 
-// AddHook 增加一个Hook函数
+// AddHook registers a shutdown hook.
 func (p *Shutdownhook) AddHook(hookFunc func()) {
 	p.Lock()
 	defer p.Unlock()
 	p.hooks = append(p.hooks, hookFunc)
 }
 
-// WaitShutdown 等待进程退出的信号,当收到进程退出的信号后,依次执行注册的hook函数
+// WaitShutdown waits for a shutdown signal and runs the registered hooks in order.
 func (p *Shutdownhook) WaitShutdown() {
 	ch := p.getCh()
 	if ch == nil {
@@ -113,12 +113,12 @@ func (p *Shutdownhook) Stop() {
 	p.stop = 1
 }
 
-// IsOSStop 是否OS触发的停止
+// IsOSStop reports whether shutdown was triggered by an OS signal.
 func (p *Shutdownhook) IsOSStop() bool {
 	return atomic.LoadInt32(&p.osStop) == 1
 }
 
-// RandomUUID 生成随机的UUID
+// RandomUUID generates a random version 4 UUID.
 func RandomUUID() (uuid string) {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
@@ -132,7 +132,7 @@ func RandomUUID() (uuid string) {
 	return
 }
 
-// FileBasename 确定不待扩展的文件名
+// FileBasename returns the file name without its extension.
 func FileBasename(s string) string {
 	n := strings.LastIndexByte(s, '.')
 	if n > 0 {
@@ -141,12 +141,12 @@ func FileBasename(s string) string {
 	return s
 }
 
-// SplitTrimOmitEmpty 对str按sep分隔,去掉为空的项
+// SplitTrimOmitEmpty splits str by sep, trims whitespace, and omits empty values.
 func SplitTrimOmitEmpty(str, sep string) []string {
 	return TrimOmitEmpty(strings.Split(str, sep))
 }
 
-// TrimOmitEmpty 去掉为空的值
+// TrimOmitEmpty trims whitespace and omits empty values.
 func TrimOmitEmpty(str []string) []string {
 	var ret = make([]string, 0, len(str))
 	for _, item := range str {
@@ -161,7 +161,7 @@ func TrimOmitEmpty(str []string) []string {
 // StringSlice string slice
 type StringSlice []string
 
-// ToInt 转为[]int
+// ToInt converts values to an int slice.
 func (p StringSlice) ToInt() ([]int, error) {
 	if p == nil {
 		return nil, nil
@@ -177,7 +177,7 @@ func (p StringSlice) ToInt() ([]int, error) {
 	return ret, nil
 }
 
-// ToNumber 转为数字slice
+// ToNumber converts values to a numeric slice.
 func (p StringSlice) ToNumber(typ interface{}) (interface{}, error) {
 	sliceType := reflect.TypeOf(typ)
 	intSlice := reflect.MakeSlice(sliceType, 0, len(p))
@@ -234,7 +234,7 @@ func (p StringSlice) ToNumber(typ interface{}) (interface{}, error) {
 	return intSlice.Interface(), nil
 }
 
-// ToInt8 转为[]int8
+// ToInt8 converts values to an int8 slice.
 func (p StringSlice) ToInt8() ([]int8, error) {
 	if p == nil {
 		return nil, nil
@@ -246,7 +246,7 @@ func (p StringSlice) ToInt8() ([]int8, error) {
 	return val.([]int8), nil
 }
 
-// ToInt16 转为[]int16
+// ToInt16 converts values to an int16 slice.
 func (p StringSlice) ToInt16() ([]int16, error) {
 	if p == nil {
 		return nil, nil
@@ -258,7 +258,7 @@ func (p StringSlice) ToInt16() ([]int16, error) {
 	return val.([]int16), nil
 }
 
-// ToInt32 转为[]int32
+// ToInt32 converts values to an int32 slice.
 func (p StringSlice) ToInt32() ([]int32, error) {
 	if p == nil {
 		return nil, nil
@@ -270,7 +270,7 @@ func (p StringSlice) ToInt32() ([]int32, error) {
 	return val.([]int32), nil
 }
 
-// ToInt64 转为[]int64
+// ToInt64 converts values to an int64 slice.
 func (p StringSlice) ToInt64() ([]int64, error) {
 	if p == nil {
 		return nil, nil
@@ -282,7 +282,7 @@ func (p StringSlice) ToInt64() ([]int64, error) {
 	return val.([]int64), nil
 }
 
-// ToUint 转为[]uint
+// ToUint converts values to a uint slice.
 func (p StringSlice) ToUint() ([]uint, error) {
 	if p == nil {
 		return nil, nil
@@ -298,7 +298,7 @@ func (p StringSlice) ToUint() ([]uint, error) {
 	return ret, nil
 }
 
-// ToUint8 转为[]uint8
+// ToUint8 converts values to a uint8 slice.
 func (p StringSlice) ToUint8() ([]uint8, error) {
 	if p == nil {
 		return nil, nil
@@ -310,7 +310,7 @@ func (p StringSlice) ToUint8() ([]uint8, error) {
 	return val.([]uint8), nil
 }
 
-// ToUint16 转为[]uint16
+// ToUint16 converts values to a uint16 slice.
 func (p StringSlice) ToUint16() ([]uint16, error) {
 	if p == nil {
 		return nil, nil
@@ -322,7 +322,7 @@ func (p StringSlice) ToUint16() ([]uint16, error) {
 	return val.([]uint16), nil
 }
 
-// ToUint32 转为[]uint32
+// ToUint32 converts values to a uint32 slice.
 func (p StringSlice) ToUint32() ([]uint32, error) {
 	if p == nil {
 		return nil, nil
@@ -334,7 +334,7 @@ func (p StringSlice) ToUint32() ([]uint32, error) {
 	return val.([]uint32), nil
 }
 
-// ToUint64 转为[]uint64
+// ToUint64 converts values to a uint64 slice.
 func (p StringSlice) ToUint64() ([]uint64, error) {
 	if p == nil {
 		return nil, nil
@@ -346,7 +346,7 @@ func (p StringSlice) ToUint64() ([]uint64, error) {
 	return val.([]uint64), nil
 }
 
-// ToFloat32 转为[]float32
+// ToFloat32 converts values to a float32 slice.
 func (p StringSlice) ToFloat32() ([]float32, error) {
 	if p == nil {
 		return nil, nil
@@ -358,7 +358,7 @@ func (p StringSlice) ToFloat32() ([]float32, error) {
 	return val.([]float32), nil
 }
 
-// ToFloat64 转为[]floa64t
+// ToFloat64 converts values to a float64 slice.
 func (p StringSlice) ToFloat64() ([]float64, error) {
 	if p == nil {
 		return nil, nil
@@ -370,7 +370,7 @@ func (p StringSlice) ToFloat64() ([]float64, error) {
 	return val.([]float64), nil
 }
 
-// ToInterface 转为interface slice
+// ToInterface converts values to an interface slice.
 func (p StringSlice) ToInterface() []interface{} {
 	if len(p) == 0 {
 		return nil
@@ -382,7 +382,7 @@ func (p StringSlice) ToInterface() []interface{} {
 	return val
 }
 
-// Int64 转为int64类型
+// Int64 converts a value to int64.
 func Int64(p interface{}) (i int64, err error) {
 	switch v := p.(type) {
 	case int:
@@ -409,7 +409,7 @@ func Int64(p interface{}) (i int64, err error) {
 	return
 }
 
-// Int 转为int
+// Int converts a value to int.
 func Int(p interface{}) (i int, err error) {
 	switch v := p.(type) {
 	case int:
@@ -446,7 +446,7 @@ func Int(p interface{}) (i int, err error) {
 	return
 }
 
-// Float64 转为float64类型
+// Float64 converts a value to float64.
 func Float64(p interface{}) (i float64, err error) {
 	switch v := p.(type) {
 	case int:
@@ -473,7 +473,7 @@ func Float64(p interface{}) (i float64, err error) {
 	return
 }
 
-// Float32 转为float32
+// Float32 converts a value to float32.
 func Float32(p interface{}) (i float32, err error) {
 	switch v := p.(type) {
 	case int:
@@ -510,7 +510,7 @@ func Float32(p interface{}) (i float32, err error) {
 	return
 }
 
-// IsEmpty 是否有空字符串
+// IsEmpty reports whether any of the strings is empty.
 func IsEmpty(strs ...string) bool {
 	for _, str := range strs {
 		if str == "" {
@@ -662,10 +662,10 @@ func StackTrace(all bool) string {
 	return string(buf)
 }
 
-// StructCopier struct结构拷贝
+// StructCopier copies values between structs.
 type StructCopier func(from interface{}, to interface{}) (err error)
 
-// NewStructCopier 拷贝
+// NewStructCopier creates a struct copier.
 func NewStructCopier(from interface{}, to interface{}) (copier StructCopier, err error) {
 	if from == nil || to == nil {
 		err = errors.New("from and to must not be nil")
@@ -795,7 +795,7 @@ type emptySliceInterface struct {
 	word *reflect.SliceHeader
 }
 
-// IsValNil 检查v的值是不是nil
+// IsValNil reports whether v is nil.
 func IsValNil(v interface{}) bool {
 	if v == nil {
 		return true
@@ -820,7 +820,7 @@ func IsValNil(v interface{}) bool {
 // IntSlice int slice
 type IntSlice []int
 
-// ToInterface 转为interface slice
+// ToInterface converts values to an interface slice.
 func (p IntSlice) ToInterface() []interface{} {
 	if len(p) == 0 {
 		return nil
@@ -839,7 +839,7 @@ func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // Int64Slice int64 slice
 type Int64Slice []int64
 
-// ToInterface 转为interface slice
+// ToInterface converts values to an interface slice.
 func (p Int64Slice) ToInterface() []interface{} {
 	if len(p) == 0 {
 		return nil
@@ -858,7 +858,7 @@ func (p Int64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 // Int32Slice int32 slice
 type Int32Slice []int32
 
-// ToInterface 转为interface slice
+// ToInterface converts values to an interface slice.
 func (p Int32Slice) ToInterface() []interface{} {
 	if len(p) == 0 {
 		return nil

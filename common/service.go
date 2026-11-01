@@ -6,23 +6,23 @@ import (
 	"sync"
 )
 
-// ServiceState 表示服务的状态
+// ServiceState represents a service lifecycle state.
 type ServiceState uint32
 
 const (
-	// NEW 新建``
+	// NEW indicates that the service has been created.
 	NEW ServiceState = iota
-	// INITED 初始化完毕
+	// INITED indicates that initialization completed.
 	INITED
-	// STARTING 正在启动
+	// STARTING indicates that the service is starting.
 	STARTING
-	// RUNNING 正在运行
+	// RUNNING indicates that the service is running.
 	RUNNING
-	// STOPPING 正在停止
+	// STOPPING indicates that the service is stopping.
 	STOPPING
-	// TERMINATED 已经停止
+	// TERMINATED indicates that the service has stopped.
 	TERMINATED
-	// FAILED 失败
+	// FAILED indicates that a service operation failed.
 	FAILED
 )
 
@@ -49,7 +49,7 @@ var validStateState = map[ServiceState][]ServiceState{
 	FAILED:     {},
 }
 
-// IsValidServiceState 检查ServiceState的状态转移是否有效
+// IsValidServiceState reports whether a service state transition is valid.
 func IsValidServiceState(oldState ServiceState, newState ServiceState) bool {
 	if targetStates, ok := validStateState[oldState]; ok {
 		for _, targetState := range targetStates {
@@ -61,32 +61,32 @@ func IsValidServiceState(oldState ServiceState, newState ServiceState) bool {
 	return false
 }
 
-// Initable 表示需要进行初始化
+// Initable defines an instance that requires initialization.
 type Initable interface {
-	// Init 执行初始化操作,如果初始化失败,返回错误的原因
+	// Init initializes the instance and returns an error on failure.
 	Init() error
 }
 
-// Service 统一的服务接口
+// Service defines the service lifecycle interface.
 type Service interface {
 	Initable
-	// Name 取得服务名称
+	// Name returns the service name.
 	Name() string
-	// Start 启动服务
+	// Start starts the services.
 	Start() bool
-	// 启动的次序
+	// GetStartOrder returns the startup order.
 	GetStartOrder() int
-	// Stop 停止服务
+	// Stop stops the services.
 	Stop() bool
-	// 停止的次序
+	// GetStopOrder returns the shutdown order.
 	GetStopOrder() int
-	// State 服务的状态
+	// State returns the service state.
 	State() ServiceState
-	// SetState 设置服务的状态
+	// setState updates the service state.
 	setState(newState ServiceState) bool
 }
 
-// ServiceInit 初始化服务
+// ServiceInit initializes a service and updates its state.
 func ServiceInit(service Service) bool {
 	if service.State() == INITED {
 		Infof("%s has been inited,skip", service)
@@ -102,7 +102,7 @@ func ServiceInit(service Service) bool {
 	return false
 }
 
-// ServiceStart 开始服务
+// ServiceStart starts a service and updates its state.
 func ServiceStart(service Service) bool {
 	name := ServiceName(service)
 	service.setState(STARTING)
@@ -114,7 +114,7 @@ func ServiceStart(service Service) bool {
 	return false
 }
 
-// ServiceStop 停止服务
+// ServiceStop stops a service and updates its state.
 func ServiceStop(service Service) bool {
 	name := ServiceName(service)
 	service.setState(STOPPING)
@@ -126,45 +126,45 @@ func ServiceStop(service Service) bool {
 	return false
 }
 
-// BaseService 提供基本的Service接口实现
+// BaseService provides a basic Service implementation.
 type BaseService struct {
-	SName     string //服务的名称
+	SName     string // Service name.
 	Order     int
-	state     ServiceState //服务的状态
-	stateLock sync.RWMutex //读写锁
+	state     ServiceState // Service state.
+	stateLock sync.RWMutex // Read/write lock.
 }
 
-// Name 服务名称
+// Name returns the service name.
 func (p *BaseService) Name() string {
 	return p.SName
 }
 
-// Init 初始化
+// Init initializes the service.
 func (p *BaseService) Init() error {
 	return nil
 }
 
-// Start 启动服务
+// Start starts the services.
 func (p *BaseService) Start() bool {
 	return true
 }
 
-// GetStartOrder 启动服务
+// GetStartOrder returns the service startup order.
 func (p *BaseService) GetStartOrder() int {
 	return p.Order
 }
 
-// Stop 停止服务
+// Stop stops the services.
 func (p *BaseService) Stop() bool {
 	return true
 }
 
-// GetStopOrder 停止服务
+// GetStopOrder returns the service shutdown order.
 func (p *BaseService) GetStopOrder() int {
 	return -p.GetStartOrder()
 }
 
-// State 取得服务的状态
+// State returns the service state.
 func (p *BaseService) State() ServiceState {
 	p.stateLock.RLock()
 	defer p.stateLock.RUnlock()
@@ -182,7 +182,7 @@ func (p *BaseService) setState(newState ServiceState) bool {
 	return false
 }
 
-// ServiceName 取得服务的名称
+// ServiceName returns the service type and optional name.
 func ServiceName(service Service) string {
 	name := fmt.Sprintf("%T", service)
 	if service.Name() != "" {
@@ -191,14 +191,14 @@ func ServiceName(service Service) string {
 	return name
 }
 
-// Services 一组Service的集合
+// Services is an ordered collection of services.
 type Services struct {
-	sorted []Service //排序后的服务集合
+	sorted []Service // Sorted services.
 }
 
-// NewServices 构建新的Service集合
+// NewServices creates a service collection sorted for startup or shutdown.
 func NewServices(services []Service, start bool) *Services {
-	//排序
+	// Sort the services.
 	var sorted = make([]Service, len(services))
 	copy(sorted, services)
 	sort.Slice(sorted, func(i, j int) bool {
@@ -210,7 +210,7 @@ func NewServices(services []Service, start bool) *Services {
 	return &Services{sorted: sorted}
 }
 
-// Init 初始化服务集合
+// Init initializes the services.
 func (p *Services) Init() bool {
 	for _, service := range p.sorted {
 		if !ServiceInit(service) {
@@ -221,7 +221,7 @@ func (p *Services) Init() bool {
 	return true
 }
 
-// Start 启动服务
+// Start starts the services.
 func (p *Services) Start() bool {
 	for _, service := range p.sorted {
 		name := ServiceName(service)
@@ -233,13 +233,15 @@ func (p *Services) Start() bool {
 	return true
 }
 
-// Stop 停止服务
+// Stop stops the services.
 func (p *Services) Stop() bool {
+	ok := true
 	for _, service := range p.sorted {
 		name := ServiceName(service)
 		if !ServiceStop(service) {
 			Warnf("stop %s fail", name)
+			ok = false
 		}
 	}
-	return true
+	return ok
 }

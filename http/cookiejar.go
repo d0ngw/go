@@ -9,14 +9,14 @@ import (
 	c "github.com/d0ngw/go/common"
 )
 
-// RetrivedCookieJar 可持久化的Cookie
+// RetrivedCookieJar stores cookies that can be retrieved for persistence.
 type RetrivedCookieJar struct {
 	jar        *cookiejar.Jar
 	urlCookies map[string][]*http.Cookie
 	mu         sync.Mutex
 }
 
-// NewRetrivedCookieJar 构建PersistCookieJar
+// NewRetrivedCookieJar creates a cookie jar.
 func NewRetrivedCookieJar(o *cookiejar.Options) *RetrivedCookieJar {
 	jar, _ := cookiejar.New(o)
 	return &RetrivedCookieJar{
@@ -41,7 +41,7 @@ func (p *RetrivedCookieJar) Cookies(u *url.URL) []*http.Cookie {
 	return p.jar.Cookies(u)
 }
 
-// URLAndCookies 取得所有的URL和Cookie
+// URLAndCookies returns all stored URLs and cookies.
 func (p *RetrivedCookieJar) URLAndCookies() map[string][]*http.Cookie {
 	all := map[string][]*http.Cookie{}
 	p.mu.Lock()
@@ -52,7 +52,7 @@ func (p *RetrivedCookieJar) URLAndCookies() map[string][]*http.Cookie {
 	return all
 }
 
-// SetURLAndCookies 设置所有的URL和Cookie
+// SetURLAndCookies restores URLs and cookies.
 func (p *RetrivedCookieJar) SetURLAndCookies(all map[string][]*http.Cookie) error {
 	if all == nil {
 		return nil

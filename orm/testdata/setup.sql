@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `user_0` (
     `id` bigint(20) NOT NULL AUTO_INCREMENT,
     `name` varchar(64)  DEFAULT NULL,
     `age` bigint(20) NOT NULL DEFAULT 0,
-    `birthday` DATE  COMMENT '生日',
+    `birthday` DATE  COMMENT 'Birthday',
     PRIMARY KEY (`id`)) 
     ENGINE=InnoDB DEFAULT CHARSET=utf8;
 --
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `user_1` (
     `id` bigint(20) NOT NULL AUTO_INCREMENT,
     `name` varchar(64)  DEFAULT NULL,
     `age` bigint(20) NOT NULL DEFAULT 0,
-    `birthday` DATE  COMMENT '生日',
+    `birthday` DATE  COMMENT 'Birthday',
     PRIMARY KEY (`id`)) 
     ENGINE=InnoDB DEFAULT CHARSET=utf8;
 --
@@ -44,6 +44,6 @@ CREATE TABLE IF NOT EXISTS `user_2` (
     `id` bigint(20) NOT NULL AUTO_INCREMENT,
     `name` varchar(64)  DEFAULT NULL,
     `age` bigint(20) NOT NULL DEFAULT 0,
-    `birthday` DATE  COMMENT '生日',
+    `birthday` DATE  COMMENT 'Birthday',
     PRIMARY KEY (`id`)) 
     ENGINE=InnoDB DEFAULT CHARSET=utf8;
