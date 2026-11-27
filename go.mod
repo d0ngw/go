@@ -5,13 +5,13 @@ go 1.26.0
 toolchain go1.26.10
 
 require (
-	github.com/go-sql-driver/mysql v1.10.1
+	github.com/go-sql-driver/mysql v1.10.2
 	github.com/gomodule/redigo v1.9.3
 	github.com/json-iterator/go v1.1.12
 	github.com/stretchr/testify v1.12.1
 	github.com/ugorji/go/codec v1.3.2
 	go.uber.org/zap v1.28.0
-	golang.org/x/net v0.62.0
+	golang.org/x/net v0.63.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 )
